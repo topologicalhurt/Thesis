@@ -34,7 +34,7 @@ ___
 ___
 ### _Connections_ (Buses, 'Routing matrices', Pipes, AXI etc...)
 
-> [Audio ensemble cores](#audio-ensemble-cores) need to communicate with each other, the off-FPGA infrastructure (_I.e. See: [Zynq Z-2 docs](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/695/DFR0600_Web.pdf)_ & additionally need to frequently report their status or have their state piped into other elements or access shared pools of memory like when doing sampling or granular synthesis.
+> [Audio ensemble cores](#audio-ensemble-cores) need to communicate with each other, the off-FPGA infrastructure (_I.e. See: [Pynq Z-2 docs](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/695/DFR0600_Web.pdf)_ & additionally need to frequently report their status or have their state piped into other elements or access shared pools of memory like when doing sampling or granular synthesis.
 
 > [!NOTE]
 > There is some notable overlap here with _Deferred analysis_. That is, elements that are used in connective paths are not mutually exclusive with other elements, particularly those that have a role in deciding the footprint of the fabric. The routing matrix, for instance, is a state based input into the [allocator algorithms](#software--allocator-based-system-architecture-overview)
@@ -68,7 +68,7 @@ ___
 
 ## Software / Allocator based system architecture overview
 
-The ZYNQ-Z2 platform includes ```Dual arm A9 cores @ 650MHz``` which allow for possibilites that would either require for the FPGA to implement an expensive (& frankly unaffordable) soft core (I.e. micro-blitz, custom core). Tasks that should be run on these cores include:
+The ```PYNQ-Z2``` platform includes ```Dual arm A9 cores @ 650MHz``` which allow for possibilites that would either require for the FPGA to implement an expensive _(& frankly unaffordable)_ soft core (I.e. micro-blitz, custom core). Tasks that should be run on these cores include:
 
 * _RTOS_ or lightweight _OS_: self-explanitory. Both cores are required to implement operations that require either an RTOS or OS. I.e. to run the Allocator, serve content through the exposed _UI_ Etc...
 * _Allocator_: analysis of the fabric is constantly being performed so that resources can be intelligently allocated between & within ensemble cores; a low-latency overhead environment for audio can be maintained.
