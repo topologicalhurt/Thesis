@@ -57,7 +57,7 @@ ___
 
 > Coherent audio platforms greatly benefit from filtering, mixing, multi-track recording, stereo & mono output Etc. these are regarded as neccessery convenience functions to the user. The idea is to make this system as modular & extensible as possible so that the partially reconfigurable part of the design is a purely intermediate step:
 
-![FPGA IO overview diagram]()
+![FPGA IO overview diagram](docs/imgs/IOOverview.svg)
 
 > * FIR taps
 > * Filters of arbitrary poles
