@@ -4,7 +4,6 @@ import math
 import numpy as np
 import itertools
 from scipy.spatial import ConvexHull, Delaunay
-from rtree import index
 
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), 'Src'))
@@ -50,7 +49,7 @@ class FindHMetric():
             vectors = simplex_points[1:] - simplex_points[0]
             vol = abs(np.linalg.det(vectors)) / math.factorial(self.points.shape[0])
             self.volumes.append(vol)
-        
+
         [self.point_contributions, self.total_volume] = self.distribute_hull_volume()
 
     def distribute_hull_volume(self):
@@ -61,36 +60,36 @@ class FindHMetric():
         total_hull_volume = self.hull.volume
         n_points = len(self.points)
         point_contributions = np.zeros(n_points)
-        
+
         # Count participation of each point
         point_participation = np.zeros(n_points)
         for simplex in self.delaunay.simplices:
             for idx in simplex:
                 point_participation[idx] += 1
-        
+
         for i, simplex in enumerate(self.delaunay.simplices):
             tetra_volume = self.volumes[i]
-            
+
             # Distribute volume inversely proportional to point participation count
             # Points that participate in fewer tetrahedra are more critical
             for idx in simplex:
                 weight = 1.0 / point_participation[idx]
                 point_contributions[idx] += weight * tetra_volume
-        
+
         # Normalize to the total hull volume
         point_contributions = point_contributions / np.sum(point_contributions) * total_hull_volume
-        
+
         return point_contributions, total_hull_volume
 
     def find_top_volume_contributors(self, n='all'):
         """
         Find the n points that contribute most to the convex hull volume.
-        
+
         Args:
             points: numpy array of shape (num_points, dimension)
             n: number of top contributing points to return
             surface_only: determines if only points on surface of convex hull considered
-        
+
         Returns:
             indices of the n most important points, sorted by contribution
         """
@@ -105,7 +104,7 @@ class FindHMetric():
                 tri = Tri(self.points[simplice])
                 if p in tri:
                     volumes_without_point -= self.volumes[i]
-    
+
         # Calculate volume contribution of each point
         volume_contributions = self.hull.volume - volumes_without_point
         n = min(n, n_points)
@@ -120,12 +119,12 @@ class FindHMetric():
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
         if self.points.shape[1] != 3:
-            raise ValueError("This visualization only works with 3D points")
-        
+            raise ValueError('This visualization only works with 3D points')
+
         # Set up the figure
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection='3d')
-        
+
         # Plot the convex hull wireframe
         for simplex in self.hull.simplices:
             hull_points = self.points[simplex]
@@ -135,14 +134,14 @@ class FindHMetric():
                 hull_points[[0, 1, 2, 0], 2],
                 'red', linewidth=2
             )
-        
+
         # Generate unique colors for each tetrahedron
         cmap = plt.cm.get_cmap('viridis', len(self.delaunay.simplices))
-        
+
         # Plot each tetrahedron with a different color
         for i, simplex in enumerate(self.delaunay.simplices):
             tetra_points = self.points[simplex]
-            
+
             # I.e. Arrange as tetrahedron C0: 0 0 0 1, C1: 1 1 2 2, C2: 2 3 3 3
             face_indices = np.array(
                 list(itertools.combinations(
@@ -150,18 +149,18 @@ class FindHMetric():
                 )
             )
             faces = [[tetra_points[i] for i in ro] for ro in face_indices]
-            
+
             # Add each tetrahedron as a transparent colored surface
             tetra = Poly3DCollection(faces, alpha=0.2)
             tetra.set_color(cmap(i))
             ax.add_collection3d(tetra)
-            
+
             # Display volume percentage for larger tetrahedra
             if self.volumes[i] / self.total_volume > 0.05:
                 centroid = np.mean(tetra_points, axis=0)
-                ax.text(centroid[0], centroid[1], centroid[2], 
+                ax.text(centroid[0], centroid[1], centroid[2],
                     f'{self.volumes[i] / self.total_volume*100:.1f}%', size=8)
-        
+
         # Plot the points with size proportional to their volume contribution
         max_contrib = np.max(self.point_contributions)
         sizes = 1000 * (self.point_contributions / max_contrib)
@@ -170,7 +169,7 @@ class FindHMetric():
             c=self.point_contributions, s=sizes, cmap='plasma',
             alpha=0.7, edgecolors='black'
         )
-        
+
         # Calculate and display sum verification
         contribution_sum = np.sum(self.point_contributions)
         stats = (
@@ -179,9 +178,9 @@ class FindHMetric():
             f'Verification Ratio: {contribution_sum / self.total_volume:.6f}\n'
             f'Points: {len(self.points)}, Tetrahedra: {len(self.delaunay.simplices)}'
         )
-        ax.text2D(0.05, 0.95, stats, transform=ax.transAxes, 
+        ax.text2D(0.05, 0.95, stats, transform=ax.transAxes,
                 fontsize=10, bbox=dict(facecolor='white', alpha=0.7))
-        
+
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
@@ -190,10 +189,10 @@ class FindHMetric():
 
         cbar = fig.colorbar(scatter, ax=ax, shrink=0.6)
         cbar.set_label('Volume Contribution')
-        
+
         if save_path is not None:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        
+
         plt.tight_layout()
         plt.show()
 

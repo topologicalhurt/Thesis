@@ -1,23 +1,29 @@
 name: Pylint
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build:
+  ruff:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4
+    - uses: astral-sh/ruff-action@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install pylint
-    - name: Analysing the code with pylint
+        python3 -m pip install --upgrade pip
+        pip3 install ruff
+    - name: Analysing the code with ruff
       run: |
-        pylint $(git ls-files '*.py')
+        TARGETS=$(git ls-files '*.py')
+        AUTO_FIX=0
+        if [$"AUTO_FIX" -eq 1]; then
+          ruff check --fix TARGETS
+        fi
+        ruff check $TARGETS --output-format=github
