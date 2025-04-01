@@ -9,7 +9,7 @@ repos:
 
       - id: ruff
         name: ruff
-        entry: /bin/bash -c "ruff check --fix $(git ls-files '*.py')"
+        entry: /bin/bash -c "source .venv/bin/activate && ruff check --fix $(git ls-files '*.py')"
         language: script
         pass_filenames: false
 

@@ -3,4 +3,5 @@ filelock==3.18.0
 numpy==2.2.4
 platformdirs==4.3.7
 PyYAML==6.0.2
+ruff==0.11.2
 scipy==1.15.2
