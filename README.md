@@ -2,7 +2,7 @@
 
 LLAC started as a research project for low-latency user defined audio cores. It targets the AMD [Xilinx](https://github.com/xilinx) platform, specifically the [PYNQ](https://github.com/Xilinx/PYNQ) platform. The project has the following goals:
 
-1. **Allow for highly parallel** FX, synthesis, mixing, filtering etc... possibilities that exploit superior multi-channel proccessing capabilities offered by FPGA's
+1. **Allow for highly parallel** FX, synthesis, mixing, filtering etc... possibilities that exploit superior multi-channel processing capabilities offered by FPGA's
 2. **Minimise latency** as much as possible
 3. **Replicate modern audio synthesis hardware as much as possible** (specifically, in regard to the fact that both latency & the simulated behaviour of circuits should be as close to their hardware siblings as possible, just in the form of a low-level RTL system rather than an ASIC)
 4. **Allow for extensible IO options**
@@ -16,7 +16,7 @@ Because the aforementioned goals have such good synergy & parity with an FPGA ba
 
 ___
 ### _Static_ hardware elements
-> Of course, every part of the fabric has to be dynamic. It might be that a element / component should never have a reason to be touched by partial reconfiguration because it would break the processing chain. 
+> Of course, every part of the fabric has to be dynamic. It might be that a element / component should never have a reason to be touched by partial reconfiguration because it would break the processing chain.
 
 > Typically either:
 > * Frequently called elements
@@ -48,7 +48,7 @@ ___
 ___
 ### _Deferred analysis_ components
 
-> These are components that collect metrics or information about the system as it runs. For instance, one of the most essential metrics is how many times (how frequently) a user-defined module calls each other relevant module so that the Allocator can intelligently decide on how to better re-build, re-route & re-use the user-core.
+> These are components that collect metrics or information about the system as it runs. For instance, one of the most essential metrics is how many times (how frequently) a user-defined module calls each other relevant module so that the Allocator can intelligently decide on how to better re-build, re-route & reuse the user-core.
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 ## Software / Allocator based system architecture overview
 
-The ```PYNQ-Z2``` platform includes ```Dual arm A9 cores @ 650MHz``` which allow for possibilites that would either require for the FPGA to implement an expensive _(& frankly unaffordable)_ soft core (I.e. micro-blitz, custom core). Tasks that should be run on these cores include:
+The ```PYNQ-Z2``` platform includes ```Dual arm A9 cores @ 650MHz``` which allow for possibilities that would either require for the FPGA to implement an expensive _(& frankly unaffordable)_ soft core (I.e. micro-blitz, custom core). Tasks that should be run on these cores include:
 
 * _RTOS_ or lightweight _OS_: self-explanitory. Both cores are required to implement operations that require either an RTOS or OS. I.e. to run the Allocator, serve content through the exposed _UI_ Etc...
 * _Allocator_: analysis of the fabric is constantly being performed so that resources can be intelligently allocated between & within ensemble cores; a low-latency overhead environment for audio can be maintained.
@@ -82,7 +82,7 @@ ___
 
 > ECDL is a high-level common language that the end-user deploys to control the audio ensemble cores
 
-> * Create a common descriptor and/or template level description of the desired proccessing chain
+> * Create a common descriptor and/or template level description of the desired processing chain
 > * Hook-in callback or script functions to be executed on the arm cores on defined events
 > * Translate the descriptor language into HDL (system verilog) & then a bitstream
 
@@ -97,5 +97,5 @@ ___
 | ECDL | Translates high-level user description into fabric design, sys-calls & API calls | Y | Ongoing | Priority | High |
 | Improve fabric footprint, Allocator translation | Minimise the fabric footprint & make the allocator better at optimising / translating resource division | Y | Ongoing | Priority | Very High |
 | Translate Allocator to Rust | The Allocator currently runs in ```analysis``` mode which means it uses the python interpreter & Pynq bindings for debug purposes. Ideally, the Allocator should run in a more performant, but memory-safe, language like Rust. | N | Once | Medium | Medium |
-| Overload / 'swap' to software based implementation if the space avaliable on the fabric is exceeded | If the FPGA doesn't have enough resources, 'intelligently' offload work from the FPGA to a software based implementation | N | Once | Low | High
+| Overload / 'swap' to software based implementation if the space available on the fabric is exceeded | If the FPGA doesn't have enough resources, 'intelligently' offload work from the FPGA to a software based implementation | N | Once | Low | High
 | Dynamic recompilation of code | What the allocator does for the FPGA system architecture (I.e. optimising space, resource allocation, RTL design, FSM's) should be taken even further by re-compiling the code (I.e. decomposing it into less complex actions or microcode) based on FPGA runtime information | N | Once | Low | Very High
