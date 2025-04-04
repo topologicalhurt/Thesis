@@ -65,7 +65,7 @@ esac
       distro="$(lsb_release -d | sed -r 's/^Description:\s*//')"
       distro_n="$(echo "${distro}" | grep -oP "^\w+")"
       distro_con=($distro_n "$(echo "${distro}" | sed -r "s/^${distro_n}\s*//")")
-      echo "Targeting distribution: ${distro_con[0]}"
+      echo "Targeting linux distro: ${distro_con[0]}"
 
       case "${distro}" in
         Debian* | Ubuntu*)
@@ -79,6 +79,7 @@ esac
       esac
       ;;
     "Mac")
+      echo "Targeting MacOS / Darwin platform"
       sudo chown -R "$(whoami)" "$HOME/Library/Application Support/virtualenv"
       ;;
   esac
