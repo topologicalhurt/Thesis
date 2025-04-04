@@ -85,6 +85,15 @@ esac
   esac
 }
 
+#######
+# GIT #
+#######
+
+[ -d "$PWD/submodules" ] || {
+  mkdir -p "$PWD/submodules"
+  git submodule update --init --remote
+}
+
 ###################
 # Github Workflow #
 ###################

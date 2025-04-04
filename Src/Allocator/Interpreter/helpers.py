@@ -1,5 +1,6 @@
 import argparse as ap
 
+
 def str2bool(v) -> bool:
     if isinstance(v, bool):
         return v
