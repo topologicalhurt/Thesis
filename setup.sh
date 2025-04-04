@@ -74,6 +74,8 @@ esac
           sudo apt -y -q update > /dev/null 2>&1 && sudo apt -y upgrade > /dev/null 2>&1
           set -e
 
+          sudo apt-get -y -q install help2man perl python3 make autoconf g++ flex bison ccache \
+          libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlibc zlib1g zlib1g-dev > /dev/null
           sudo apt -y -q install python3.11-venv python3-pip > /dev/null
           ;;
       esac
@@ -89,9 +91,17 @@ esac
 # GIT #
 #######
 
-[ -d "$PWD/submodules" ] || {
+[ ! -d "$PWD/submodules" ] || [ "$paramForce" -eq 1 ] || {
   mkdir -p "$PWD/submodules"
-  git submodule update --init --remote
+  # git submodule update --init --remote
+
+  # Setup verilator
+  # unset VERILATOR_ROOT
+  # cd "$PWD/submodules/verilator" || exit 1
+  # autoconf
+  # ./configure
+  # make -j `nproc`
+  # sudo make install
 }
 
 ###################

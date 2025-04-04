@@ -45,9 +45,20 @@ repos:
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
-    -   id: codespell
-        name: codespell
-        description: Checks for common misspellings in text files.
-        entry: .github/hooks/pre-commit/codespell.sh
-        language: python
-        types: [text]
+    - id: codespell
+      name: codespell
+      description: Checks for common misspellings in text files.
+      entry: .github/hooks/pre-commit/codespell.sh
+      language: python
+      types: [text]
+
+  # - repo: https://github.com/verilator/verilator
+  #   rev: v5.026
+  #   hooks:
+  #   - id: verilator
+  #     name: verilator-lint
+  #     description: Runs verilator Docker image to lint (System) Verilog designs
+  #     args: [--lint-only]
+  #     language: docker_image
+  #     entry: verilator/verilator:latest
+  #     types_or: [verilog, system-verilog]
