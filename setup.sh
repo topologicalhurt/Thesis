@@ -16,7 +16,8 @@ while [[ $# -gt 0 ]]; do
    case "$1" in
       --force ) paramForce=1
       shift;;
-      --dev-tools ) installDevTools=1 ;;
+      --extra-dev-tools ) installDevTools=1
+      shift;;
       --help ) helpFunction ;;
       *) helpFunction ;;
    esac
@@ -42,6 +43,7 @@ exit 1
   git config --global --add safe.directory "$PWD"
   sudo chmod 777 "$PWD/.github/hooks/run_hooks.sh"
   find "$PWD/.github/hooks/" -type d -exec sudo chmod -R 777 {} \;
+  sudo chmod 644 "$PWD/.github/hooks/.pre-commit-config.yaml"
 }
 
 ###############
@@ -69,6 +71,7 @@ esac
 
       case "${distro}" in
         Debian* | Ubuntu*)
+
           # Attempt to automatically update package manager ~ no promises
           set +e
           sudo apt -y -q update > /dev/null 2>&1 && sudo apt -y upgrade > /dev/null 2>&1
@@ -91,17 +94,21 @@ esac
 # GIT #
 #######
 
-[ ! -d "$PWD/submodules" ] || [ "$paramForce" -eq 1 ] || {
+[ ! -d "$PWD/submodules" ] || [ "$paramForce" -eq 1  ] || {
   mkdir -p "$PWD/submodules"
-  # git submodule update --init --remote
+  git submodule update --init --remote
 
-  # Setup verilator
-  # unset VERILATOR_ROOT
-  # cd "$PWD/submodules/verilator" || exit 1
-  # autoconf
-  # ./configure
-  # make -j `nproc`
-  # sudo make install
+  [ "$installDevTool" -eq 1 ] || {
+    Setup verilator
+    unset VERILATOR_ROOT
+    cd "$PWD/submodules/verilator" || exit 1
+    autoconf
+    ./configure
+    make -j `nproc`
+    sudo make install
+    mkdir -p "$PWD/bin/verilator" && \
+    cp -r "$PWD/submodules/verilator/bin/" "$PWD/bin/verilator"
+  }
 }
 
 ###################

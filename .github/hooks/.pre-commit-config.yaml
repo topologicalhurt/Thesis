@@ -13,6 +13,15 @@ repos:
         language: script
         pass_filenames: false
 
+      - id: verilator-lint
+        name: verilator-lint
+        description: Runs verilator to lint (System) Verilog designs
+        entry: /bin/bash -c './bin/verilator/verilator --lint-only "../../../Src/RTL"' --
+        language: system
+        files: '\.(sv|v|svh|vh)$'
+        types_or: [verilog, system-verilog]
+        pass_filenames: true
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
     hooks:
@@ -51,14 +60,3 @@ repos:
       entry: .github/hooks/pre-commit/codespell.sh
       language: python
       types: [text]
-
-  # - repo: https://github.com/verilator/verilator
-  #   rev: v5.026
-  #   hooks:
-  #   - id: verilator
-  #     name: verilator-lint
-  #     description: Runs verilator Docker image to lint (System) Verilog designs
-  #     args: [--lint-only]
-  #     language: docker_image
-  #     entry: verilator/verilator:latest
-  #     types_or: [verilog, system-verilog]
