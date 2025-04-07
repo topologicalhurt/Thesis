@@ -10,6 +10,13 @@ module llac_audio_system_top #(
     input  logic        clk_audio,    // Audio clock (typically 24.576MHz for 48kHz)
     input  logic        resetn,       // Active low reset
 
+    // Audio core bus signals
+    input logic [NUM_CORES-1:0]       core_pause,
+    input logic [NUM_CORES-1:0]       core_stop,
+    input logic [NUM_CORES-1:0]       core_resume,
+    input logic [NUM_CORES-1:0]       core_status,
+    input logic [NUM_CORES-1:0]       core_interrupt,
+
     // AXI4 memory interface for DRAM
     // Write Address Channel
     output logic [AXI_ID_WIDTH-1:0]        m_axi_awid,
@@ -101,13 +108,6 @@ module llac_audio_system_top #(
     // Local parameters
     localparam int CORE_ID_WIDTH = $clog2(NUM_CORES);
 
-    // Internal signals
-    logic [NUM_CORES-1:0]       core_pause;
-    logic [NUM_CORES-1:0]       core_stop;
-    logic [NUM_CORES-1:0]       core_resume;
-    logic [NUM_CORES-1:0]       core_status;
-    logic [NUM_CORES-1:0]       core_interrupt;
-
     // Audio data signals
     logic [AUDIO_WIDTH-1:0]     audio_left_in;
     logic [AUDIO_WIDTH-1:0]     audio_right_in;
@@ -174,8 +174,6 @@ module llac_audio_system_top #(
 
         // Output valid signal
         .sample_valid(audio_valid_in)
-
-        // Audio channel outputs defined in i2s_duplicate_register.svh included
     );
 
     // Main system interface for control and memory access
@@ -274,7 +272,7 @@ module llac_audio_system_top #(
     // In a real implementation, these would be the dynamically reconfigurable audio cores
     // For simplicity, this example just has some placeholders
 
-    // Simple passthrough for audio data
+    // Passthrough
     always_ff @(posedge clk_100mhz or negedge resetn) begin
         if (!resetn) begin
             audio_left_out <= '0;
@@ -287,8 +285,8 @@ module llac_audio_system_top #(
             if (audio_valid_in && audio_ready_out) begin
                 // Extract input from first audio channel
                 // In real implementation, this would go through the ensemble cores
-                audio_left_out <= audio_left_1;  // From audio_processor's generated registers
-                audio_right_out <= audio_right_1;
+                audio_left_out <= audio_left_out[0];
+                audio_right_out <= audio_right_out[0];
                 audio_valid_out <= 1'b1;
 
                 // Signal that core is active

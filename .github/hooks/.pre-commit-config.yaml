@@ -15,12 +15,11 @@ repos:
 
       - id: verilator-lint
         name: verilator-lint
-        description: Runs verilator to lint (System) Verilog designs
-        entry: /bin/bash -c './bin/verilator/verilator --lint-only "../../../Src/RTL"' --
-        language: system
-        files: '\.(sv|v|svh|vh)$'
-        types_or: [verilog, system-verilog]
-        pass_filenames: true
+        description: Runs verilator to lint System Verilog designs
+        entry: .github/hooks/pre-commit/verilator.sh
+        language: script
+        pass_filenames: false
+        verbose: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0

@@ -1,6 +1,8 @@
 `ifndef AXI_INTERRUPT_DEFS_SVH
 `define AXI_INTERRUPT_DEFS_SVH
 
+`include "Src/RTL/Static/Comms/core_status.svh"
+
 // Interrupt types
 typedef enum int {
     INT_CORE_DONE        = 0,  // Audio core processing completed
@@ -12,14 +14,6 @@ typedef enum int {
     INT_TEMP_WARNING     = 6,  // Temperature warning
     INT_SOFT_INT         = 7   // Software-triggered interrupt
 } interrupt_type_t;
-
-// Core status
-typedef enum logic [1:0] {
-    CORE_IDLE     = 2'b00,  // Core is idle
-    CORE_BUSY     = 2'b01,  // Core is processing
-    CORE_PAUSED   = 2'b10,  // Core is paused
-    CORE_ERROR    = 2'b11   // Core has an error
-} core_status_t;
 
 // Register offsets (byte addresses for AXI4-Lite)
 localparam int INTR_REG_CTRL          = 32'h00;  // Control register

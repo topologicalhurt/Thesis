@@ -94,11 +94,11 @@ esac
 # GIT #
 #######
 
-[ ! -d "$PWD/submodules" ] || [ "$paramForce" -eq 1  ] || {
+[[ ! -d "$PWD/submodules" || "$paramForce" -eq 1 ]] && {
   mkdir -p "$PWD/submodules"
   git submodule update --init --remote
 
-  [ "$installDevTool" -eq 1 ] || {
+  [ "$installDevTool" -eq 1 ] && {
     Setup verilator
     unset VERILATOR_ROOT
     cd "$PWD/submodules/verilator" || exit 1
@@ -106,8 +106,7 @@ esac
     ./configure
     make -j `nproc`
     sudo make install
-    mkdir -p "$PWD/bin/verilator" && \
-    cp -r "$PWD/submodules/verilator/bin/" "$PWD/bin/verilator"
+    cd - || exit 1
   }
 }
 

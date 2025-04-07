@@ -1,6 +1,8 @@
 `ifndef BUS_DEFS_SVH
 `define BUS_DEFS_SVH
 
+`include "Src/RTL/Static/Comms/core_status.svh"
+
 // Instruction types for audio ensemble cores communication
 typedef enum logic [1:0] {
     HALT_PAUSE = 2'b00,  // Temporarily pause processing
@@ -8,14 +10,6 @@ typedef enum logic [1:0] {
     CONTINUE  = 2'b10,   // Resume processing after pause
     DONE      = 2'b11    // Processing completed
 } bus_instruction_t;
-
-// Core status types
-typedef enum logic [1:0] {
-    IDLE      = 2'b00,   // Core is idle, ready for new tasks
-    BUSY      = 2'b01,   // Core is currently processing
-    ERROR     = 2'b10,   // Core encountered an error
-    COMPLETE  = 2'b11    // Core has completed its task
-} core_status_t;
 
 // Function to extract destination ID for a specific core
 function automatic logic [CORE_ID_WIDTH-1:0] get_dst_id(

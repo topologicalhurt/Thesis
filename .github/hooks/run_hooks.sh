@@ -11,7 +11,7 @@ FP="$(realpath "$CDIR/$DIR")"
 
 cd "$FP" || exit 1
 
-BLACKLIST=("codespell.sh")
+BLACKLIST=("codespell.sh" "verilator.sh")
 
 for f in "$FP"/*.sh; do
   basename "$f" | grep -q -F -f <(printf "%s\n" "${BLACKLIST[@]}") && {
