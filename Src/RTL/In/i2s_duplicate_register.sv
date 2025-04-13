@@ -1,6 +1,6 @@
 module audio_processor #(
-    parameter I2S_WIDTH = 24,
-    parameter NUM_AUDIO_CHANNELS = 4
+    parameter I2S_WIDTH = 4,
+    parameter NUM_AUDIO_CHANNELS = 24
 ) (
     input  logic                sys_clk,      // System clock
     input  logic                sys_rst,      // System reset (active high)
@@ -13,8 +13,7 @@ module audio_processor #(
     output logic                sample_valid  // Pulses high for one sys_clk cycle when new samples are available
 );
 
-    `include "i2s_duplicate_register.svh"
-    `GENERATE_I2S_CHANNEL_REGS()
+    `include "Src/RTL/In/i2s_duplicate_register.svh"
 
     // I2S receiver signals
     logic [I2S_WIDTH-1:0]       shift_reg;
