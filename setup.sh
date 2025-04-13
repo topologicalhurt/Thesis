@@ -114,6 +114,8 @@ esac
 # Github Workflow #
 ###################
 
+git config --global --add --bool push.autoSetupRemote true
+
 [ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || command -v act &> /dev/null || {
   echo "Act not installed. Installing..."
   sudo curl --proto '=https' --tlsv1.2 \
