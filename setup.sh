@@ -98,7 +98,7 @@ esac
   mkdir -p "$PWD/submodules"
   git submodule update --init --remote
 
-  [ "$installDevTool" -eq 1 ] && {
+  [ "${installDevTool}" -eq 1 ] && {
     Setup verilator
     unset VERILATOR_ROOT
     cd "$PWD/submodules/verilator" || exit 1
