@@ -4,10 +4,12 @@ set -euo pipefail
 # Strip outputs from every staged .ipynb before the commit is recorded.
 notebooks=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ipynb$' || true)
 
-[ -z "$notebooks" ] && exit 0
-
+cd $(git rev-parse --show-toplevel) || exit 1
 for nb in $notebooks; do
-  [ -f "$nb" ] || continue
-  jupyter nbconvert --clear-output --inplace "$nb"
-  git add "$nb"                        # restage the cleaned notebook
+  [ ! git diff --quiet -- "$nb" ] && {
+    jupyter nbconvert --clear-output --inplace "$nb"
+    git add "$nb"
+  }
 done
+cd - >/dev/null
+exit 0
