@@ -69,3 +69,4 @@ repos:
         entry: .github/hooks/pre-commit/clean_ipynb.sh
         language: script
         pass_filenames: false
+        verbose: true
