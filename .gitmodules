@@ -1,6 +1,6 @@
-[submodule "submodules/dblclockfft"]
+[submodule "dblclockfft"]
 	path = submodules/dblclockfft
 	url = https://github.com/ZipCPU/dblclockfft
-[submodule "submodules/verilator"]
+[submodule "verilator"]
 	path = submodules/verilator
 	url = https://github.com/verilator/verilator
