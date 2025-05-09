@@ -78,8 +78,8 @@ esac
           set -e
 
           sudo apt-get -y -q install help2man perl python3 make autoconf g++ flex bison ccache \
-          libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlibc zlib1g zlib1g-dev > /dev/null
-          sudo apt -y -q install python3.11-venv python3-pip > /dev/null
+          libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlib1g zlib1g-dev \
+          python3.11-venv python3-pip > /dev/null
           ;;
       esac
       ;;
@@ -94,12 +94,21 @@ esac
 # GIT #
 #######
 
-[[ ! -d "$PWD/submodules" || "$paramForce" -eq 1 ]] && {
-  mkdir -p "$PWD/submodules"
-  git submodule update --init --remote
+clone_submodules () {
+  git config -f .gitmodules --get-regexp '^submodule\..*\.url$' |
+  while read -r key url; do
+      path=$(git config -f .gitmodules "${key/.url/.path}")
+      echo "Cloning ${url} -> ${path}"
+      git clone --recurse-submodules --depth 1 "${url}" "${path}"
+  done
+}
 
-  [ "${installDevTool}" -eq 1 ] && {
-    Setup verilator
+[[ ! -d "$PWD/submodules" || "$paramForce" -eq 1 ]] && {
+  git submodule sync --recursive
+  git submodule update --init --remote --recursive
+  clone_submodules
+
+  [ "$installDevTools" -eq 1 ] && {
     unset VERILATOR_ROOT
     cd "$PWD/submodules/verilator" || exit 1
     autoconf

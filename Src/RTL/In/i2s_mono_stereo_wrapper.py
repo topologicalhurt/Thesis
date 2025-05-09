@@ -13,9 +13,9 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from consts import LOGGER, MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
+from Allocator.Interpreter.consts import LOGGER, MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
 I2S_DUPLICATE_REGISTER_PATH
-from helpers import str2bool
+from Allocator.Interpreter.helpers import str2bool
 
 
 def main() -> None:
@@ -23,7 +23,7 @@ def main() -> None:
     parser = ap.ArgumentParser(description=__doc__.strip())
     parser.add_argument('-s', type=str2bool, default=None,
                      help='Determines if FPGA uses stereo (True) or mono (False) buffer registers for I2S In')
-    parser.add_argument('-n', type=int, default=None, 
+    parser.add_argument('-n', type=int, default=None,
                     help='')
     parser.add_argument('-aw', type=int, default=None,
                      help='The audio bit depth for each channel (recommended / default: 24bit)')
@@ -46,7 +46,7 @@ def main() -> None:
             f'The bit depth for i2s input (I.e. {args["i2sw"]} is != the bit depth of the buffer register {args["aw"]}.\n'
             'Assuming the dev knows what they\'re doing!'
         ))
-    
+
     header_args = {'s' : 'is_stereo', 'n' : 'n_audio_channels', 'aw' : 'audio_width', 'i2sw' : 'i2s_width'}
     header_template = generate_header_file(
         **{header_args[k] : v for k, v in args.items() if v is not None and k in header_args}
@@ -59,7 +59,7 @@ def main() -> None:
 
 def generate_header_file(is_stereo : bool = True, n_audio_channels: int = 4,
                          audio_width : int = 24, i2s_width : int = 24) -> str:
-    
+
     template = u"""`ifndef AUDIO_DEFS_VH
     `define AUDIO_DEFS_VH
 
@@ -134,7 +134,7 @@ always @(posedge i2s_bclk or posedge sys_rst) begin
         // Detect word select (LR clock) transition
         if (prev_lrclk != i2s_lrclk) begin
             bit_counter <= 5'b0; // Reset bit counter at each channel change
-            
+
             shift_reg <= 24'b0;  // Clear shift register for next channel
         end else begin
             // Normal bit clock - shift in data
@@ -142,17 +142,17 @@ always @(posedge i2s_bclk or posedge sys_rst) begin
             if (bit_counter > 0) begin  // First bit after WS change is skipped
                 shift_reg <= {shift_reg[22:0], i2s_data};
             end
-            
+
             if (bit_counter < 24) begin
                 bit_counter <= bit_counter + 1'b1;
             end
-            
+
             // Clear the ready flag once we start receiving new data
             if (sample_ready_i2s && bit_counter > 2) begin
                 sample_ready_i2s <= 1'b0;
             end
         end
-        
+
         prev_lrclk <= i2s_lrclk;
     end
 end
@@ -183,12 +183,12 @@ always @(posedge sys_clk or posedge sys_rst) begin
 
             // Distribute samples to all 4 parallel paths
             // SET_I2S_CHANNEL_REGS(NUM_AUDIO_CHANNELS);
-            
+
             sample_valid <= 1'b1;
         end else begin
             sample_valid <= 1'b0;
         end
-        
+
         sample_ready_sys_prev <= sample_ready_sys;
     end
 end
@@ -206,7 +206,7 @@ def _overwrite_fn(fn : str, content: str) -> None:
     with open(fn, 'w') as f:
         f.write(content)
         f.flush()
-    
+
     LOGGER.info(MONO_STEREO_WRAPPER_PREFIX.format(
         f'Write to {fn} successful'
     ))

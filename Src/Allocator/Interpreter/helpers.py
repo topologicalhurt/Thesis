@@ -1,4 +1,6 @@
+import os
 import argparse as ap
+from pathlib import Path
 
 
 def str2bool(v) -> bool:
@@ -11,6 +13,12 @@ def str2bool(v) -> bool:
         return False
     else:
         raise ap.ArgumentTypeError('Boolean value expected.')
+
+
+def str2path(v) -> Path:
+    if not os.path.isfile(v) and not os.path.isdir(v):
+        raise ap.ArgumentTypeError(f'Given path {v} does not exist')
+    return Path(v)
 
 
 def sign(a,b,c):
