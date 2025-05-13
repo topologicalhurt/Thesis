@@ -12,79 +12,85 @@ LLAC started as a research project for low-latency user defined audio cores. It 
 
 These goals are perfectly suited in-line with an FPGA platform hence the very impetus for the project.
 
+> [!WARNING]
+> This README is not a substitute for the whitepaper / thesis included under ```docs```. That is the real 'jumping off' point for the project: it's motivations, it's context, it's design & it's theoretical underpinnings. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
+
 ## FPGA based system architecture overview
 
-Because the aforementioned goals have such good synergy & parity with an FPGA based design, the broad-level hardware system architecture includes the following:
-
+Because the aforementioned goals have such good synergy & parity with an FPGA based design, it makes alot of sense to implement user-configurable DSP kernels that meet very strict timing, throughput, fidelity & scalablity requirements onto an FPGA. The following section provides a broad-level overview of the hardware architecture involved in the project.
 ___
 ### _Static_ hardware elements
-> Of course, every part of the fabric has to be dynamic. It might be that a element / component should never have a reason to be touched by partial reconfiguration because it would break the processing chain.
+> The focus of the initial research was to allow for user-configurable 'modules' called *kernels* to be dynamically configured on the fabric using a common description language. These kernels depend upon other conventional, in-built DSP modules or operations in order to function. In other words, anytime something is referred to as 'static' it is a direct shorthand for **'exists on the fabric at all times; a direct part of the system architecture.'** These parts can be categorised as falling under any combination of the following:
 
-> Typically either:
-> * Frequently called elements
-> * Necessary / expected elements
-> * Elements that are critical to the processing chain's latency or cause artefacts when removed
-> * Highly optimised or pipelined elements (I.e. in much the same way that a hot-path might have hand-rolled assembly)
-> * Elements that significantly interleave common user functions, AXI, communication protocols, IO protocols or are otherwise very in-situ because of their constant reporting
-> * Expensive, or otherwise makes little to no sense, for the component to be reconfigurable
+> * Necessary / expected elements: the configurable kernels depend upon certain axiomatic operations like trig functions, IP cores Etc.
+> * Elements that are critical to the processing chain, but might not cause it to directly fail: cause artefacts, errors or incorrectness when removed.
+> * Frequently called elements (I.e. in much the same way that a hot-path might have hand-rolled assembly, these elements are often frequently called & already optimised. They're expected to be used so often in almost any configurable kernel that they may as well just be outright included and re-referenced.)
+> * Elements that significantly interleave with communication: this could be AXI, communication protocols, IO or otherwise needed to interlink modules, report metadata Etc.
+> * Expensive, or otherwise makes little to no sense for the component to be completely reconfigurable.
 
 > [!NOTE]
-> Examples include: two-pole / second order filters, buses, typical IP cores, common user functions like FFT, common user FX 'banks' like Delay, reverb Etc.
+> Examples include: two-pole / second order filters *(I.e. necessary), truncation or readback modules *(I.e. critical to processing chain but might not be neccessary)*, mix-down operations & certain FX like delay *(I.e. frequently called)*, most typical IP cores like cordics, LUTS etc. *(I.e. significantly interleave with communication)*, functions like FFT, LAPLACE, DCT, VOLTARRE *(I.e. a combination of highly optimised, frequently called, expected, expensive or makes little sense to reconfigure)*.
 
 ___
 
 ___
 ### _Connections_ (Buses, 'Routing matrices', Pipes, AXI etc...)
 
-> [Audio ensemble cores](#audio-ensemble-cores) need to communicate with each other, the off-FPGA infrastructure (_I.e. See: [Pynq Z-2 docs](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/695/DFR0600_Web.pdf)_ & additionally need to frequently report their status or have their state piped into other elements or access shared pools of memory like when doing sampling or granular synthesis.
+> [Audio ensemble cores](#audio-ensemble-cores) (or equivalently user configurable kernels) need to communicate with each other, the on-chip or on-board infrastructure (_I.e. See: [Pynq Z-2 docs](https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/695/DFR0600_Web.pdf)_ & need to frequently report their status, accesses & other metadata needed for hardware scheduling.
 
-> [!NOTE]
-> There is some notable overlap here with _Deferred analysis_. That is, elements that are used in connective paths are not mutually exclusive with other elements, particularly those that have a role in deciding the footprint of the fabric. The routing matrix, for instance, is a state based input into the [allocator algorithms](#software--allocator-based-system-architecture-overview)
 ___
 
 ___
-### Audio _ensemble cores_
+### _User configurable kernels_ / Audio _ensemble cores_
 
-> Audio ensemble cores are the partially reconfigurable 'crux' of the project components that allow the user to combine on-fabric logic & off-fabric software based implementations into a multi-channel truly parallel effects processing environment. They are essentially the 'modules' that are slotted into by the user to allow for the experience of virtualized, swappable hardware. Kind of like if you could write multiple of your own hard-synthesizers in code and have them run in parallel.
+> *User configurable kernels*, used interchangeably with *Audio ensemble cores*, are the partially reconfigurable 'crux' of the project components that are uploaded to the board as part of the toolchain. They depend upon a netlist / heirarchy of other elements which compositely change the signal. **The very big-picture of this project is that to enable as many of these cores as possible, in a way that preserves non-linearities as best as possible AND with as strict a tolerance as possible on latency, timing & throughput as possible we have to intelligently schedule hardware.** There are essentially 4 ways of doing this:
+
+- **Predicting / anticipating the evolving demands of a signal:** (memory, time, computation requirements). By "dynamically predicting the future workload" of the signal we can more intelligently decide what type of resources it will call upon. I.e. the kernel is going to use a-lot of trig functions at a low precision but require a-lot of DSPS? Load in the LUT implementation of trig functions, rather than their polynomial DSP implementation, offseting resource usage from the DSPS and speeding up the computation.
+- **Swapping kernels via DFX:** This is implicit in the idea above. Sometimes a kernel will implement a really complex functionality that can't be loaded at once E.g. an RF power amplifier, an AMP sim, a filter ladder. Sometimes it will use one module once and never again (I.e. we could observe this by it's zero-input or impulse response.) Under these circumstances, it makes sense that we would want to swap out the module itself or dependencies of the module to reserve resources.
+- **Tricks that involve treating a composite chain as a much simpler single block or approximation:** If we have the entire time domain (sample) or know the signal transformation is steady-state or periodic over a reasonable interval then we might be able to roll a kernel described as a complex composite of blocks / dependencies into a single kernel. Wherever possible, we want to reduce the dimension & order of the implementation so-long as the isomorphic form is meets the tolerance requirements.
+- **Negotiating between kernels:** If the optimisations above fail & the head-room is needed, then we might have to sacrifice fidelity or throughput according to preference. The implementation is intelligent enough that it can settle back into a local-minima of sorts by allowing kernels to 'talk' to each other & decide what introduced errors are acceptable, at the gain of more resources.
 
 ___
 ### _Deferred analysis_ components
 
-> These are components that collect metrics or information about the system as it runs. For instance, one of the most essential metrics is how many times (how frequently) a user-defined module calls each other relevant module so that the Allocator can intelligently decide on how to better re-build, re-route & reuse the user-core.
-
+> These are components that collect metrics or information about the system as it runs. For instance, one of the most essential metrics is how many times (how frequently) a kernel calls other kernels.
 ___
 
 ___
 ### Outboard & input utilities
 
-> Coherent audio platforms greatly benefit from filtering, mixing, multi-track recording, stereo & mono output Etc. these are regarded as neccessery convenience functions to the user. The idea is to make this system as modular & extensible as possible so that the partially reconfigurable part of the design is a purely intermediate step:
+> Audio platforms greatly benefit from filtering, mixing, multi-track recording, stereo & mono output Etc. these are regarded as neccessery convenience functions to the user in this project. Another big idea is that the partially reconfigurable part of the design is a purely intermediate step (in the sense of sound synthesis being completely abstracted away from where it is input and output). In utilities &#8594; User kernels & supporting system kernels &#8594; Out utilities.
 
 ![FPGA IO overview diagram](docs/imgs/IOOverview.svg)
 
-> * FIR taps
-> * Filters of arbitrary poles
+Planned outboard utilities include:
+
+> * Amplification (class-d)
 > * Buck-boost converters / power switching
 > * Translation into USB (or other) format
+> * Translation into CODEC
 > * Signal MUXING
 ___
 
 ## Software / Allocator based system architecture overview
 
-The ```PYNQ-Z2``` platform includes ```Dual arm A9 cores @ 650MHz``` which allow for possibilities that would either require for the FPGA to implement an expensive _(& frankly unaffordable)_ soft core (I.e. micro-blitz, custom core). Tasks that should be run on these cores include:
+The ```PYNQ-Z2``` platform includes ```Dual arm A9 cores @ 650MHz``` which allows the implementation to perform tasks better suited to soft-core tasks. These include:
 
-* _RTOS_ or lightweight _OS_: self-explanitory. Both cores are required to implement operations that require either an RTOS or OS. I.e. to run the Allocator, serve content through the exposed _UI_ Etc...
-* _Allocator_: analysis of the fabric is constantly being performed so that resources can be intelligently allocated between & within ensemble cores; a low-latency overhead environment for audio can be maintained.
-* _Scripts / callbacks_: Script callbacks / event hooks can occur.
+* _RTOS_ or lightweight _OS_: Both cores are required to implement operations that require either an RTOS or OS. I.e. to run the Allocator, serve content through the exposed _UI_ Etc...
+* _Allocator_: analysis of the fabric is constantly being performed not on the FPGA itself but on soft-cores.
+* _Scripts / callbacks_: Script callbacks / event hooks can occur. I.e. kernel specifies interrupt after operation x &#8594; FPGA does operation x &#8594; Soft-core takes over &#8594; Specified script is run
+
 > [!IMPORTANT]
-> This is on the [TODO](#todos-from-research-→-production) list
-> * _Dynamic re-compilation of code_: Allow for code to be dynamically optimised based on the FPGA's runtime information
+> This is on the [TODO](#todos-from-research-→-production) list:
+> * _Dynamic re-compilation of code_: Allow for code to be dynamically optimised on the soft-core through use of JIT compiler
 
 ___
 ### ECDL (Ensemble Core Description Language)
 
-> ECDL is a high-level common language that the end-user deploys to control the audio ensemble cores
+> ECDL is a high-level common language that mixes in template language descriptions that is used to deploy & control the audio ensemble cores. The premise is:
 
-> * Create a common descriptor and/or template level description of the desired processing chain
+> * Implement logic in a HDL
+> * Include a common descriptor and/or template level description of the desired processing chain. Can reference pre-existing modules & custom HDL.
 > * Hook-in callback or script functions to be executed on the arm cores on defined events
 > * Translate the descriptor language into HDL (system verilog) & then a bitstream
 
