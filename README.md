@@ -1,14 +1,16 @@
 # LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
 
+<img width="738" alt="image" src="https://github.com/user-attachments/assets/5120e3a0-d098-4a57-b702-7936305145d4"/>
+
 LLAC started as a research project for low-latency user defined audio cores. It targets the AMD [Xilinx](https://github.com/xilinx) platform, specifically the [PYNQ](https://github.com/Xilinx/PYNQ) platform. The project has the following goals:
 
 1. **Allow for highly parallel** FX, synthesis, mixing, filtering etc... possibilities that exploit superior multi-channel processing capabilities offered by FPGA's
 2. **Minimise latency** as much as possible
-3. **Replicate modern audio synthesis hardware as much as possible** (specifically, in regard to the fact that both latency & the simulated behaviour of circuits should be as close to their hardware siblings as possible, just in the form of a low-level RTL system rather than an ASIC)
+3. **Replicate modern audio synthesis hardware as much as possible** (specifically, in regard to the fact that both latency & the simulated behaviour of circuits should be as close to their hardware siblings as possible, just in the form of a low-level RTL system rather than an ASIC or Soft Core)
 4. **Allow for extensible IO options**
-5. **Allow for the platform to be user-configurable** in a way not offered by ASIC platforms
+5. **Allow for the platform to be user-configurable** in a way not offered by un-extensible, non-reusable & non-configurable platforms.
 
-These goals are perfectly suited in-line with an FPGA platform; hence the impetus for the project.
+These goals are perfectly suited in-line with an FPGA platform hence the very impetus for the project.
 
 ## FPGA based system architecture overview
 
