@@ -138,6 +138,8 @@ git config --global --add --bool push.autoSetupRemote true
 
 . "$VENV_DIR/bin/activate" || exit 1
 
+export PYTHONDONTWRITEBYTECODE=1
+
 [ -d "$VENV_DIR" ] || {
   echo "Virtual environment not found. Creating one..."
   python3 -m venv "$VENV_DIR"
