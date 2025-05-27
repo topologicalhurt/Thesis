@@ -11,10 +11,11 @@ import argparse as ap
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from Allocator.Interpreter.consts import LOGGER, MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
+from consts import MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
 I2S_DUPLICATE_REGISTER_PATH
+from Allocator.Interpreter.consts import LOGGER
 from Allocator.Interpreter.helpers import str2bool
 
 

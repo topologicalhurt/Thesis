@@ -1,6 +1,9 @@
 # Verilator
 obj_dir
 
+# IDE
+_ide
+
 # Ignore build output directory
 /build
 /export
