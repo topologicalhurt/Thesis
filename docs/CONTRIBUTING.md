@@ -1,3 +1,9 @@
+## Project structure
+
+Everything under SRC is designed to be structured in a way that is as modular (in terms of documentation, at-least) as possible. Every folder under ```Src/RTL``` should have a README.md describing what each component does and how it is a part of the overall system architecture. Diagrams are great too!
+
+Imagine you've no idea what this project does. You should be able to naively navigate to any of the folders and see "oh so that's what this does." That's the idea at least.
+
 ## Syntax
 
 ### Python
