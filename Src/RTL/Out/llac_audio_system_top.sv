@@ -160,7 +160,7 @@ module llac_audio_system_top #(
     );
 
     // Audio input processor
-    audio_processor #(
+    buf_audio_in #(
         .I2S_WIDTH(AUDIO_WIDTH),
         .NUM_AUDIO_CHANNELS(NUM_CORES)
     ) adc_interface (

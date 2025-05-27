@@ -9,8 +9,9 @@ MONO_STEREO_WRAPPER_PREFIX='[*] MONO_STEREO_WRAPPER [*] {}'
 
 # File paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-I2S_DUPLICATE_REGISTER_HEADER_PATH = os.path.join(CURRENT_DIR, 'In', 'i2s_duplicate_register.vh')
-I2S_DUPLICATE_REGISTER_PATH = os.path.join(CURRENT_DIR, 'In', 'i2s_duplicate_register.v')
+RTL_IN_DIR = os.path.join(os.path.dirname(os.path.dirname(CURRENT_DIR)), 'RTL', 'In')
+I2S_DUPLICATE_REGISTER_HEADER_PATH = os.path.join(RTL_IN_DIR, 'buf_audio_in.svh')
+I2S_DUPLICATE_REGISTER_PATH = os.path.join(RTL_IN_DIR, 'buf_audio_in.sv')
 
 
 def set_logger_opts():
