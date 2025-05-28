@@ -12,14 +12,14 @@
     end
 `endif
 
-`ifndef READ_ENABLE
-`define READ_ENABLE \
+`ifndef adv_read_enable
+`define adv_read_enable \
     begin \
         @(negedge sys_clk); \
-        read_enable = 1'b1; \
+        adv_read_enable = 1'b1; \
         @(posedge sys_clk); \
         @(negedge sys_clk); \
-        read_enable = 1'b0; \
+        adv_read_enable = 1'b0; \
         @(posedge sys_clk); \
     end
 `endif

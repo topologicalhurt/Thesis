@@ -16,7 +16,7 @@ module buf_audio_in_tb;
     parameter LRCLK_PERIOD = I2S_CLK_PERIOD * I2S_WIDTH * 2; // Left + Right channels
 
     // DUT interface signals
-    logic                read_enable;
+    logic                adv_read_enable;
     logic                sys_clk;
     logic                sys_rst;
     logic                i2s_bclk;
@@ -42,7 +42,7 @@ module buf_audio_in_tb;
         .AUDIO_WIDTH(AUDIO_WIDTH),
         .BUFFER_DEPTH(BUFFER_DEPTH)
     ) dut (
-        .read_enable(read_enable),
+        .adv_read_enable(adv_read_enable),
         .sys_clk(sys_clk),
         .sys_rst(sys_rst),
         .i2s_bclk(i2s_bclk),
@@ -135,7 +135,7 @@ module buf_audio_in_tb;
                     else $fatal(1, "The audio channel out should match the sample value sent in");
             end
 
-            `READ_ENABLE
+            `adv_read_enable
         end
     endtask
 
@@ -147,7 +147,7 @@ module buf_audio_in_tb;
         sys_rst = 1;
         i2s_data = 0;
         sample_count = 0;
-        read_enable = 1'b0;
+        adv_read_enable = 1'b0;
 
         // Test 1: Reset during operation
         $display("\n=== Test 1: Reset During Operation ===");
@@ -188,8 +188,8 @@ module buf_audio_in_tb;
             sample_count++;
         end
 
-        // Not sure if this makes sense, but the read_enable has to be set high to check buffer overflow
-        `READ_ENABLE
+        // Not sure if this makes sense, but the adv_read_enable has to be set high to check buffer overflow
+        `adv_read_enable
 
         // Check for buffer full condition
         if (buffer_full) begin

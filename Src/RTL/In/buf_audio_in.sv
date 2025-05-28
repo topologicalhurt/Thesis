@@ -6,7 +6,7 @@ module buf_audio_in #(
     parameter AUDIO_WIDTH = 24,
     parameter BUFFER_DEPTH = 4
 ) (
-    input  logic                read_enable,
+    input  logic                adv_read_enable,
 
     input  logic                sys_clk,      // System clock
     input  logic                sys_rst,      // System reset (active high)
@@ -36,7 +36,7 @@ module buf_audio_in #(
     logic [I2S_WIDTH-1:0]       sample_latched_sys_meta;
     logic [I2S_WIDTH-1:0]       sample_latched_sys;
 
-    // Clean audio buffering (circular buffer for each channel)
+    // Circular buffer for each channel
     logic [AUDIO_WIDTH-1:0]     audio_buffer [NUM_AUDIO_CHANNELS-1:0][BUFFER_DEPTH-1:0];
     logic [$clog2(BUFFER_DEPTH)-1:0] write_ptr [NUM_AUDIO_CHANNELS-1:0];
     logic [$clog2(BUFFER_DEPTH)-1:0] read_ptr [NUM_AUDIO_CHANNELS-1:0];
@@ -107,8 +107,6 @@ module buf_audio_in #(
             buffer_ready <= 1'b0;
             buffer_full <= 1'b0;
         end else begin
-            bit detected_overflow = 1'b0;
-
             // Detect rising edge of sample_ready_sys
             // And write new sample to all channel buffers
             if (sample_ready_sys && !sample_ready_sys_prev) begin
@@ -119,16 +117,32 @@ module buf_audio_in #(
                         buffer_count[i] <= buffer_count[i] + 1;
                         channel_buffer_valid[i] <= 1'b1;
                     end else begin
-                        detected_overflow = 1'b1;
+                        buffer_full <= 1'b1;
                     end
                 end
+
+                if (adv_read_enable && buffer_full) begin
+                    // Clear only when every channel has at least one free slot
+                    bit clear_ok = 1'b1;
+                    for (int k = 0; k < NUM_AUDIO_CHANNELS; k++)
+                        if (buffer_count[k] == BUFFER_DEPTH) clear_ok = 1'b0;
+                    buffer_full <= !clear_ok;
+
+                end else if (adv_read_enable) begin
+                    // If read done is high then it is being externally driven and it is safe to advance the read-ptr
+                    for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
+                        if (buffer_count[i] > 0) begin
+                            read_ptr[i] <= ($clog2(BUFFER_DEPTH))'((int'(read_ptr[i]) + 1) % BUFFER_DEPTH);
+                            buffer_count[i] <= buffer_count[i] - 1;
+                            if (buffer_count[i] == 1) channel_buffer_valid[i] <= 1'b0;
+                        end
+                    end
+                end
+
                 sample_valid <= 1'b1;
+
             end else begin
                 sample_valid <= 1'b0;
-            end
-
-            if (detected_overflow) begin
-                buffer_full <= 1'b1;
             end
 
             sample_ready_sys_prev <= sample_ready_sys;
@@ -148,31 +162,6 @@ module buf_audio_in #(
     end
 
     // Buffer read logic (for when downstream consumes data)
-    // I.e. controlled by external logic / read_enable
-    always_ff @(posedge sys_clk or posedge sys_rst) begin
-        // Advance the read ptr
-        if (sys_rst) begin
-            for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) read_ptr[i] <= '0;
-        end else if (read_enable) begin
-
-            if (buffer_full) begin
-                // Clear only when every channel has at least one free slot
-                bit clear_ok = 1'b1;
-                for (int k = 0; k < NUM_AUDIO_CHANNELS; k++)
-                    if (buffer_count[k] == BUFFER_DEPTH) clear_ok = 1'b0;
-                buffer_full <= !clear_ok;
-            end
-
-            for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-                if (buffer_count[i] > 0) begin
-                    read_ptr[i] <= ($clog2(BUFFER_DEPTH))'((int'(read_ptr[i]) + 1) % BUFFER_DEPTH);
-                    buffer_count[i] <= buffer_count[i] - 1;
-                    if (buffer_count[i] == 1) begin
-                        channel_buffer_valid[i] <= 1'b0;
-                    end
-                end
-            end
-        end
-    end
+    // I.e. controlled by external logic / adv_read_enable
 
 endmodule : buf_audio_in
