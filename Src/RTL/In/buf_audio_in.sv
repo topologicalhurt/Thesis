@@ -1,167 +1,154 @@
 `timescale 1ns / 1ps
 
 module buf_audio_in #(
-    parameter I2S_WIDTH = 24,
+    parameter I2S_WIDTH          = 24,
     parameter NUM_AUDIO_CHANNELS = 24,
-    parameter AUDIO_WIDTH = 24,
-    parameter BUFFER_DEPTH = 4
+    parameter AUDIO_WIDTH        = 24,
+    parameter BUFFER_DEPTH       = 4
 ) (
-    input  logic                adv_read_enable,
+    input  logic                       sys_clk,          // System clock
+    input  logic                       sys_rst,          // System reset (active high)
 
-    input  logic                sys_clk,      // System clock
-    input  logic                sys_rst,      // System reset (active high)
+    // I2S Interface (codec is master)
+    input  logic                       i2s_bclk,         // Bit clock
+    input  logic                       i2s_lrclk,        // Word-select
+    input  logic                       i2s_data,         // Serial data in
 
-    // I2S Interface
-    input  logic                i2s_bclk,     // Bit clock
-    input  logic                i2s_lrclk,    // Left/Right clock (Word Select)
-    input  logic                i2s_data,     // Serial data input
+    // Consumer handshake
+    input  logic                       adv_read_enable,  // Advance read_ptr (active high)
 
-    // N parallel audio channel outputs
-    output logic [AUDIO_WIDTH-1:0] audio_channel_out [NUM_AUDIO_CHANNELS-1:0],
-    output logic                sample_valid,  // Pulses high for one sys_clk cycle when new samples are available
-    output logic                buffer_ready,  // Indicates clean buffered data is available
-    output logic                buffer_full    // Buffer overflow warning
+    // Parallel audio outputs
+    output logic [AUDIO_WIDTH-1:0]     audio_channel_out [NUM_AUDIO_CHANNELS-1:0],
+    output logic                       sample_valid,     // One-cycle pulse when new samples accepted
+    output logic                       buffer_ready,     // All channels hold at least one sample
+    output logic                       buffer_full       // Any channel FIFO full
 );
 
-    // I2S receiver signals
-    logic [I2S_WIDTH-1:0]       shift_reg;
-    logic [4:0]                 bit_counter;
-    logic                       prev_lrclk;
+    //  I²S RECEIVE (codec clock domain)
+    logic [I2S_WIDTH-1:0] shift_reg;
+    logic [4:0]           bit_counter;
+    logic                 prev_lrclk;
 
-    // Cross-domain synchronization
-    logic                       sample_ready_i2s;         // In I2S clock domain
-    logic                       sample_ready_sys_meta;    // Metastability protection
-    logic                       sample_ready_sys;         // In system clock domain
-    logic [I2S_WIDTH-1:0]       sample_latched_i2s;
-    logic [I2S_WIDTH-1:0]       sample_latched_sys_meta;
-    logic [I2S_WIDTH-1:0]       sample_latched_sys;
+    logic                 sample_ready_i2s;
+    logic [I2S_WIDTH-1:0] sample_latched_i2s;
 
-    // Circular buffer for each channel
-    logic [AUDIO_WIDTH-1:0]     audio_buffer [NUM_AUDIO_CHANNELS-1:0][BUFFER_DEPTH-1:0];
-    logic [$clog2(BUFFER_DEPTH)-1:0] write_ptr [NUM_AUDIO_CHANNELS-1:0];
-    logic [$clog2(BUFFER_DEPTH)-1:0] read_ptr [NUM_AUDIO_CHANNELS-1:0];
-    logic [NUM_AUDIO_CHANNELS-1:0] channel_buffer_valid;
-    logic [$clog2(BUFFER_DEPTH):0] buffer_count [NUM_AUDIO_CHANNELS-1:0];
-
-    // I2S Receiver logic - Standard I2S: sample data on rising edge of bit clock
     always_ff @(posedge i2s_bclk or posedge sys_rst) begin
         if (sys_rst) begin
-            shift_reg <= '0;
-            bit_counter <= '0;
-            prev_lrclk <= 1'b0;
+            shift_reg        <= '0;
+            bit_counter      <= '0;
+            prev_lrclk       <= 1'b0;
             sample_ready_i2s <= 1'b0;
         end else begin
-            // Normal bit clock - shift in data
             shift_reg <= {shift_reg[I2S_WIDTH-2:0], i2s_data};
 
-            // Detect word select (LR clock) transition
-            if (prev_lrclk != i2s_lrclk) begin
-                // Check if we just completed a word (bit 23 captured on previous bclk)
-                if (bit_counter == I2S_WIDTH - 1) begin
-                    sample_ready_i2s <= 1'b1;
-                    sample_latched_i2s <= shift_reg; // preserve sample before clearing
+            if (prev_lrclk != i2s_lrclk) begin           // channel edge
+                if (bit_counter == I2S_WIDTH-1) begin    // full word captured
+                    sample_ready_i2s  <= 1'b1;
+                    sample_latched_i2s <= shift_reg;
                 end
-                bit_counter <= '0;           // Reset bit counter at each channel change
+                bit_counter <= '0;
             end else begin
-                bit_counter <= bit_counter + 1'b1;
+                bit_counter      <= bit_counter + 5'd1;
                 sample_ready_i2s <= 1'b0;
             end
-
             prev_lrclk <= i2s_lrclk;
         end
     end
 
-    // Clock domain crossing (from I2S clock to system clock)
-    // Two-stage synchronizer to prevent metastability
+    //  CDC: 2-FF synchroniser into sys_clk domain
+    logic                 sample_ready_sys_meta, sample_ready_sys;
+    logic [I2S_WIDTH-1:0] sample_latched_sys_meta, sample_latched_sys;
+
     always_ff @(posedge sys_clk or posedge sys_rst) begin
         if (sys_rst) begin
-            sample_ready_sys_meta <= 1'b0;
-            sample_ready_sys <= 1'b0;
-            sample_latched_sys_meta <= 0;
-            sample_latched_sys      <= 0;
+            sample_ready_sys_meta  <= 1'b0;
+            sample_ready_sys       <= 1'b0;
+            sample_latched_sys_meta <= '0;
+            sample_latched_sys      <= '0;
         end else begin
-            sample_ready_sys_meta <= sample_ready_i2s;
-            sample_ready_sys <= sample_ready_sys_meta;
+            sample_ready_sys_meta   <= sample_ready_i2s;
+            sample_ready_sys        <= sample_ready_sys_meta;
             sample_latched_sys_meta <= sample_latched_i2s;
             sample_latched_sys      <= sample_latched_sys_meta;
         end
     end
 
-    // Sample distribution in system clock domain
-    logic sample_ready_sys_prev;
+    // Channel independent FIFO's / Circular bufs
+    localparam PTR_W = $clog2(BUFFER_DEPTH);
 
-    // Initialize buffers and pointers
-    always_ff @(posedge sys_clk or posedge sys_rst) begin
-        if (sys_rst) begin
-            for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-                write_ptr[i] <= '0;
-                read_ptr[i] <= '0;
-                buffer_count[i] <= '0;
-                channel_buffer_valid[i] <= 1'b0;
-                for (int j = 0; j < BUFFER_DEPTH; j++) begin
-                    audio_buffer[i][j] <= '0;
-                end
-            end
-            sample_valid <= 1'b0;
-            sample_ready_sys_prev <= 1'b0;
-            buffer_ready <= 1'b0;
-            buffer_full <= 1'b0;
-        end else begin
-            // Detect rising edge of sample_ready_sys
-            // And write new sample to all channel buffers
-            if (sample_ready_sys && !sample_ready_sys_prev) begin
-                for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-                    if (buffer_count[i] < BUFFER_DEPTH) begin
-                        audio_buffer[i][write_ptr[i]] <= sample_latched_sys;
-                        write_ptr[i] <= ($clog2(BUFFER_DEPTH))'((int'(write_ptr[i]) + 1) % BUFFER_DEPTH);
-                        buffer_count[i] <= buffer_count[i] + 1;
-                        channel_buffer_valid[i] <= 1'b1;
-                    end else begin
-                        buffer_full <= 1'b1;
-                    end
-                end
+    logic [AUDIO_WIDTH-1:0] circ_buf [NUM_AUDIO_CHANNELS-1:0][BUFFER_DEPTH-1:0];
+    logic [PTR_W:0]         write_ptr    [NUM_AUDIO_CHANNELS-1:0];   // extra MSB
+    logic [PTR_W:0]         read_ptr     [NUM_AUDIO_CHANNELS-1:0];   // extra MSB
+    logic [PTR_W:0]         buffer_count [NUM_AUDIO_CHANNELS-1:0];
 
-                if (adv_read_enable && buffer_full) begin
-                    // Clear only when every channel has at least one free slot
-                    bit clear_ok = 1'b1;
-                    for (int k = 0; k < NUM_AUDIO_CHANNELS; k++)
-                        if (buffer_count[k] == BUFFER_DEPTH) clear_ok = 1'b0;
-                    buffer_full <= !clear_ok;
+    logic [NUM_AUDIO_CHANNELS-1:0] channel_full;
+    logic [NUM_AUDIO_CHANNELS-1:0] channel_non_empty;
+    logic [AUDIO_WIDTH-1:0] audio_out_buf [NUM_AUDIO_CHANNELS-1:0];  // Always_comb triggers on write to here
 
-                end else if (adv_read_enable) begin
-                    // If read done is high then it is being externally driven and it is safe to advance the read-ptr
-                    for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-                        if (buffer_count[i] > 0) begin
-                            read_ptr[i] <= ($clog2(BUFFER_DEPTH))'((int'(read_ptr[i]) + 1) % BUFFER_DEPTH);
-                            buffer_count[i] <= buffer_count[i] - 1;
-                            if (buffer_count[i] == 1) channel_buffer_valid[i] <= 1'b0;
+    genvar ch;
+    generate
+        for (ch = 0; ch < NUM_AUDIO_CHANNELS; ch++) begin : FIFO_PER_CH
+            always_ff @(posedge sys_clk or posedge sys_rst) begin
+                if (sys_rst) begin
+                    write_ptr[ch]    <= '0;
+                    read_ptr[ch]     <= '0;
+                    buffer_count[ch] <= '0;
+                    audio_out_buf[ch]<= '0;
+                end else begin
+                    logic [PTR_W:0] wp_next = write_ptr[ch] + 1'b1;
+                    // logic fifo_full_next = (wp_next[PTR_W-1:0] == read_ptr[ch][PTR_W-1:0]) &&
+                    //                     (wp_next[PTR_W]     != read_ptr[ch][PTR_W]);
+                    logic fifo_cur_full  = (buffer_count[ch] == BUFFER_DEPTH);
+                    logic fifo_cur_empty = (buffer_count[ch] == '0);
+
+                    // Write path
+                    if (sample_ready_sys) begin
+                        circ_buf[ch][write_ptr[ch][PTR_W-1:0]] <= sample_latched_sys;
+                        write_ptr[ch] <= wp_next;
+
+                        // Handle buffer overflow
+                        if (fifo_cur_full)
+                            read_ptr[ch] <= read_ptr[ch] + 1'b1;    // Drop oldest
+                        else
+                            buffer_count[ch] <= buffer_count[ch] + 1'b1;
+
+                        if (fifo_cur_empty)
+                            audio_out_buf[ch] <= sample_latched_sys;    // Ready to write the sample immediately
                         end
                     end
+
+                    // Read path
+                    if (adv_read_enable && buffer_count[ch] != '0) begin
+                        audio_out_buf[ch] <= circ_buf[ch][read_ptr[ch][PTR_W-1:0]];     // Read from the appropriate channel
+                        read_ptr[ch]      <= read_ptr[ch] + 1'b1;
+                        buffer_count[ch]  <= buffer_count[ch] - 1'b1;
+                    end
                 end
 
-                sample_valid <= 1'b1;
-
-            end else begin
-                sample_valid <= 1'b0;
+                // Combinational flags
+                assign channel_full[ch]      = (buffer_count[ch] == BUFFER_DEPTH);
+                assign channel_non_empty[ch] = (buffer_count[ch] != '0);
             end
+    endgenerate
 
-            sample_ready_sys_prev <= sample_ready_sys;
-            buffer_ready <= &channel_buffer_valid;
+    logic sample_ready_sys_prev;
+    always_ff @(posedge sys_clk or posedge sys_rst) begin
+        if (sys_rst) begin
+            sample_ready_sys_prev <= 1'b0;
+            sample_valid          <= 1'b0;
+        end else begin
+            sample_valid          <=  sample_ready_sys & ~sample_ready_sys_prev;
+            sample_ready_sys_prev <=  sample_ready_sys;
         end
     end
 
-    // Continuous assignment of buffered outputs
+    // Continuous read-side data
     always_comb begin
         for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-            if (channel_buffer_valid[i] && buffer_count[i] > 0) begin
-                audio_channel_out[i] = audio_buffer[i][read_ptr[i]];
-            end else begin
-                audio_channel_out[i] = 0;
-            end
+            audio_channel_out[i] = audio_out_buf[i];
         end
+        buffer_ready = &channel_non_empty;   // every channel has ≥1 sample
+        buffer_full  = |channel_full;        // any channel is full
     end
 
-    // Buffer read logic (for when downstream consumes data)
-    // I.e. controlled by external logic / adv_read_enable
-
-endmodule : buf_audio_in
+endmodule
