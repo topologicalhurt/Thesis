@@ -149,30 +149,24 @@ module buf_audio_in #(
 
     // Buffer read logic (for when downstream consumes data)
     // I.e. controlled by external logic / read_enable
-    always_ff @(posedge sys_clk or posedge sys_rst) begin
-        // Advance the read ptr
-        if (sys_rst) begin
-            for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) read_ptr[i] <= '0;
-        end else if (read_enable) begin
-
-            if (buffer_full) begin
+    always_ff @(posedge sys_clk) begin
+        if (read_enable && buffer_full) begin
                 // Clear only when every channel has at least one free slot
                 bit clear_ok = 1'b1;
                 for (int k = 0; k < NUM_AUDIO_CHANNELS; k++)
                     if (buffer_count[k] == BUFFER_DEPTH) clear_ok = 1'b0;
                 buffer_full <= !clear_ok;
-            end
-
-            for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-                if (buffer_count[i] > 0) begin
-                    read_ptr[i] <= ($clog2(BUFFER_DEPTH))'((int'(read_ptr[i]) + 1) % BUFFER_DEPTH);
-                    buffer_count[i] <= buffer_count[i] - 1;
-                    if (buffer_count[i] == 1) begin
-                        channel_buffer_valid[i] <= 1'b0;
+        end else if (read_enable) begin
+                for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
+                    if (buffer_count[i] > 0) begin
+                        read_ptr[i] <= ($clog2(BUFFER_DEPTH))'((int'(read_ptr[i]) + 1) % BUFFER_DEPTH);
+                        buffer_count[i] <= buffer_count[i] - 1;
+                        if (buffer_count[i] == 1) begin
+                            channel_buffer_valid[i] <= 1'b0;
+                        end
                     end
                 end
             end
         end
-    end
 
 endmodule : buf_audio_in
