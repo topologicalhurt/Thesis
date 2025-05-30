@@ -1,6 +1,11 @@
 `ifndef __AUDIO_DEFS_TB_VH__
 `define __AUDIO_DEFS_TB_VH__
 
+
+// Testbench parameters
+localparam int TB_NUM_AUDIO_CHANNELS = 1;
+
+
 `ifndef RESET_CYCLE
 `define RESET_CYCLE \
     begin \
@@ -31,9 +36,8 @@
 `ifndef READ_ONCE
 `define READ_ONCE \
     begin \
-        adv_read_enable = 1; \
-        @(posedge sys_clk); \
-        adv_read_enable = 0; \
+        `READ_ENABLE \
+        `READ_DISABLE \
     end
 `endif
 

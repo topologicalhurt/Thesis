@@ -63,7 +63,7 @@ vcs_simulate:
 # Verilator targets
 verilator_compile:
 	@echo "Compiling with Verilator..."
-	verilator -Wall --binary --assert --timing $(DUT_FILE) $(TB_FILE) --top-module $(TB_TOP)
+	verilator -Wall --binary --assert --timing -I../In $(DUT_FILE) $(TB_FILE) --top-module $(TB_TOP)
 
 verilator_simulate:
 	@echo "Running simulation with Verilator..."
