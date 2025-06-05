@@ -28,6 +28,10 @@ VENV_DIR="$PWD/.venv"
 ACT_DIR="/usr/local/bin/"
 SETUP_CACHE="$PWD/bin/cache"
 
+HOOKS_DIR="$PWD/.github/hooks"
+RUN_HOOKS_SCRIPT="$HOOKS_DIR/run_hooks.sh"
+PRE_COMMIT_CONFIG_YAML="$PWD/.git/.pre-commit-config.yaml"
+
 RAN_LLAC_SETUP_SHELL=$([ "$paramForce" -eq 0 ] && [ -f "$SETUP_CACHE/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
 
 git rev-parse --git-dir > /dev/null 2>&1 ||
@@ -39,11 +43,12 @@ exit 1
 ###############
 
 [ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || {
-  sudo chown -R "$(whoami)" "$PWD"
-  git config --global --add safe.directory "$PWD"
-  sudo chmod 777 "$PWD/.github/hooks/run_hooks.sh"
-  find "$PWD/.github/hooks/" -type d -exec sudo chmod -R 777 {} \;
-  sudo chmod 644 "$PWD/.github/hooks/.pre-commit-config.yaml"
+  git config --add safe.directory "$PWD"
+  find "$HOOKS_DIR" -type d -exec sudo chmod -R 755 {} \;
+  find "$HOOKS_DIR" -type f ! -name "*.sh" -exec sudo chmod 644 {} \;
+  find "$HOOKS_DIR" -type f -name "*.sh" -exec sudo chmod u+r,g+r,o+r {} \;
+  sudo chmod 755 "$RUN_HOOKS_SCRIPT"
+  sudo chmod 644 "$PRE_COMMIT_CONFIG_YAML"
 }
 
 ###############
@@ -77,15 +82,17 @@ esac
           sudo apt -y -q update > /dev/null 2>&1 && sudo apt -y upgrade > /dev/null 2>&1
           set -e
 
-          sudo apt-get -y -q install help2man perl python3 make autoconf g++ flex bison ccache \
+          sudo add-apt-repository ppa:deadsnakes/ppa
+          sudo apt-get -y -q install gcc help2man perl python3.11 make autoconf g++ flex bison ccache \
           libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlib1g zlib1g-dev \
-          python3.11-venv python3-pip > /dev/null
+          python3.11-venv python3-pip verilator > /dev/null
           ;;
       esac
       ;;
     "Mac")
       echo "Targeting MacOS / Darwin platform"
-      sudo chown -R "$(whoami)" "$HOME/Library/Application Support/virtualenv"
+
+      brew install gcc help2man perl python@3.11 make autoconf flex bison ccache gperftools mold zlib verilator
       ;;
   esac
 }
@@ -104,18 +111,18 @@ clone_submodules () {
 }
 
 [[ ! -d "$PWD/submodules" || "$paramForce" -eq 1 ]] && {
-  git submodule sync --recursive
-  git submodule update --init --remote --recursive
+  git submodule sync
+  git submodule update --init --remote
   clone_submodules
 
   [ "$installDevTools" -eq 1 ] && {
     unset VERILATOR_ROOT
-    cd "$PWD/submodules/verilator" || exit 1
+    cd "$PWD/submodules/verilator"
     autoconf
     ./configure
     make -j `nproc`
     sudo make install
-    cd - || exit 1
+    cd -
   }
 }
 
@@ -123,7 +130,7 @@ clone_submodules () {
 # Github Workflow #
 ###################
 
-git config --global --add --bool push.autoSetupRemote true
+git config --add --bool push.autoSetupRemote true
 
 [ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || command -v act &> /dev/null || {
   echo "Act not installed. Installing..."
@@ -136,7 +143,7 @@ git config --global --add --bool push.autoSetupRemote true
 # Python #
 ##########
 
-. "$VENV_DIR/bin/activate" || exit 1
+. "$VENV_DIR/bin/activate"
 
 export PYTHONDONTWRITEBYTECODE=1
 
