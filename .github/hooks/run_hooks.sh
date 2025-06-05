@@ -2,14 +2,14 @@
 
 set -e
 
-CDIR="$(cd "$(dirname "$0")" || exit 1 && pwd)"
+CDIR="$(cd "$(dirname "$0")" && pwd)"
 DIR="${1:-.}"
 
 FP="$(realpath "$CDIR/$DIR")"
 
 [[ "$FP" == "$CDIR"/* ]] || exit 1
 
-cd "$FP" || exit 1
+cd "$FP"
 
 BLACKLIST=("codespell.sh" "verilator.sh" "clean_ipynb.sh")
 
