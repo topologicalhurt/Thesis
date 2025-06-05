@@ -169,7 +169,7 @@ module buf_audio_in #(
                 audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
             end
         end
-
+      
         // buffer_full: any mono channel is full
         buffer_full = 1'b0; // Assume false, then OR with all full flags
         for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
@@ -177,6 +177,5 @@ module buf_audio_in #(
                 buffer_full |= channel_full[i][j];
             end
         end
-    end
 
 endmodule
