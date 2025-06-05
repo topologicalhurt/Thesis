@@ -5,16 +5,16 @@ module buf_audio_in #(
     parameter AUDIO_WIDTH        = 24,
     parameter NUM_AUDIO_CHANNELS = 8
 ) (
-    input  logic                       sys_clk,          // System clock
-    input  logic                       sys_rst,          // System reset (active high)
+    input  wire                        sys_clk,          // System clock
+    input  wire                        sys_rst,          // System reset (active high)
 
     // I2S Interface (codec is master)
-    input  logic                       i2s_bclk,         // Bit clock
-    input  logic                       i2s_lrclk,        // Word-select
-    input  logic                       i2s_data,         // Serial data in
+    input  wire                        i2s_bclk,         // Bit clock
+    input  wire                        i2s_lrclk,        // Word-select
+    input  wire                        i2s_data,         // Serial data in
 
     // Consumer handshake
-    input  logic                       adv_read_enable,  // Advance read_ptr (active high)
+    input  wire                        adv_read_enable,  // Advance read_ptr (active high)
 
     // Parallel audio outputs
     output logic [AUDIO_WIDTH-1:0]     audio_channel_out [(NUM_AUDIO_CHANNELS * STEREO_MULTIPLIER)-1:0],
@@ -102,7 +102,6 @@ module buf_audio_in #(
 
     // Flags per MONO stream
     logic channel_full      [NUM_AUDIO_CHANNELS-1:0][STEREO_MULTIPLIER-1:0];
-    logic channel_non_empty [NUM_AUDIO_CHANNELS-1:0][STEREO_MULTIPLIER-1:0];
 
     genvar ch_pair_idx, lr_idx; // ch_pair_idx for stereo_pair, lr_idx for L/R
     generate
@@ -147,7 +146,6 @@ module buf_audio_in #(
 
                 // Combinational flags for this mono FIFO
                 assign channel_full[ch_pair_idx][lr_idx]      = (buffer_count[ch_pair_idx][lr_idx] == BUFFER_COUNT_WIDTH'(BUFFER_DEPTH));
-                assign channel_non_empty[ch_pair_idx][lr_idx] = (buffer_count[ch_pair_idx][lr_idx] != '0);
             end
         end
     endgenerate
@@ -169,14 +167,6 @@ module buf_audio_in #(
             for (int j = 0; j < STEREO_MULTIPLIER; j++) begin  // j is lr_idx (0 for L, 1 for R)
                 // Output the sample at the current read pointer of the respective mono FIFO
                 audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
-            end
-        end
-
-        // buffer_ready: all mono channels must have at least one sample
-        buffer_ready = 1'b1; // Assume true, then AND with all non-empty flags
-        for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-            for (int j = 0; j < STEREO_MULTIPLIER; j++) begin
-                buffer_ready &= channel_non_empty[i][j];
             end
         end
 

@@ -8,7 +8,7 @@ from scipy.spatial import ConvexHull, Delaunay
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), 'Src'))
 
-from helpers import sign
+from helpers import tri_sign_2d
 
 
 # TODO:
@@ -28,9 +28,9 @@ class Tri():
         # https://stackoverflow.com/a/16000405/10019450
         print(p, simplice)
         c,b,a = simplice
-        b1 = sign(p,a,b) < 0.0
-        b2 = sign(p,b,c) < 0.0
-        b3 = sign(p,c,a) < 0.0
+        b1 = tri_sign_2d(p,a,b) < 0.0
+        b2 = tri_sign_2d(p,b,c) < 0.0
+        b3 = tri_sign_2d(p,c,a) < 0.0
         return b1 == b2 == b3
 
     def __contains__(self, point):
