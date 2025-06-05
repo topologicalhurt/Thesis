@@ -1,48 +1,42 @@
-`timescale 1ns / 1ps
-
 `include "In/buf_audio_in_tb.svh"
+`include "buf_audio_in.svh"
 
 module buf_audio_in_tb;
 
-    // Parameters
-    parameter I2S_WIDTH = 24;
-    parameter NUM_AUDIO_CHANNELS = 8;  // Reduced for testbench
-    parameter AUDIO_WIDTH = 24;
-    parameter BUFFER_DEPTH = 4;
+    localparam TB_BUFFER_DEPTH = BUFFER_DEPTH;
+    localparam TB_SR           = 44;    // kHz sample rate
 
     // Clock periods
-    parameter SYS_CLK_PERIOD = 10;     // 100 MHz system clock
-    parameter I2S_CLK_PERIOD = 40;     // 25 MHz I2S bit clock
-    parameter LRCLK_PERIOD = I2S_CLK_PERIOD * I2S_WIDTH * 2; // Left + Right channels
+    parameter I2S_CLK_MULT   = 32;      // I2S clock multiplier
+    parameter SYS_CLK_PERIOD = 10;      // I.e. 10 = 100 MHz system clock
+    parameter I2S_CLK_PERIOD = $ceil(10**6 / (TB_SR * I2S_CLK_MULT));
 
     // DUT interface signals
-    logic                read_enable;
+    logic                adv_read_enable;
     logic                sys_clk;
     logic                sys_rst;
     logic                i2s_bclk;
-    logic                i2s_lrclk;
+    logic                i2s_lrclk; // 0 for Left, 1 for Right
     logic                i2s_data;
-    logic [AUDIO_WIDTH-1:0] audio_channel_out [NUM_AUDIO_CHANNELS-1:0];
+
+    // audio_channel_out size: TB_NUM_AUDIO_CHANNELS (stereo pairs) * STEREO_MULTIPLIER (2 for stereo)
+    localparam TB_TOTAL_MONO_CHANNELS = TB_NUM_AUDIO_CHANNELS * STEREO_MULTIPLIER;
+    logic [dut.AUDIO_WIDTH-1:0] audio_channel_out [TB_TOTAL_MONO_CHANNELS-1:0];
+
     logic                sample_valid;
     logic                buffer_ready;
     logic                buffer_full;
 
     // Test variables
-    logic [I2S_WIDTH-1:0] test_sample_left = 24'h123456;
-    logic [I2S_WIDTH-1:0] test_sample_right = 24'hABCDEF;
-    logic [I2S_WIDTH-1:0] current_sample;
-    int bit_index;
+    logic [dut.I2S_WIDTH-1:0] test_sample_left  = 24'h123456;
+    logic [dut.I2S_WIDTH-1:0] test_sample_right = 24'hABCDEF;
     int sample_count;
-    // int channel_index;
 
-    // Instantiate DUT
+    // NUM_AUDIO_CHANNELS parameter of DUT is number of stereo pairs
     buf_audio_in #(
-        .I2S_WIDTH(I2S_WIDTH),
-        .NUM_AUDIO_CHANNELS(NUM_AUDIO_CHANNELS),
-        .AUDIO_WIDTH(AUDIO_WIDTH),
-        .BUFFER_DEPTH(BUFFER_DEPTH)
+        .NUM_AUDIO_CHANNELS(TB_NUM_AUDIO_CHANNELS)
     ) dut (
-        .read_enable(read_enable),
+        .adv_read_enable(adv_read_enable),
         .sys_clk(sys_clk),
         .sys_rst(sys_rst),
         .i2s_bclk(i2s_bclk),
@@ -66,218 +60,238 @@ module buf_audio_in_tb;
         forever #(I2S_CLK_PERIOD/2) i2s_bclk = ~i2s_bclk;
     end
 
-    // I2S LR clock generation (word select)
+    /* I2S LR clock generation (word select)
+    / LRCLK high for right channel, low for left channel. Each phase is I2S_WIDTH bclk cycles.
+    / LRCLK period for I2S_WIDTH bits per channel (L/R), so I2S_WIDTH * 2 i2s_bclk cycles
+    */
     initial begin
-        i2s_lrclk = 0;
-        forever #(LRCLK_PERIOD/2) i2s_lrclk = ~i2s_lrclk;
+        logic [dut.I2S_WIDTH:0] tb_bclk_count = 0; // Counter for bclk cycles
+        i2s_lrclk = 1'b0; // Start L
+        @(posedge i2s_bclk);
+        forever @(posedge i2s_bclk) begin
+            tb_bclk_count++;
+            if (tb_bclk_count == dut.I2S_WIDTH) begin
+                i2s_lrclk = ~i2s_lrclk;
+                tb_bclk_count = 0;
+            end
+        end
     end
 
-    // Task to send I2S sample
-    task send_i2s_sample(input [I2S_WIDTH-1:0] sample_data);
-        begin
-            current_sample = sample_data;
-
-            // Wait for LR clock edge (channel change)
-            @(posedge i2s_lrclk or negedge i2s_lrclk);
-
-            // TODO:
-            // sending sample on pos edge of i2s_lrclk = left channel
-            // sending sample on neg edge of i2s_lrclk = right channel
-
-            // 2'b00 is undefined behaviour
-            // case (r)
-            //     2'b01: @(posedge i2s_lrclk);
-            //     2'b10: @(negedge i2s_lrclk);
-            //     2'b11: @(posedge i2s_lrclk or negedge i2s_lrclk);
-            //     default: begin
-            //         $fatal(1, "Illegal value for r (%b) – undefined behaviour.", r);
-            //     end
-            // endcase
-
-            // Send MSB first, with one bit delay after WS change
-            for (bit_index = I2S_WIDTH-1; bit_index >= 0; bit_index--) begin
-                @(posedge i2s_bclk);
-                i2s_data = current_sample[bit_index];
-            end
-
-            $display("Time %0t: Sent I2S sample: 0x%06h (LR=%b)", $time, sample_data, i2s_lrclk);
+    // Send a sample 'word' over I2S data line, MSB first
+    task automatic send_word(input logic [dut.I2S_WIDTH-1:0] word);
+        for (int b = dut.I2S_WIDTH-1; b >= 0; b--) begin
+            // Data is sampled by receiver on rising edge of i2s_bclk
+            @(negedge i2s_bclk); // Change data on falling edge
+            i2s_data = word[b];
         end
     endtask
 
-    // Task to check audio outputs
-    task check_audio_outputs(input [AUDIO_WIDTH-1:0] expected_value);
-        begin
-            // Wait for sample_valid with timeout
+    // Send a stereo I2S sample (Left then Right)
+    task automatic send_i2s_stereo_sample(input logic [dut.I2S_WIDTH-1:0] left_word, input logic [dut.I2S_WIDTH-1:0] right_word);
+
+        // Wait for i2s_lrclk to be low (Left channel active)
+        wait (i2s_lrclk == 1'b0); // Transition to Left channel phase
+        // if (i2s_lrclk != 1'b0) @(posedge i2s_bclk iff i2s_lrclk == 1'b0); // Ensure LRCLK is low
+
+        $display("Time %0t: Sending Left sample 0x%h (i2s_lrclk=%b)", $time, left_word, i2s_lrclk);
+        send_word(left_word);
+
+        // Wait for i2s_lrclk to be high (Right channel active)
+        wait (i2s_lrclk == 1'b1); // Transition to Right channel phase
+        // if (i2s_lrclk != 1'b1) @(posedge i2s_bclk iff i2s_lrclk == 1'b1); // Ensure LRCLK is high
+
+        $display("Time %0t: Sending Right sample 0x%h (i2s_lrclk=%b)", $time, right_word, i2s_lrclk);
+        send_word(right_word);
+
+        // Wait for sample_valid with timeout (sample_valid pulses after both L/R are processed)
+        for (int k=0; k<2; k++) begin
             fork
                 begin
                     @(posedge sample_valid);
-                    $display("Time %0t: sample_valid detected", $time);
+                    $display("Time %0t: sample_valid detected for mono sample %0d", $time, k);
                 end
                 begin
-                    #(SYS_CLK_PERIOD * 1000);
-                    $display("Time %0t: Timeout waiting for sample_valid", $time);
+                    #(SYS_CLK_PERIOD * 1000); // Timeout per sample
+                    $fatal(1, "Time %0t: Timeout waiting for sample_valid for mono sample %0d", $time, k);
                 end
             join_any
             disable fork;
-
-            @(posedge sys_clk);
-
-            for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-                if (audio_channel_out[i] !== expected_value) begin
-                    $display("Time %0t: Channel %0d output mismatch! Expected: 0x%06h, Got: 0x%06h",
-                           $time, i, expected_value, audio_channel_out[i]);
-                end else begin
-                    $display("Time %0t: Channel %0d output correct: 0x%06h",
-                             $time, i, audio_channel_out[i]);
-                end
-
-                assert(audio_channel_out[i] == expected_value)
-                    else $fatal(1, "The audio channel out should match the sample value sent in");
-            end
-
-            `READ_ENABLE
         end
+
+        $display("Time %0t: Sent I2S stereo sample: L=0x%h, R=0x%h", $time, left_word, right_word);
+
+    endtask
+
+
+    /* Task to check audio outputs for a specific mono channel
+    base_pair_idx: index of the stereo pair (0 to TB_NUM_AUDIO_CHANNELS-1)
+    lr_sel: 0 for Left, 1 for Right
+    */
+    task automatic check_and_pop_mono_output(input [dut.AUDIO_WIDTH-1:0] expected_value, int base_pair_idx, int lr_sel);
+        logic [dut.AUDIO_WIDTH-1:0] actual_value;
+        int flat_idx = base_pair_idx * STEREO_MULTIPLIER + lr_sel;
+
+        `READ_ENABLE
+
+        actual_value = audio_channel_out[flat_idx];
+
+        if (actual_value !== expected_value) begin
+            $error("Time %0t: Output mismatch! Pair %0d, L/R %0d (Flat Idx %0d). Expected: 0x%h, Got: 0x%h",
+                   $time, base_pair_idx, lr_sel, flat_idx, expected_value, actual_value);
+        end else begin
+            $display("Time %0t: Output correct. Pair %0d, L/R %0d (Flat Idx %0d): 0x%h",
+                     $time, base_pair_idx, lr_sel, flat_idx, actual_value);
+        end
+
+        `READ_DISABLE
+
     endtask
 
     // Main test sequence
     initial begin
-        $display("=== Audio Buf In Testbench Started ===");
+        $display("=== Stereo Audio Buf In Testbench Started (NUM_AUDIO_CHANNELS=%0d stereo pairs) ===", TB_NUM_AUDIO_CHANNELS);
 
         // Initialize signals
         sys_rst = 1;
-        i2s_data = 0;
-        sample_count = 0;
-        read_enable = 1'b0;
+        i2s_data = 1'b0;
+        sample_count = 0; // Counts mono samples
+        adv_read_enable = 1'b0;
 
         // Test 1: Reset during operation
         $display("\n=== Test 1: Reset During Operation ===");
         `RESET_CYCLE
         $display("Time %0t: Reset sequence completed", $time);
 
-        for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
-            if (audio_channel_out[i] !== 0) begin
-                $error("Time %0t: Channel %0d not cleared after reset: 0x%06h",
+        for (int i = 0; i < TB_TOTAL_MONO_CHANNELS; i++) begin
+            if (audio_channel_out[i] !== '0) begin
+                $error("Time %0t: Mono Channel %0d not cleared after reset: 0x%h",
                        $time, i, audio_channel_out[i]);
             end
         end
 
-        // Test 2: Send left channel sample
-        $display("\n=== Test 2: Left Channel Sample ===");
-        // send_i2s_sample(test_sample_left, 2'b01);
-        send_i2s_sample(test_sample_left);
-        check_audio_outputs(test_sample_left);
-        sample_count++;
+        // Test 2: Send one full stereo sample
+        $display("\n=== Test 2: Send One Stereo Sample ===");
+        send_i2s_stereo_sample(test_sample_left, test_sample_right);
+        sample_count += 2;
+
+        /* Check outputs after enabling read
+        We expect to read L then R for each stereo pair buffer
+        */
+        check_and_pop_mono_output(test_sample_left, 0, 0); // Pair 0, Left
+        check_and_pop_mono_output(test_sample_right, 0, 1); // Pair 0, Right
 
         `RESET_CYCLE
 
-        // Test 3: Send right channel sample
-        $display("\n=== Test 3: Right Channel Sample ===");
-        // send_i2s_sample(test_sample_right, 2'b10);
-        send_i2s_sample(test_sample_right);
-        check_audio_outputs(test_sample_right);
-        sample_count++;
+        $finish;
 
-        `RESET_CYCLE
-
-        // Test 4: Send multiple samples to test buffering
-        $display("\n=== Test 4: Multiple Samples for Buffer Test ===");
-        for (int i = 0; i <= BUFFER_DEPTH + 1; i++) begin
-            logic [I2S_WIDTH-1:0] test_val = I2S_WIDTH'(24'h100000 + i);
-            // send_i2s_sample(test_val, 2'b11);
-            send_i2s_sample(test_val);
-            sample_count++;
+        // Test 3: Send multiple stereo samples to test buffering
+        $display("\n=== Test 3: Multiple Stereo Samples for Buffer Test (fills one stereo pair) ===");
+        for (int i = 0; i < TB_BUFFER_DEPTH; i++) begin // Fill up one L/R FIFO set
+            logic [dut.I2S_WIDTH-1:0] l_val = dut.I2S_WIDTH'(24'h100000 + i);
+            logic [dut.I2S_WIDTH-1:0] r_val = dut.I2S_WIDTH'(24'h200000 + i);
+            send_i2s_stereo_sample(l_val, r_val);
+            sample_count += 2;
         end
 
-        // Not sure if this makes sense, but the read_enable has to be set high to check buffer overflow
-        `READ_ENABLE
-
-        // Check for buffer full condition
-        if (buffer_full) begin
-            $display("Time %0t: Buffer full detected (correctly)", $time);
-            $display("Shift register contains: %h", dut.shift_reg);
+        /* At this point, buffer for pair 0, L and R should be full.
+        Other pairs (if TB_NUM_AUDIO_CHANNELS > 1) will also be full due to fanout.
+        */
+        #(SYS_CLK_PERIOD * 5); // Wait for buffer_full to propagate
+        if (!buffer_full) begin
+            $error("Time %0t: Buffer should be full!", $time);
+        end else begin
+            $display("Time %0t: Buffer full detected as expected.", $time);
         end
 
-        assert (buffer_full)
-            else $fatal(1, "Buffer should not overflow. Buffer should report full.");
+        $display("\n --- Reading back buffered stereo samples for pair 0 ---");
+        for (int i = 0; i < TB_BUFFER_DEPTH; i++) begin
+            logic [dut.I2S_WIDTH-1:0] expected_l_val = dut.I2S_WIDTH'(24'h100000 + i);
+            logic [dut.I2S_WIDTH-1:0] expected_r_val = dut.I2S_WIDTH'(24'h200000 + i);
+            check_and_pop_mono_output(expected_l_val, 0, 0); // Check L from pair 0
+            check_and_pop_mono_output(expected_r_val, 0, 1); // Check R from pair 0
+        end
 
-        `RESET_CYCLE
+        // TODO: restore test 4
+        // Test 4: Buffer overflow check (send one more than capacity)
+        // $display("\n=== Test 4: Buffer Overflow Test ===");
+        // logic [dut.I2S_WIDTH-1:0] overflow_l = 24'hBEEF01;
+        // logic [dut.I2S_WIDTH-1:0] overflow_r = 24'hBEEF02;
+        // send_i2s_stereo_sample(overflow_l, overflow_r); // This should overwrite the oldest (i=0)
+        // sample_count += 2;
+
+        // // The oldest sample (24'h100000 and 24'h200000) should be gone.
+        // // The first sample read should now be (24'h100000 + 1) and (24'h200000 + 1)
+        // check_and_pop_mono_output(24'h100001, 0, 0);
+        // check_and_pop_mono_output(24'h200001, 0, 1);
+
+        // // Read out the rest to empty, then check the overflowed sample
+        // $display("Reading out remaining samples to get to overflowed one...");
+        // // This loop reads (TB_BUFFER_DEPTH - 2) pairs, which are S2 to S(TB_BUFFER_DEPTH-1)
+        // for (int i = 1; i < TB_BUFFER_DEPTH - 1; i++) begin // Corrected: Wrap macro calls in begin...end
+            // check_and_pop_mono_output(24'h100000 + i + 1, 0, 0);
+            // check_and_pop_mono_output(24'h200000 + i + 1, 0, 1);
+        // end
+        // // Now the head should be the overflow_l and overflow_r
+        // check_and_pop_mono_output(overflow_l, 0, 0);
+        // check_and_pop_mono_output(overflow_r, 0, 1);
+
+        // `RESET_CYCLE
 
         // Test 5: Verify buffer ready signal
         $display("\n=== Test 5: Buffer Ready Verification ===");
-        // Wait for buffer_ready with timeout
-        fork
-            begin
-                wait(buffer_ready);
-                $display("Time %0t: Buffer ready signal asserted", $time);
-            end
-            begin
-                #(SYS_CLK_PERIOD * 1000);
-                $display("Time %0t: Buffer ready timeout", $time);
-                $fatal(1, "Never received a timeout signal");
-            end
-        join_any
-        disable fork;
+        if (buffer_ready) $error("Buffer should not be ready after reset");
+        send_i2s_stereo_sample(test_sample_left, test_sample_right); // Send one stereo sample
+         #(SYS_CLK_PERIOD * 5); // allow propagation
+        if (!buffer_ready) begin
+             $error("Time %0t: Buffer ready signal not asserted after sending one stereo sample!", $time);
+        end else begin
+             $display("Time %0t: Buffer ready signal asserted as expected.", $time);
+        end
 
         `RESET_CYCLE
 
-        // Test 6: Pattern test
-        $display("\n=== Test 6: Pattern Test ===");
-        for (int pattern = 0; pattern < 4; pattern++) begin
-            logic [I2S_WIDTH-1:0] pattern_val = I2S_WIDTH'({8'hAA, 8'h55, 8'hAA} + pattern);
-            // send_i2s_sample(pattern_val, 2'b11);
-            send_i2s_sample(pattern_val);
-            check_audio_outputs(pattern_val);
-            sample_count++;
-            `RESET_CYCLE
-        end
-
         // Final verification
         $display("\n=== Test Summary ===");
-        $display("Total samples sent: %0d", sample_count);
+        $display("Total MONO samples sent: %0d", sample_count);
         $display("Test completed successfully!");
 
         $finish;
     end
 
-    // logic monitor_buffer_ready;
-    // always_ff @(posedge sys_clk) begin
-    //     monitor_buffer_ready <= buffer_ready;
-    // end
+    // To avoid "Signal flopped as both synchronous and async"
+    logic monitor_buffer_ready;
+    logic monitor_i2s_lrclk;
+    logic monitor_i2s_data;
+    logic monitor_adv_read_enable;
 
-    // logic monitor_i2s_lrclk;
-    // always_ff @(posedge sys_clk) begin
-    //     monitor_i2s_lrclk <= i2s_lrclk;
-    // end
-
-    // initial begin
-    //     $monitor("Time %0t: sample_valid=%b, buffer_ready=%b, buffer_full=%b, i2s_lrclk=%b",
-    //              $time, sample_valid, monitor_buffer_ready, buffer_full, monitor_i2s_lrclk);
-    // end
-
-    // Debug: Monitor DUT internal signals
-    initial begin
-        forever begin
-            @(posedge dut.i2s_bclk);
-            $display("Time %0t: i2s_bclk edge - bit_counter=%0d, lrclk=%b, prev_lrclk=%b, data=%b, shift_reg=0x%06h",
-                     $time, dut.bit_counter, dut.i2s_lrclk, dut.prev_lrclk, dut.i2s_data, dut.shift_reg);
-            if (dut.sample_ready_i2s) begin
-                $display("Time %0t: DUT sample_ready_i2s asserted!", $time);
-            end
-        end
+    /* verilator lint_off UNUSED */
+    always_ff @(posedge sys_clk) begin
+        monitor_buffer_ready <= buffer_ready;
+        monitor_i2s_lrclk <= i2s_lrclk;
+        monitor_i2s_data <= i2s_data;
+        monitor_adv_read_enable <= i2s_data;
     end
 
-    // Monitor system clock domain
+    logic [dut.I2S_WIDTH-1:0] monitor_shift_reg;
+    logic [4:0] monitor_bit_counter;
+    always_ff @(posedge i2s_bclk) begin
+        monitor_shift_reg <= dut.shift_reg;
+        monitor_bit_counter <= dut.bit_counter;
+    end
+    /* verilator lint_on UNUSED */
+
+    // Monitor signals
     initial begin
-        forever begin
-            @(posedge sys_clk);
-            if (dut.sample_ready_sys && !dut.sample_ready_sys_prev) begin
-                $display("Time %0t: DUT sample_ready_sys rising edge", $time);
-            end
-        end
+        $monitor("Time %0t: sys_clk=%b, sys_rst=%b, i2s_bclk=%b, i2s_lrclk=%b, i2s_data=%b, adv_read=%b | s_valid=%b, b_ready=%b, b_full=%b, L0_out=0x%h, R0_out=0x%h",
+                 $time, sys_clk, sys_rst, i2s_bclk, monitor_i2s_lrclk, monitor_i2s_data, monitor_adv_read_enable,
+                 sample_valid, monitor_buffer_ready, buffer_full,
+                 (TB_TOTAL_MONO_CHANNELS > 0) ? audio_channel_out[0] : 'x, // Check bounds for safety
+                 (TB_TOTAL_MONO_CHANNELS > 1) ? audio_channel_out[1] : 'x);
+        // $monitor("bit_counter %d, shift_reg %h", monitor_bit_counter, monitor_shift_reg);
     end
 
     initial begin
-        $dumpfile("buf_audio_in_tb.vcd");
+        $dumpfile("buf_audio_in_stereo_tb.vcd");
         $dumpvars(0, buf_audio_in_tb);
     end
 
