@@ -1,17 +1,23 @@
+"""
+Common helper / utility functions
+"""
+
+
 import argparse as ap
 import regex as re
 import os
 import math
 import collections
 import xxhash
+import importlib
 
 from pathlib import Path
 from typing import assert_never
 from collections.abc import Iterable, Hashable
+from enum import Enum
 
 
-def fast_stable_hash(data: Hashable) -> int:
-    return xxhash.xxh64(data).intdigest()
+from .exceptions import PosIntParseException, ExpectedIntParseException
 
 
 def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
@@ -19,6 +25,47 @@ def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
     for val in data:
         hasher.update(val)
     return hasher.intdigest()
+
+
+dataclasses = importlib.import_module('.dataclasses', package='Allocator.Interpreter')
+ExtendedEnum = dataclasses.ExtendedEnum
+
+
+def fast_stable_hash(data: Hashable) -> int:
+    return xxhash.xxh64(data).intdigest()
+
+
+def str2posint(value: str) -> int:
+    if value.startswith('-'):
+        raise PosIntParseException('Value must be a positive integer')
+    if not value.isdigit():
+        raise ExpectedIntParseException('Value must be an integer (only digits allowed)')
+    return int(value)
+
+
+def str2enumval(value: str, target_enum: ExtendedEnum) -> Enum:
+    try:
+        posint = str2posint(value)
+    except PosIntParseException:
+        raise ap.ArgumentTypeError(f'Value must be a positive integer in the provided range of the enum:'
+                f' {target_enum.__name__}: {target_enum.fields()} |-> {target_enum.values()}'
+                )
+    except ExpectedIntParseException:
+        # Indicates we got a string (I.e. field |-> value)
+        field_names = target_enum.fields()
+        if value not in field_names:
+            raise ap.ArgumentTypeError('Value must be one of the provided field names:'
+                                        f' {target_enum.fields()}'
+                                        )
+        return target_enum.get_value_from_name(value)
+
+    try:
+        # Indicates we got an integer (I.e. value |-> field)
+        return target_enum.get_name_from_value(posint)
+    except ValueError:
+        raise ap.ArgumentTypeError(f'Value must be in the provided range of the enum {target_enum.__name__}:'
+                                    f' {target_enum.fields()} |-> {target_enum.values()}'
+                                    )
 
 
 def underline_match(text: str, to_match: Iterable, match_all: bool = False, literal: bool = True) -> str | None:
