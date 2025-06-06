@@ -6,20 +6,36 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from Allocator.Interpreter.dataclasses import BitField, ExtendedEnum
 
 
+class TRIGLUTDEFS(ExtendedEnum):
+    """# Summary
+
+    Enum storing the supported trig LUTS
+    """
+    SIN=0
+    COS=1
+    TAN=2
+    ASIN=3
+    ACOS=4
+    ATAN=5
+
+
 class TRIGLUTS(BitField):
     """# Summary
 
     Bitfield corresponding to which trig LUT tables to build
     """
+    ALLOWED = TRIGLUTDEFS.fields()
 
-    ALLOWED = ('SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN')
 
-
-class TRIGLUTOPT(ExtendedEnum):
+class TRIGFOLD(ExtendedEnum):
     """# Summary
 
-    Enum corresponding to how aggressively to optimise the LUT
-    (there are no real advantages to not using 2 = high mode)
+    Enum corresponding to how the trig LUT is 'folded' E.G. refer to the basic sin case
+    for an example.
+    (Using higher modes will, ostensibly, take more effort to recover the data.)
+
+    Note: there are no real advantages to not using 2 = high mode for
+    most functions.
 
     = 0 (lowest mode - full table / complete period)
 
@@ -27,7 +43,22 @@ class TRIGLUTOPT(ExtendedEnum):
 
     = 2 (high mode - quarter table / quarter period)
     """
-
     LOW=0
     MED=1
     HIGH=2
+
+
+class TRIGPREC(ExtendedEnum):
+    """# Summary
+
+    Enum corresponding to how trig LUT is sized
+
+    = 0 (lowest mode - normal precision)
+
+    = 1 (medium mode - double precision)
+
+    = 2 (high mode - full precision)
+    """
+    LOWP=0
+    MEDP=1
+    HIGHP=2

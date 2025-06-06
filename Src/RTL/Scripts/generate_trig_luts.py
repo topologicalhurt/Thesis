@@ -1,26 +1,32 @@
 """
-Generates a quarter table lookup for various trig functions (sin, cos, tan, asin, acos, atan)
+Generates a LUT for various trig functions (sin, cos, tan, asin, acos, atan)
+with variable precision, size & options to use a heuristic to determine
+the 'best' fit automatically
 """
 
 # TODO's:
 # 1. Option to automatically determine ideal size based on threshold detector (like atan, tan)
 # 2. Fix atan so it can generate a quarter table LUT as well
+# 3. Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
 
 
 import argparse as ap
-from typing import assert_never
 import numpy as np
 import regex as re
 import sys
 import os
 import functools
+import itertools
 
 from collections.abc import Sequence, Callable
+from typing import assert_never
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from Allocator.Interpreter.helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe
-from dataclasses import TRIGLUTS, TRIGLUTOPT
+from Allocator.Interpreter.dataclasses import ExtendedEnum
+from Allocator.Interpreter.helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path, pairwise,\
+get_action_from_parser_by_name, underline_matches
+from dataclasses import TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
 
 
 def bram(v: int | str) -> int:
@@ -31,6 +37,12 @@ def bram(v: int | str) -> int:
             raise ap.ArgumentTypeError('bram must hold at least one double (sizeof(double) = 4)')
         v = np.log2(v) - 2 # Convert to table width, - 2 as units are in bytes
         return int(np.ceil(v))
+
+
+def highp(v: str) -> ExtendedEnum:
+    if v in TRIGLUTDEFS:
+        return str2enumval(v, TRIGLUTDEFS)
+    return str2enumval(v, TRIGPREC)
 
 
 def main() -> None:
@@ -45,34 +57,58 @@ def main() -> None:
                          ' requested_bram / 4)'
                        )
 
-    qt_enum_description = ''.join(TRIGLUTOPT.__doc__.strip().splitlines())
+    parser.add_argument('out', type=str2path,
+                        help='The output directory for the LUTs'
+                        )
+
+    qt_enum_description = ''.join(TRIGFOLD.__doc__.strip().splitlines())
     qt_enum_description = re.sub(r'\s{2,}', ' ', qt_enum_description)
     qt_enum_description = qt_enum_description.removeprefix('# Summary Enum corresponding to ')
-    parser.add_argument('-qt', type=functools.partial(str2enumval, target_enum=TRIGLUTOPT),
-                         default=TRIGLUTOPT.HIGH,
-                         help='Over which period the LUT is built E.G. a value or field from either:'
-                         f' {TRIGLUTOPT.fields()} | {TRIGLUTOPT.values()}.'
+    parser.add_argument('-qt', type=functools.partial(str2enumval, target_enum=TRIGFOLD),
+                         default=TRIGFOLD.HIGH,
+                         help='Over which period all LUT\'s will be built E.G. a value or field from either:'
+                         f' {TRIGFOLD.fields()} | {TRIGFOLD.values()}.'
                          f' The following description might proove valuable: "{qt_enum_description}"'
                         )
 
     parser.add_argument('-k', type=float,
                         help='A floating point threshold value which determines the error tolerance for all trig functions'
-                        ' prohibitions: -tan-k, atan-k'
+                        ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
+                        )
+
+    parser.add_argument('-excl-auto', type=functools.partial(str2enumval, target_enum=TRIGLUTS),
+                        nargs='+', default=None,
+                        help='A list of values to exclude from auto mode (see: --auto)'
+                        ' prohibitions: -tan-k (see: -tan-k) -atan-k (see: -atan-k)'
+                        )
+
+    parser.add_argument('-hp', type=highp, nargs='*', default=None,
+                        help=f'A list of trig values I.e. {TRIGLUTDEFS.fields()} (applies to all values if none provided)'
+                        ' to apply high precision mode to OR a list of trig values & explicit precision mode to use'
+                        ' E.g. -hp cos medp sin medp tan highp'
+                        ' For example, if -qt (see: -qt) is in the highest mode [quarter table mode]'
+                        ' then the default behaviour is to also reduce the LUT size'
+                        ' by a factor of 4. In hp mode the requested table size remains the same (effective x4 oversampling)'
+                        ' meaning it operates in a higher mode of precision.'
+                        ' If a value is explicitly provided & qt differs E.g. cos medp then the factors are multiplied'
+                        ' to size the table. That is: -qt high -hp med'
+                        ' => a quarter table lookup method is used for half the period of the function (effective x2 oversampling)'
                         )
 
     parser.add_argument('-tan-k', type=float, default=0.05,
                         help='A floating point threshold value which determines the error tolerance for tan'
-                        ' prohibitions: -k'
+                        ' prohibitions: -excl-auto (see: -excl-auto)'
                         )
 
     parser.add_argument('-atan-k', type=float, default=0.1,
                         help='A floating point threshold value which determines the error tolerance for atan'
-                        ' prohibitions: -k'
+                        ' prohibitions: -excl-auto (see: -excl-auto)'
                         )
 
     parser.add_argument('--auto', action='store_true', default=False,
-                        help='Sets auto-mode to on (generate all rec. luts & find ideal table sizes based on global threshold)'
-                        ' dependencies: -k'
+                        help='Sets auto-mode to on (generate all rec. luts & find ideal table sizes based on global threshold.)'
+                        ' This is done by using the newton raphson method or a known bound'
+                        ' dependencies: -k (see: -k)'
                         )
 
     parser.add_argument('--sin', action='store_true', default=False,
@@ -80,7 +116,7 @@ def main() -> None:
                         )
 
     parser.add_argument('--cos', action='store_true', default=False,
-                        help='Creates a cos LUT'
+                        help='Creates a cos LUT. Not turned on by default.'
                         )
 
     parser.add_argument('--tan', action='store_true', default=False,
@@ -92,7 +128,7 @@ def main() -> None:
                         )
 
     parser.add_argument('--acos', action='store_true', default=False,
-                        help='Creates an acos (arccos) LUT'
+                        help='Creates an acos (arccos) LUT. Not turned on by default.'
                         )
 
     parser.add_argument('--atan', action='store_true', default=False,
@@ -101,15 +137,56 @@ def main() -> None:
 
     args = vars(parser.parse_args())
 
-    TRIG_LUTS = TRIGLUTS(**{'SIN': 1, 'COS': 1, 'TAN': 1, 'ASIN': 1, 'ACOS': 1, 'ATAN': 1})
+    NON_FLAGS = [action.option_strings for action in parser._actions]
+    NON_FLAGS = [opt.removeprefix('-').replace('-', '_') for opt in
+                 itertools.chain.from_iterable(NON_FLAGS)
+                 if not opt.startswith('--')] # Excl. flags
+    NON_FLAGS.extend([action.dest for action in parser._get_positional_actions()]) # Excl. positionals
+    TRIG_LUTS = TRIGLUTS(**{k : 1 for k in TRIGLUTDEFS.fields()})
     N_TABLE_ENTRIES = 1 << args['bram']
 
-    trig_args = {k : v for k, v in args.items() if k not in ('bram', 'qt', 'k', 'tan_k', 'atan_k', 'auto')}
+    trig_args = {k : v for k, v in args.items() if k not in NON_FLAGS}
     if sum(trig_args.values()) == 0:
         trig_opts = (1 << len(trig_args)) - 1
         trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value) # Don't generate both acos & asin / cos & sin lut's unless explicitly specified
     else:
         trig_opts = bools2bitstr(*trig_args.values())
+
+    if args['hp'] is not None and not args['hp']:
+        # If hp parameter provided, but nothing specified, represent all functions as highest precision by default
+        args['hp'] = {k: TRIGPREC.HIGHP for k in TRIGLUTDEFS.fields()}
+    else:
+        # If hp parameter provided check that each trig value is adjacent to a precision arg
+        if len(args['hp']) % 2 != 0:
+
+            err_invoker = get_action_from_parser_by_name(parser, 'hp')
+            err_msg = [val.name for val in args['hp']]
+            last_w = err_msg[-1]
+            err_msg.append('*missing value*')
+            err_msg = ' '.join(err_msg)
+            last_w_index = err_msg.rindex(last_w)
+            raise ap.ArgumentError(err_invoker,
+                                   '-hp takes <trig function> <precision mode> pairs as argument'
+                                   ' but the argument length was odd. I.e.:'
+                                   f'\n{underline_matches(err_msg, last_w, start_index=last_w_index)}'
+                                   )
+
+        for trig_v, pmode in pairwise(args['hp']):
+            if not isinstance(trig_v, TRIGLUTDEFS) or not isinstance(pmode, TRIGPREC):
+                err_invoker = get_action_from_parser_by_name(parser, 'hp')
+                err_msg = ' '.join([val.name for val in args['hp']])
+                raise ap.ArgumentError(err_invoker,
+                        '-hp takes <trig function> <precision mode> pairs as argument'
+                        ' but a pair was out of order. I.e.:'
+                        f'\n{underline_matches(err_msg, (trig_v.name, pmode.name))}'
+                        )
+
+    if args['excl_auto'] and args['hp'] and set(args['excl_auto']).intersection(args['hp'].values()):
+        err_invoker = get_action_from_parser_by_name(parser, 'excl_auto')
+        raise ap.ArgumentError(err_invoker,
+                               'Arguments specified in excl must not also appear in hp'
+                               ' (can\'t simultaneously )'
+                               )
 
     if trig_opts & (TRIG_LUTS.SIN.value | TRIG_LUTS.COS.value):
         """
@@ -126,12 +203,12 @@ def main() -> None:
         => It is horizontally flipped => x |-> [0, pi/2]
         """
         match args['qt']:
-            case TRIGLUTOPT.HIGH:
+            case TRIGFOLD.HIGH:
                 stop = np.pi / 2
                 sz = N_TABLE_ENTRIES >> 2
-            case TRIGLUTOPT.MEDIUM:
+            case TRIGFOLD.MEDIUM:
                 raise NotImplementedError('Half table not yet supported')
-            case TRIGLUTOPT.LOW:
+            case TRIGFOLD.LOW:
                 stop = np.pi * 2
                 sz = N_TABLE_ENTRIES
             case _:
@@ -164,15 +241,15 @@ def main() -> None:
         => max(|sec^2(x)|) = (1/cos(pi/4))^2 = sqrt(2)^2 = 2 => h <= k/2
         """
         match args['qt']:
-            case TRIGLUTOPT.HIGH:
+            case TRIGFOLD.HIGH:
                 k = args['tan_k']
                 start = 0
                 stop = np.pi / 4
                 sz = np.ceil(np.pi / (2 * k)) + 1 # ((pi/4) / (k / 2)) = pi/2
                 sz = 1 << int(np.ceil(np.log2(sz)))
-            case TRIGLUTOPT.MED:
+            case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
-            case TRIGLUTOPT.LOW:
+            case TRIGFOLD.LOW:
                 # Naive (no optimisation)
                 # Avoid pi/2 exactly
                 stop = (np.pi * (sz - 1)) / (2 * sz) # = 0.5 * pi - step_size = 0.5 * pi - (np.pi/4) / sz
@@ -192,12 +269,12 @@ def main() -> None:
         => x |-> [0, sqrt(2) / 2]
         """
         match args['qt']:
-            case TRIGLUTOPT.HIGH:
+            case TRIGFOLD.HIGH:
                 stop = np.sqrt(2) / 2
                 sz = N_TABLE_ENTRIES >> 2
-            case TRIGLUTOPT.MED:
+            case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
-            case TRIGLUTOPT.LOW:
+            case TRIGFOLD.LOW:
                 # Naive (no optimisation)
                 stop = 1
                 sz = N_TABLE_ENTRIES >> 1
@@ -256,7 +333,7 @@ def main() -> None:
             return
 
         match args['qt']:
-            case TRIGLUTOPT.HIGH:
+            case TRIGFOLD.HIGH:
                 k = args['atan_k']
                 N = newton_raphson_N(k)
                 if N is not None:
@@ -276,9 +353,9 @@ def main() -> None:
 
                 sz = 1 << int(np.ceil(np.log2(N)))
                 stop = int(np.ceil(N))
-            case TRIGLUTOPT.MED:
+            case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
-            case TRIGLUTOPT.LOW:
+            case TRIGFOLD.LOW:
                 # Naive (no optimisation)
                 N = 1000 # Arbitrarily chosen
                 start = -N
@@ -298,7 +375,10 @@ def main() -> None:
     if trig_opts & TRIG_LUTS.TAN.value:
         tan_tbl = np.tan(phi2)
         acc_scores = assess_lut_accuracy(np.tan, tan_tbl, phi2, oversample_factor=8)
-        print(f'\tErr W.R.T k {abs(args["tan_k"] - np.average(acc_scores))}')
+        k_avg_err = max(np.average(acc_scores) - args['tan_k'], 0)
+        print(f'\tk (threshold): {args["tan_k"]}'
+              f'\n\tErr W.R.T k {k_avg_err}'
+             )
     if trig_opts & TRIG_LUTS.ASIN.value:
         asin_tbl = np.arcsin(x)
         assess_lut_accuracy(np.arcsin, asin_tbl, x, oversample_factor=8)
@@ -308,7 +388,10 @@ def main() -> None:
     if trig_opts & TRIG_LUTS.ATAN.value:
         atan_tbl = np.arctan(x2)
         acc_scores = assess_lut_accuracy(np.arctan, atan_tbl, x2, oversample_factor=8)
-        print(f'\tErr W.R.T k {abs(args["atan_k"] - np.average(acc_scores))}')
+        k_avg_err = max(np.average(acc_scores) - args['atan_k'], 0)
+        print(f'\tk (threshold): {args["atan_k"]}'
+              f'\n\tErr W.R.T k {k_avg_err}'
+             )
 
 
 def assess_lut_accuracy(fn: Callable, tbl: Sequence[float], axis: Sequence[float],
