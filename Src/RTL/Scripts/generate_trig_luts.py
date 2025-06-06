@@ -1,16 +1,26 @@
 """
-Generates a quarter table lookup for various trig functions (sin, cos, tan, tanh)
+Generates a quarter table lookup for various trig functions (sin, cos, tan, asin, acos, atan)
 """
+
+# TODO's:
+# 1. Option to automatically determine ideal size based on threshold detector (like atan, tan)
+# 2. Fix atan so it can generate a quarter table LUT as well
+
+
 import argparse as ap
+from typing import assert_never
 import numpy as np
+import regex as re
 import sys
 import os
+import functools
+
 from collections.abc import Sequence, Callable
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from Allocator.Interpreter.helpers import str2bool, bools2bitstr, eval_arithmetic_str_unsafe
-from dataclasses import TrigLuts
+from Allocator.Interpreter.helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe
+from dataclasses import TRIGLUTS, TRIGLUTOPT
 
 
 def bram(v: int | str) -> int:
@@ -29,30 +39,79 @@ def main() -> None:
     Entry-point into lut generator. Run this script with the -h option for help.
     """
     parser = ap.ArgumentParser(description=__doc__.strip())
-    parser.add_argument('-bram', type=bram, default=bram(1024))
-    parser.add_argument('-qt', type=str2bool, default=True)
-    parser.add_argument('-atan-k', type=float, default=0.1)
-    parser.add_argument('--sin', action='store_true', default=False)
-    parser.add_argument('--cos', action='store_true', default=False)
-    parser.add_argument('--tan', action='store_true', default=False)
-    parser.add_argument('--asin', action='store_true', default=False)
-    parser.add_argument('--acos', action='store_true', default=False)
-    parser.add_argument('--atan', action='store_true', default=False)
+
+    parser.add_argument('-bram', type=bram, default=bram(1024),
+                        help='The maximum allowable bram (I.e. if in quarter table mode table is of size'
+                         ' requested_bram / 4)'
+                       )
+
+    qt_enum_description = ''.join(TRIGLUTOPT.__doc__.strip().splitlines())
+    qt_enum_description = re.sub(r'\s{2,}', ' ', qt_enum_description)
+    qt_enum_description = qt_enum_description.removeprefix('# Summary Enum corresponding to ')
+    parser.add_argument('-qt', type=functools.partial(str2enumval, target_enum=TRIGLUTOPT),
+                         default=TRIGLUTOPT.HIGH,
+                         help='Over which period the LUT is built E.G. a value or field from either:'
+                         f' {TRIGLUTOPT.fields()} | {TRIGLUTOPT.values()}.'
+                         f' The following description might proove valuable: "{qt_enum_description}"'
+                        )
+
+    parser.add_argument('-k', type=float,
+                        help='A floating point threshold value which determines the error tolerance for all trig functions'
+                        ' prohibitions: -tan-k, atan-k'
+                        )
+
+    parser.add_argument('-tan-k', type=float, default=0.05,
+                        help='A floating point threshold value which determines the error tolerance for tan'
+                        ' prohibitions: -k'
+                        )
+
+    parser.add_argument('-atan-k', type=float, default=0.1,
+                        help='A floating point threshold value which determines the error tolerance for atan'
+                        ' prohibitions: -k'
+                        )
+
+    parser.add_argument('--auto', action='store_true', default=False,
+                        help='Sets auto-mode to on (generate all rec. luts & find ideal table sizes based on global threshold)'
+                        ' dependencies: -k'
+                        )
+
+    parser.add_argument('--sin', action='store_true', default=False,
+                        help='Creates a sin LUT'
+                        )
+
+    parser.add_argument('--cos', action='store_true', default=False,
+                        help='Creates a cos LUT'
+                        )
+
+    parser.add_argument('--tan', action='store_true', default=False,
+                        help='Creates a tan LUT'
+                        )
+
+    parser.add_argument('--asin', action='store_true', default=False,
+                        help='Creates an asin (arcsin) LUT'
+                        )
+
+    parser.add_argument('--acos', action='store_true', default=False,
+                        help='Creates an acos (arccos) LUT'
+                        )
+
+    parser.add_argument('--atan', action='store_true', default=False,
+                        help='Creates an atan (arctan) LUT'
+                        )
+
     args = vars(parser.parse_args())
 
-    TRIG_LUTS = TrigLuts(**{'SIN': 1, 'COS': 1, 'TAN': 1, 'ASIN': 1, 'ACOS': 1, 'ATAN': 1})
+    TRIG_LUTS = TRIGLUTS(**{'SIN': 1, 'COS': 1, 'TAN': 1, 'ASIN': 1, 'ACOS': 1, 'ATAN': 1})
     N_TABLE_ENTRIES = 1 << args['bram']
-    TRIG = TRIG_LUTS.SIN.value | TRIG_LUTS.COS.value | TRIG_LUTS.TAN.value
 
-    trig_args = {k : v for k, v in args.items() if k not in ('bram', 'qt', 'atan_k')}
+    trig_args = {k : v for k, v in args.items() if k not in ('bram', 'qt', 'k', 'tan_k', 'atan_k', 'auto')}
     if sum(trig_args.values()) == 0:
         trig_opts = (1 << len(trig_args)) - 1
-        # Don't generate both acos & asin & cos & sin lut's unless explicitly specified
-        trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value)
+        trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value) # Don't generate both acos & asin / cos & sin lut's unless explicitly specified
     else:
         trig_opts = bools2bitstr(*trig_args.values())
 
-    if trig_opts & TRIG:
+    if trig_opts & (TRIG_LUTS.SIN.value | TRIG_LUTS.COS.value):
         """
         sin(-x) = -sin(x)
         => x |-> [0, pi]
@@ -66,19 +125,63 @@ def main() -> None:
         sin(x) + (-sin(x)) = 0
         => It is horizontally flipped => x |-> [0, pi/2]
         """
-        if args['qt']:
-            stop = np.pi / 2
-            sz = N_TABLE_ENTRIES >> 2
-        else:
-            stop = np.pi * 2
-            sz = N_TABLE_ENTRIES
-
-        if trig_opts & TRIG_LUTS.TAN.value:
-            # TODO: solve for where to stop for tan LUT
-            stop -= 1/sz # Stop divide by infinity
-            phi2 = np.linspace(0, stop, sz, dtype=np.double)
+        match args['qt']:
+            case TRIGLUTOPT.HIGH:
+                stop = np.pi / 2
+                sz = N_TABLE_ENTRIES >> 2
+            case TRIGLUTOPT.MEDIUM:
+                raise NotImplementedError('Half table not yet supported')
+            case TRIGLUTOPT.LOW:
+                stop = np.pi * 2
+                sz = N_TABLE_ENTRIES
+            case _:
+                assert_never(args['qt'])
 
         phi = np.linspace(0, stop, sz, dtype=np.double)
+
+    if trig_opts & TRIG_LUTS.TAN.value:
+        """
+        tan(-x) = -tan(x)
+        => x |-> [0, pi/2)
+
+        tan(x) = 1 / tan(0.5 * pi - x)
+        I.e. if pi/4 <= x < pi/2
+        let u = 0.5 * pi - x => u |-> (0, pi/4]
+        => we can recover the interval x \in [pi/4, pi/2) by:
+        1 / tan(0.5 * pi - u)
+
+        => x |-> [0, pi/4]
+
+        To find err within some threshold, k, consider:
+        M.V.T states: tan(x_i + 1) - tan(x_i) = h * d/dx tan(x) = h * sec^2(x)
+        To ensure the error is always <= k
+
+        the max err, k <= delta(tan(x_i)) <= h * max(|sec^2(x)|)
+        Rearranging:
+        k / max(|sec^2(x)|) >= h
+
+        tan(x) is obviously monotonically increasing on the interval [0, pi/4]
+        => max(|sec^2(x)|) = (1/cos(pi/4))^2 = sqrt(2)^2 = 2 => h <= k/2
+        """
+        match args['qt']:
+            case TRIGLUTOPT.HIGH:
+                k = args['tan_k']
+                start = 0
+                stop = np.pi / 4
+                sz = np.ceil(np.pi / (2 * k)) + 1 # ((pi/4) / (k / 2)) = pi/2
+                sz = 1 << int(np.ceil(np.log2(sz)))
+            case TRIGLUTOPT.MED:
+                raise NotImplementedError('Half table not yet supported')
+            case TRIGLUTOPT.LOW:
+                # Naive (no optimisation)
+                # Avoid pi/2 exactly
+                stop = (np.pi * (sz - 1)) / (2 * sz) # = 0.5 * pi - step_size = 0.5 * pi - (np.pi/4) / sz
+                start = -stop
+                sz = N_TABLE_ENTRIES
+            case _:
+                assert_never(args['qt'])
+
+        phi2 = np.linspace(start, stop, sz, dtype=np.double)
 
     if trig_opts & (TRIG_LUTS.ASIN.value | TRIG_LUTS.ACOS.value):
         """
@@ -88,15 +191,20 @@ def main() -> None:
         => arcsin(x) = pi/2 - arcsin(sqrt(1 - x^2))
         => x |-> [0, sqrt(2) / 2]
         """
-        if args['qt']:
-            start = 0
-            stop = np.sqrt(2) / 2
-            sz = N_TABLE_ENTRIES >> 2
-        else:
-            start = -1
-            stop = 1
-            sz = N_TABLE_ENTRIES
-        x = np.linspace(start, stop, sz, dtype=np.double)
+        match args['qt']:
+            case TRIGLUTOPT.HIGH:
+                stop = np.sqrt(2) / 2
+                sz = N_TABLE_ENTRIES >> 2
+            case TRIGLUTOPT.MED:
+                raise NotImplementedError('Half table not yet supported')
+            case TRIGLUTOPT.LOW:
+                # Naive (no optimisation)
+                stop = 1
+                sz = N_TABLE_ENTRIES >> 1
+            case _:
+                assert_never(args['qt'])
+
+        x = np.linspace(0, stop, sz, dtype=np.double)
 
     if trig_opts & TRIG_LUTS.ATAN.value:
         """
@@ -147,27 +255,39 @@ def main() -> None:
 
             return
 
-        k = args['atan_k']
-        N = newton_raphson_N(k)
-        if N is not None:
-            err = 0.5 * np.log(N**2 + 1) / N
-        err_threshold = 0.1 * k # I.e. 10% of the threshold value
-        if k > k + err_threshold or k < k - err_threshold:
-            print('---Building atan LUT---'
-                  f'\n\tError: couldn\'t find an optimal table size N based on precision threshold {k}'
-                  ' Try using a bigger value.'
-                  f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
-                  )
+        match args['qt']:
+            case TRIGLUTOPT.HIGH:
+                k = args['atan_k']
+                N = newton_raphson_N(k)
+                if N is not None:
+                    err = 0.5 * np.log(N**2 + 1) / N
+                err_threshold = 0.1 * k # I.e. 10% of the threshold value
+                if k > k + err_threshold or k < k - err_threshold:
+                    print('---Building atan LUT---'
+                        f'\n\tError: couldn\'t find an optimal table size N based on precision threshold {k}'
+                        ' Try using a bigger value.'
+                        f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
+                        )
 
-        print('---Building atan LUT---'
-              f'\n\tFound optimal value for N {N}'
-              f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
-              )
+                print('---Building atan LUT---'
+                    f'\n\tFound optimal value for N {N}'
+                    f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
+                    )
 
-        atan_tbl_sz = 1 << int(np.ceil(np.log2(N)))
-        N = int(np.ceil(N))
-        x2 = np.linspace(0, N, atan_tbl_sz)
+                sz = 1 << int(np.ceil(np.log2(N)))
+                stop = int(np.ceil(N))
+            case TRIGLUTOPT.MED:
+                raise NotImplementedError('Half table not yet supported')
+            case TRIGLUTOPT.LOW:
+                # Naive (no optimisation)
+                N = 1000 # Arbitrarily chosen
+                start = -N
+                stop = N
+                sz = N_TABLE_ENTRIES
+            case _:
+                assert_never(args['qt'])
 
+        x2 = np.linspace(0, stop, sz)
 
     if trig_opts & TRIG_LUTS.SIN.value:
         sin_tbl = np.sin(phi)
@@ -177,7 +297,8 @@ def main() -> None:
         assess_lut_accuracy(np.cos, cos_tbl, phi, oversample_factor=8)
     if trig_opts & TRIG_LUTS.TAN.value:
         tan_tbl = np.tan(phi2)
-        assess_lut_accuracy(np.tan, tan_tbl, phi, oversample_factor=8)
+        acc_scores = assess_lut_accuracy(np.tan, tan_tbl, phi2, oversample_factor=8)
+        print(f'\tErr W.R.T k {abs(args["tan_k"] - np.average(acc_scores))}')
     if trig_opts & TRIG_LUTS.ASIN.value:
         asin_tbl = np.arcsin(x)
         assess_lut_accuracy(np.arcsin, asin_tbl, x, oversample_factor=8)
@@ -187,7 +308,7 @@ def main() -> None:
     if trig_opts & TRIG_LUTS.ATAN.value:
         atan_tbl = np.arctan(x2)
         acc_scores = assess_lut_accuracy(np.arctan, atan_tbl, x2, oversample_factor=8)
-        print(f'\tErr W.R.T k {abs(k - np.average(acc_scores))}')
+        print(f'\tErr W.R.T k {abs(args["atan_k"] - np.average(acc_scores))}')
 
 
 def assess_lut_accuracy(fn: Callable, tbl: Sequence[float], axis: Sequence[float],

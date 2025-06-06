@@ -3,10 +3,72 @@ Contains all common dataclasses, enums & schemas
 """
 
 
+import importlib
+
 from enum import Enum, EnumMeta
 from collections.abc import Iterable, Mapping, Set
 
-from .helpers import combined_fast_stable_hash
+
+class ExtendedEnum(Enum):
+    """# Summary
+
+    Base class providing extended (common utility functions) feature set to Enum
+    """
+
+    @classmethod
+    def fields(cls) -> Iterable:
+        """# Summary
+
+        Return field values via iterator
+        """
+        return [c.name for c in cls]
+
+    @classmethod
+    def values(cls) -> Iterable:
+        """# Summary
+
+        Returns the values via iterator
+
+        """
+        return [c.value for c in cls]
+
+    @classmethod
+    def get_name_from_value(cls, value: int) -> Enum:
+        """ # Summary
+        Finds the name of an enum member from its integer value
+        (reverse of get_value_from_name)
+
+       ## Args:
+            value: The integer value to look up
+
+       ## Returns:
+            The field corresponding to the matching enum member
+        """
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f'"{value}" is not a valid value in {cls.__name__}')
+
+    @classmethod
+    def get_value_from_name(cls, name: str) -> Enum:
+        """ # Summary
+        Finds the value of an enum member from its string value / field name
+        (reverse of get_name_from_value)
+
+       ## Args:
+            value: The string name to look up
+
+       ## Returns:
+            The integer value of the matching enum member
+        """
+        for member in cls:
+            if member.name == name:
+                return member
+        raise ValueError(f'"{name}" is not a valid field name in {cls.__name__}')
+
+
+helpers = importlib.import_module('.helpers', package='Allocator.Interpreter')
+combined_fast_stable_hash = helpers.combined_fast_stable_hash
 
 
 class BitFieldEnumMeta(EnumMeta):
