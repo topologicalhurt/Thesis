@@ -1,3 +1,5 @@
+*.xpr
+
 # Verilator
 obj_dir
 

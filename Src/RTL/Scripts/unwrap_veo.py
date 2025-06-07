@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-from Allocator.Interpreter.helpers import str2bool, str2path
+from argparse_helpers import str2bool, str2path
 
 
 def veo(v) -> Path:

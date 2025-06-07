@@ -24,8 +24,9 @@ from typing import assert_never
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from Allocator.Interpreter.dataclasses import ExtendedEnum
-from Allocator.Interpreter.helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path, pairwise,\
-get_action_from_parser_by_name, str2float, underline_matches
+from Allocator.Interpreter.helpers import pairwise, underline_matches
+from argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
+get_action_from_parser_by_name, str2float
 from dataclasses import TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
 
 
