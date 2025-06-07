@@ -37,7 +37,7 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
 
         Return field values via iterator
         """
-        return [c.name.upper() for c in cls]
+        return [c.name.upper() for c in cls if not c.name.startswith('_')]
 
     @classmethod
     def values(cls) -> Iterable:

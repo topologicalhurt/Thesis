@@ -17,6 +17,8 @@ class TRIGLUTDEFS(ExtendedEnum):
     ASIN=3
     ACOS=4
     ATAN=5
+    _SINUSOIDS = (SIN, COS)
+    _ARC_SINUSOIDS = (ASIN, ACOS)
 
 
 class TRIGLUTS(BitField):
