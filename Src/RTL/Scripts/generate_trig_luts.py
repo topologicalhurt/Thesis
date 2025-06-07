@@ -11,6 +11,7 @@ the 'best' fit automatically
 
 
 import argparse as ap
+import collections
 import numpy as np
 import regex as re
 import sys
@@ -39,7 +40,7 @@ def bram(v: int | str) -> int:
         return int(np.ceil(v))
 
 
-def highp(v: str) -> ExtendedEnum:
+def precmode(v: str) -> ExtendedEnum:
     if v in TRIGLUTDEFS:
         return str2enumval(v, TRIGLUTDEFS)
     return str2enumval(v, TRIGPREC)
@@ -52,39 +53,36 @@ def main() -> None:
     """
     parser = ap.ArgumentParser(description=__doc__.strip())
 
-    parser.add_argument('-bram', type=bram, default=bram(1024),
-                        help='The maximum allowable bram (I.e. if in quarter table mode table is of size'
-                         ' requested_bram / 4)'
-                       )
-
     parser.add_argument('out', type=str2path,
                         help='The output directory for the LUTs'
                         )
+
+    parser.add_argument('-bram', type=bram, default=bram(1024),
+                    help='The maximum allowable bram (I.e. if in quarter table mode table is of size'
+                        ' requested_bram / 4)'
+                    )
+
+    parser.add_argument('-k', type=float,
+                    help='A floating point threshold value which determines the error tolerance for all trig functions'
+                    ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
+                    )
 
     qt_enum_description = ''.join(TRIGFOLD.__doc__.strip().splitlines())
     qt_enum_description = re.sub(r'\s{2,}', ' ', qt_enum_description)
     qt_enum_description = qt_enum_description.removeprefix('# Summary Enum corresponding to ')
     parser.add_argument('-qt', type=functools.partial(str2enumval, target_enum=TRIGFOLD),
-                         default=TRIGFOLD.HIGH,
-                         help='Over which period all LUT\'s will be built E.G. a value or field from either:'
-                         f' {TRIGFOLD.fields()} | {TRIGFOLD.values()}.'
-                         f' The following description might proove valuable: "{qt_enum_description}"'
+                        nargs='*', default=TRIGFOLD.HIGH,
+                        help='Over which period all LUT\'s will be built'
+                        ' (highest optimisation mode used if none specified, applies to all values if none provided)'
+                        ' E.G. a value or field from either:'
+                        f' {TRIGFOLD.fields()} | {TRIGFOLD.values()}.'
+                        f' The following description might proove valuable: "{qt_enum_description}"'
                         )
 
-    parser.add_argument('-k', type=float,
-                        help='A floating point threshold value which determines the error tolerance for all trig functions'
-                        ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
-                        )
-
-    parser.add_argument('-excl-auto', type=functools.partial(str2enumval, target_enum=TRIGLUTS),
-                        nargs='+', default=None,
-                        help='A list of values to exclude from auto mode (see: --auto)'
-                        ' prohibitions: -tan-k (see: -tan-k) -atan-k (see: -atan-k)'
-                        )
-
-    parser.add_argument('-hp', type=highp, nargs='*', default=None,
-                        help=f'A list of trig values I.e. {TRIGLUTDEFS.fields()} (applies to all values if none provided)'
-                        ' to apply high precision mode to OR a list of trig values & explicit precision mode to use'
+    parser.add_argument('-hp', type=precmode, nargs='*', default=TRIGPREC.LOWP,
+                        help=f'A list of trig values I.e. {TRIGLUTDEFS.fields()}'
+                        ' (lowest p-mode used if none specified, applies to all values if none provided)'
+                        ' to apply low precision mode to OR a list of trig values & explicit precision mode to use'
                         ' E.g. -hp cos medp sin medp tan highp'
                         ' For example, if -qt (see: -qt) is in the highest mode [quarter table mode]'
                         ' then the default behaviour is to also reduce the LUT size'
@@ -95,20 +93,27 @@ def main() -> None:
                         ' => a quarter table lookup method is used for half the period of the function (effective x2 oversampling)'
                         )
 
+    parser.add_argument('-auto', type=functools.partial(str2enumval, target_enum=TRIGLUTDEFS),
+                        nargs='*', default=True,
+                        help='A list of values to include in auto mode'
+                        ' This generates all luts via ideal table sizes based on global threshold (see: -k)'
+                        ' This is done by using the newton raphson method or a known bound'
+                        ' dependencies: -k (see: -k)'
+                        ' prohibitions: -excl-auto (see: -excl-auto)'
+                        )
+
+    parser.add_argument('-excl-auto', type=functools.partial(str2enumval, target_enum=TRIGLUTDEFS),
+                        nargs='*', default=False,
+                        help='A list of values to exclude from auto mode'
+                        ' prohibitions: -auto (see: -auto)'
+                        )
+
     parser.add_argument('-tan-k', type=float, default=0.05,
                         help='A floating point threshold value which determines the error tolerance for tan'
-                        ' prohibitions: -excl-auto (see: -excl-auto)'
                         )
 
     parser.add_argument('-atan-k', type=float, default=0.1,
                         help='A floating point threshold value which determines the error tolerance for atan'
-                        ' prohibitions: -excl-auto (see: -excl-auto)'
-                        )
-
-    parser.add_argument('--auto', action='store_true', default=False,
-                        help='Sets auto-mode to on (generate all rec. luts & find ideal table sizes based on global threshold.)'
-                        ' This is done by using the newton raphson method or a known bound'
-                        ' dependencies: -k (see: -k)'
                         )
 
     parser.add_argument('--sin', action='store_true', default=False,
@@ -152,14 +157,32 @@ def main() -> None:
     else:
         trig_opts = bools2bitstr(*trig_args.values())
 
-    if args['hp'] is not None and not args['hp']:
-        # If hp parameter provided, but nothing specified, represent all functions as highest precision by default
-        args['hp'] = {k: TRIGPREC.HIGHP for k in TRIGLUTDEFS.fields()}
+    if not args['qt'] or args['qt'] in TRIGFOLD:
+        # If qt parameter is provided but with no arg represent all functions as highest optimisation by default
+        # If qt parameter wasn't provided at all it fallsback to the singular default value
+        qt_default = get_action_from_parser_by_name(parser, 'qt').default
+        args['qt'] = {k: qt_default for k in TRIGLUTDEFS}
+
+    if not args['hp'] or args['hp'] in TRIGPREC:
+        # If hp parameter provided but with no arg represent all functions as lowest precision by default
+        # If hp parameter wasn't provided at all it fallsback to the singular default value (same as above)
+        hp_default = get_action_from_parser_by_name(parser, 'hp').default
+        args['hp'] = {k: hp_default for k in TRIGLUTDEFS}
     else:
+        err_invoker = get_action_from_parser_by_name(parser, 'hp')
+        counts = collections.Counter([a for a in args['hp'] if a.name in TRIGLUTDEFS])
+        counts_gt_one = {k.name: v for k, v in counts.items() if v > 1}
+        if any(counts_gt_one):
+            err_msg = ' '.join([val.name for val in args['hp']])
+            raise ap.ArgumentError(err_invoker,
+                                   '-hp takes only unique values for <trig function>'
+                                   ' but the argument contains duplicate pairs. I.e.:'
+                                   f'\n{underline_matches(err_msg, counts_gt_one.keys(), match_all=True)}'
+                                   )
+
+
         # If hp parameter provided check that each trig value is adjacent to a precision arg
         if len(args['hp']) % 2 != 0:
-
-            err_invoker = get_action_from_parser_by_name(parser, 'hp')
             err_msg = [val.name for val in args['hp']]
             last_w = err_msg[-1]
             err_msg.append('*missing value*')
@@ -172,8 +195,7 @@ def main() -> None:
                                    )
 
         for trig_v, pmode in pairwise(args['hp']):
-            if not isinstance(trig_v, TRIGLUTDEFS) or not isinstance(pmode, TRIGPREC):
-                err_invoker = get_action_from_parser_by_name(parser, 'hp')
+            if trig_v not in TRIGLUTDEFS or pmode not in TRIGPREC:
                 err_msg = ' '.join([val.name for val in args['hp']])
                 raise ap.ArgumentError(err_invoker,
                         '-hp takes <trig function> <precision mode> pairs as argument'
@@ -181,11 +203,48 @@ def main() -> None:
                         f'\n{underline_matches(err_msg, (trig_v.name, pmode.name))}'
                         )
 
-    if args['excl_auto'] and args['hp'] and set(args['excl_auto']).intersection(args['hp'].values()):
+        args['hp'] = {k: v for k, v in pairwise(args['hp'])}
+
+    member_set = set(TRIGLUTDEFS.__members__.values())
+    def _parse_auto(s1: Sequence[ExtendedEnum] | bool, s2: Sequence[ExtendedEnum] | bool) -> Sequence[ExtendedEnum]:
+        # Case I: If s1 was specified but no argument was supplied OR s1 was not specified at all THEN |->
+        # Case I.I: If s2 was specified & supplied find the set difference
+        # Case I.II: If s2 was specified but not supplied it contains all elements
+        # Case I.III: If s2 wasn't specified at all then the boolean value of s1 determines if it contains all elements or is empty
+        # Case II: s1 was specified so just return s1 as a set
+        if s1 == [] or type(s1) is bool:
+            s2_was_supplied = isinstance(s2, Sequence)
+            if s2_was_supplied and s2:
+                return member_set.difference(s2)
+            elif not s2:
+                return member_set
+            else:
+                return member_set if s1 is True else {}
+        return set(s1)
+
+    args['auto'] = _parse_auto(args['auto'], args['excl_auto'])
+    args['excl_auto'] = _parse_auto(args['excl_auto'], args['auto'])
+
+    # Check that args appearing in auto mask don't also appear in excl_auto mask
+    if intersect := args['excl_auto'].intersection(args['auto']):
         err_invoker = get_action_from_parser_by_name(parser, 'excl_auto')
+        auto_msg = ' '.join([v.name for v in args['auto']])
+        excl_auto_msg = ' '.join([v.name for v in args['excl_auto']])
+        err_msg = f'-auto {{{auto_msg}}} -excl-auto {{{excl_auto_msg}}}'
+        common_msg = [v.name for v in intersect]
         raise ap.ArgumentError(err_invoker,
-                               'Arguments specified in excl must not also appear in hp'
-                               ' (can\'t simultaneously )'
+                               'Arguments specified in -auto must not also appear in -excl-auto'
+                               ' (can\'t simultaneously be in both). I.e.:'
+                               f'\n{underline_matches(err_msg, common_msg, match_all=True)}'
+                               )
+
+    # Check that (if auto mode isn't just the tuple (TAN, ATAN) as these supply default thresholds)
+    # k is specified
+    if len(args['auto']) != 2 or not (TRIGLUTDEFS.TAN in args['auto'] and\
+        TRIGLUTDEFS.ATAN in args['auto']) and not args['k']:
+        err_invoker = get_action_from_parser_by_name(parser, 'k')
+        raise ap.ArgumentError(err_invoker,
+                               'k must be supplied if auto mode is turned on'
                                )
 
     if trig_opts & (TRIG_LUTS.SIN.value | TRIG_LUTS.COS.value):
@@ -206,7 +265,7 @@ def main() -> None:
             case TRIGFOLD.HIGH:
                 stop = np.pi / 2
                 sz = N_TABLE_ENTRIES >> 2
-            case TRIGFOLD.MEDIUM:
+            case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
             case TRIGFOLD.LOW:
                 stop = np.pi * 2

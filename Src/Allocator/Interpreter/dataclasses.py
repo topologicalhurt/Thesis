@@ -17,10 +17,12 @@ class _ExtendedEnumMeta(EnumMeta):
         Enables support for open-ended type comparisons in derivative classes
         """
         if isinstance(other, str):
-            other = other.upper()
+            return other.upper() in self.fields()
         elif isinstance(other, int):
             return other in self.values()
-        return other in self.fields()
+        elif issubclass(other.__class__, self):
+            return self(other)
+        return False
 
 
 class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):

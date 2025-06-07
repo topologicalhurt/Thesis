@@ -104,7 +104,7 @@ def underline_match(text: str, to_match: str, start_index: int = 0, end_index: i
     return end_index, underlined
 
 
-def underline_matches(text: str, to_match: Iterable, start_index: int = 0, end_index: int | None = None,
+def underline_matches(text: str, to_match: Iterable | str, start_index: int = 0, end_index: int | None = None,
                       match_all: bool = False, literal: bool = True,) -> str | None:
     """ # Summary
 
