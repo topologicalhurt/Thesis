@@ -62,6 +62,13 @@ def str2posint(value: str) -> int:
     return int(value)
 
 
+def str2float(value: str) -> float:
+    matched = re.fullmatch(r'(\d+(?:\.\d+)?)', value)
+    if matched is None:
+        raise ap.ArgumentTypeError(f'Couldn\'t parse float from {value}')
+    return float(matched.group(0))
+
+
 def str2enumval(value: str, target_enum: ExtendedEnum) -> Enum:
     try:
         posint = str2posint(value)
