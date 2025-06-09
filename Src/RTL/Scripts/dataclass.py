@@ -1,9 +1,4 @@
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from Allocator.Interpreter.dataclasses import BitField, ExtendedEnum
+from Allocator.Interpreter.dataclass import BitField, ExtendedEnum
 
 
 class TRIGLUTDEFS(ExtendedEnum):
@@ -29,7 +24,12 @@ class TRIGLUTS(BitField):
     ALLOWED = TRIGLUTDEFS.fields()
 
 
-class TRIGFOLD(ExtendedEnum):
+class TABLEMODE(ExtendedEnum):
+    def __str__(self) -> str:
+        return f'1/{self.value}' if self.value != 1 else '1'
+
+
+class TRIGFOLD(TABLEMODE):
     """# Summary
 
     Enum corresponding to how the trig LUT is 'folded' E.G. refer to the basic sin case

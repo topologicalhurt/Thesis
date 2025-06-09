@@ -1,0 +1,79 @@
+// Coefficient memory for sin
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Table mode:               high
+//   Table size:               0.256kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 0.25
+//   Measured avg. accuracy:   0.004967708902672412
+//   Min accuracy:             0.0
+//   Max accuracy:             0.007738634640415465//
+
+// Each line contains a value (coeff.) corresponding to the function: sin
+// File generated @ 2025-06-10 02:14:53.762054
+//
+//
+0000000000000000
+3f99876e66ba0a6d
+3fa9856661817583
+3fb32182ebfb0fe9
+3fb97d4744dcb7aa
+3fbfd4fd30eca794
+3fc313d12579650c
+3fc63a1a7e0b738a
+3fc95cda526f5a5f
+3fcc7b90e3024582
+3fcf95bf14901cbe
+3fd155734246e1e3
+3fd2dd44ce9afba7
+3fd46215d4c2c9ee
+3fd5e3a8748a0bf6
+3fd761bf51e29c90
+3fd8dc1d9ea83507
+3fda5287244d9a84
+3fdbc4c04d71abc1
+3fdd328e2f5ac8a7
+3fde9bb693571188
+3fe0000000000000
+3fe0af98e12ff00d
+3fe15c89fb7bda82
+3fe206b7c9520ced
+3fe2ae0735afda09
+3fe3525da070e964
+3fe3f3a0e28bedd1
+3fe491b7523c161d
+3fe52c87c7168e5e
+3fe5c3f99e0b6b96
+3fe657f4bd515e7d
+3fe6e861983b8dbe
+3fe7752932f8fb65
+3fe7fe35263cdcd4
+3fe8836fa2cf5039
+3fe904c37505de4b
+3fe9821c08233ade
+3fe9fb65699dbae6
+3fea708c4c4bfa74
+3feae17e0b773157
+3feb4e28add2b945
+3febb67ae8584cab
+3fec1a6421088998
+3fec79d4718f48af
+3fecd4bca9cb5c71
+3fed2b0e523951db
+3fed7cbbae40cfd0
+3fedc9b7be64378e
+3fee11f642522d1c
+3fee556bbad8b36c
+3fee940d6bb98cc6
+3feecdd15d5f94ed
+3fef02ae5e74cf6e
+3fef329c0558e969
+3fef5d92b177f354
+3fef838b8c811c18
+3fefa4808b7d3c19
+3fefc06c6fc503e7
+3fefd74ac7d6a74b
+3fefe917f00ae2cd
+3feff5d113293ed5
+3feffd742adb78d0
+3ff0000000000000

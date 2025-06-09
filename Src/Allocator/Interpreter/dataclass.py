@@ -2,11 +2,15 @@
 Contains all common dataclasses, enums & schemas
 """
 
+from __future__ import absolute_import
 
 import importlib
+import numpy as np
+
+from dataclasses import dataclass
 
 from enum import Enum, EnumMeta
-from collections.abc import Iterable, Mapping, Set
+from collections.abc import Callable, Iterable, Mapping, Set
 from typing import Any
 
 
@@ -44,9 +48,21 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
         """# Summary
 
         Returns the values via iterator
-
         """
         return [c.value for c in cls]
+
+    @classmethod
+    def get_members(cls) -> Iterable:
+        """# Summary
+
+        Returns the enum member fields via iterator
+        """
+        fields = cls.fields()
+        members = []
+        for k, v in cls.__members__.items(): # safe from mix-in's as intersection applies to cls.fields() (already filtered)
+            if k in fields:
+                members.append(v)
+        return members
 
     @classmethod
     def get_name_from_value(cls, value: int) -> Enum:
@@ -234,3 +250,36 @@ class BitField(Enum, metaclass=_BitFieldEnumMeta):
 
         MyFlags.F3.value will be 4 (1 << 2)
     """
+
+
+@dataclass(frozen=True)
+class LUT_ACC_REPORT:
+    """# Summary
+
+    Dataclass used for the generated LUT acc report
+    """
+    avg_acc: np.float64
+    min_acc: np.float64
+    max_acc: np.float64
+    acc_scores: np.array
+
+    def __str__(self) -> str:
+        return (f'\n\tAvg. acc score (lower is better): {self.avg_acc}'
+          f'\n\tMin-acc loss: {self.min_acc}'
+          f'\n\tMax-acc loss: {self.max_acc}')
+
+
+@dataclass(frozen=True)
+class LUT:
+    """# Summary
+
+    Dataclass used for an arbitrary generated LUT
+    """
+    lut: np.array
+    bit_width: int
+    table_sz: int
+    lop: ExtendedEnum
+    table_mode: ExtendedEnum
+    fn: Callable[..., np.float64]
+    acc_report: LUT_ACC_REPORT
+    cmd: str | None # Command used to create LUT

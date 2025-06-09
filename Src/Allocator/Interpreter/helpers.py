@@ -3,9 +3,11 @@ Common helper / utility functions
 """
 
 
-import regex as re
 import xxhash
+import struct
 import importlib
+import numpy as np
+import regex as re
 
 from collections.abc import Iterable, Hashable, Sequence
 
@@ -17,7 +19,7 @@ def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
     return hasher.intdigest()
 
 
-dataclasses = importlib.import_module('.dataclasses', package='Allocator.Interpreter')
+dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
 ExtendedEnum = dataclasses.ExtendedEnum
 
 
@@ -93,6 +95,22 @@ def underline_matches(text: str, to_match: Iterable | str, start_index: int = 0,
     _, txt = underline_match(text, to_match, start_index, end_index)
     underlined.extend(txt)
     return f'{text}\n{"".join(underlined)}'
+
+
+def float64_to_hex(f: np.float64) -> str:
+    """
+    Converts a 64-bit float (np.float64) into its raw 16-character
+    hexadecimal string representation (IEEE 754 format).
+
+    ## Args:
+        f: The float64 value to convert.
+
+    ## Returns:
+        A string of 16 hexadecimal characters (e.g., '400921fb54442d18').
+    """
+    # Pack the float into 8 bytes using big-endian format ('>d')
+    # and then convert the resulting bytes object to a hex string.
+    return struct.pack('>d', f).hex()
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

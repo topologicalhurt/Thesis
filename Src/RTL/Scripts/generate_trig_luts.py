@@ -23,11 +23,12 @@ from typing import assert_never
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from Allocator.Interpreter.dataclasses import ExtendedEnum
+from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum
 from Allocator.Interpreter.helpers import pairwise, underline_matches
 from argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
-get_action_from_parser_by_name, str2float
-from dataclasses import TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
+get_action_from_parser_by_name, str2float, str2posint
+from dataclass import TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
+from hex_writer import write_lut_to_hex
 
 
 def bram(v: int | str) -> int:
@@ -55,6 +56,28 @@ def kthresh(v: str) -> float:
     return v
 
 
+def bw(v: str | int) -> int:
+    if isinstance(v, str):
+        if v.isdigit():
+            v = str2posint(v)
+        else:
+            match v.upper():
+                case 'float':
+                    return 32
+                case 'double':
+                    return 64
+                case _:
+                    raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
+                                               ' of (float, double)'
+                                               f' but got {v} instead'
+                                               )
+    if v < 16 or v > 64:
+        raise ap.ArgumentTypeError('Value must be positive int in range [16, 64]'
+                                   f' but got {v} instead'
+                                   )
+    return v
+
+
 def main() -> None:
     """# Summary
 
@@ -62,14 +85,18 @@ def main() -> None:
     """
     parser = ap.ArgumentParser(description=__doc__.strip())
 
-    parser.add_argument('out', type=str2path,
+    parser.add_argument('dir', type=str2path,
                         help='The output directory for the LUTs'
                         )
 
     parser.add_argument('-bram', type=bram, default=bram(1024),
-                    help='The maximum allowable bram in bytes (I.e. if in quarter table mode table is of size'
-                        ' requested_bram / 4)'
-                    )
+                        help='The maximum allowable bram in bytes (I.e. if in quarter table mode table is of size'
+                            ' requested_bram / 4)'
+                        )
+
+    parser.add_argument('-bw', type=bw, default=32,
+                        help='The bit width of each value in the LUT (default: float / 32bit)'
+                        )
 
     parser.add_argument('-k', type=kthresh,
                     help='A floating point threshold value which determines the error tolerance for all trig functions'
@@ -119,6 +146,14 @@ def main() -> None:
                         ' prohibitions: -auto (see: -auto)'
                         )
 
+    parser.add_argument('--auto-off', action='store_true', default=False,
+                        help='Turns auto mode off if specified'
+                        )
+
+    parser.add_argument('--all', action='store_true', default=False,
+                        help='Will generate cosine, arccos (in addition to sin, arcsin) if specified'
+                        )
+
     parser.add_argument('-tan-k', type=kthresh, default=0.05,
                         help='A floating point threshold value which determines the error tolerance for tan'
                         )
@@ -156,7 +191,8 @@ def main() -> None:
     NON_FLAGS = [action.option_strings for action in parser._actions]
     NON_FLAGS = [opt.removeprefix('-').replace('-', '_') for opt in
                  itertools.chain.from_iterable(NON_FLAGS)
-                 if not opt.startswith('--')] # Excl. flags
+                 if not opt.startswith('--')] # Excl. non flags
+    NON_FLAGS.extend(('auto_off', 'all')) # Excl. flags manually
     NON_FLAGS.extend([action.dest for action in parser._get_positional_actions()]) # Excl. positionals
     TRIG_LUTS = TRIGLUTS(**{k : 1 for k in TRIGLUTDEFS.fields()})
     N_TABLE_ENTRIES = 1 << args['bram']
@@ -164,7 +200,9 @@ def main() -> None:
     trig_args = {k : v for k, v in args.items() if k not in NON_FLAGS}
     if sum(trig_args.values()) == 0:
         trig_opts = (1 << len(trig_args)) - 1
-        trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value) # Don't generate both acos & asin / cos & sin lut's unless explicitly specified
+        if not args['all']:
+            # Don't generate both acos & asin / cos & sin lut's unless explicitly specified
+            trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value)
     else:
         trig_opts = bools2bitstr(*trig_args.values())
 
@@ -234,8 +272,12 @@ def main() -> None:
                 return member_set if s1 is True else set()
         return set(s1)
 
-    args['auto'] = _parse_auto(args['auto'], args['excl_auto'])
-    args['excl_auto'] = _parse_auto(args['excl_auto'], args['auto'])
+    if args['auto_off']:
+        args['auto'] = set()
+        args['excl_auto'] = member_set
+    else:
+        args['auto'] = _parse_auto(args['auto'], args['excl_auto'])
+        args['excl_auto'] = _parse_auto(args['excl_auto'], args['auto'])
 
     # Check that args appearing in auto mask don't also appear in excl_auto mask
     if intersect := args['excl_auto'].intersection(args['auto']):
@@ -252,7 +294,8 @@ def main() -> None:
 
     # Check that (if auto mode isn't just the tuple (TAN, ATAN) as these supply default thresholds)
     # k is specified
-    if (len(args['auto']) != 2 or (TRIGLUTDEFS.TAN not in args['auto'] or\
+    if not args['auto_off'] and\
+        (len(args['auto']) != 2 or (TRIGLUTDEFS.TAN not in args['auto'] or\
         TRIGLUTDEFS.ATAN not in args['auto'])) and args['k'] is None:
         err_invoker = get_action_from_parser_by_name(parser, 'k')
         raise ap.ArgumentError(err_invoker,
@@ -442,37 +485,69 @@ def main() -> None:
 
         xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, sz)
 
-    if trig_opts & TRIG_LUTS.SIN.value:
-        sin_tbl = np.sin(phis[TRIGLUTDEFS.SIN])
-        assess_lut_accuracy(np.sin, sin_tbl, phis[TRIGLUTDEFS.SIN], oversample_factor=8)
-    if trig_opts & TRIG_LUTS.COS.value:
-        cos_tbl = np.cos(phis[TRIGLUTDEFS.COS])
-        assess_lut_accuracy(np.cos, cos_tbl, phis[TRIGLUTDEFS.COS], oversample_factor=8)
-    if trig_opts & TRIG_LUTS.TAN.value:
-        tan_tbl = np.tan(phis[TRIGLUTDEFS.TAN])
-        acc_scores = assess_lut_accuracy(np.tan, tan_tbl, phis[TRIGLUTDEFS.TAN], oversample_factor=8)
-        k_avg_err = max(np.average(acc_scores) - args['tan_k'], 0)
-        print(f'\tk (threshold): {args["tan_k"]}'
-              f'\n\tErr W.R.T k {k_avg_err}'
-             )
-    if trig_opts & TRIG_LUTS.ASIN.value:
-        asin_tbl = np.arcsin(xs[TRIGLUTDEFS.ASIN])
-        assess_lut_accuracy(np.arcsin, asin_tbl, xs[TRIGLUTDEFS.ASIN], oversample_factor=8)
-    if trig_opts & TRIG_LUTS.ACOS.value:
-        acos_tbl = np.arccos(xs[TRIGLUTDEFS.ACOS])
-        assess_lut_accuracy(np.arccos, acos_tbl, xs[TRIGLUTDEFS.ACOS], oversample_factor=8)
-    if trig_opts & TRIG_LUTS.ATAN.value:
-        atan_tbl = np.arctan(xs[TRIGLUTDEFS.ATAN])
-        acc_scores = assess_lut_accuracy(np.arctan, atan_tbl, xs[TRIGLUTDEFS.ATAN], oversample_factor=8)
-        k_avg_err = max(np.average(acc_scores) - args['atan_k'], 0)
-        print(f'\tk (threshold): {args["atan_k"]}'
-              f'\n\tErr W.R.T k {k_avg_err}'
-             )
+    luts_to_w = []
+    cmd_line_args = ''.join(sys.argv[1:])
+    for m, bit_v in zip(TRIGLUTDEFS.get_members(), TRIG_LUTS.__members__.values()):
+        if trig_opts & bit_v.value:
+            match m:
+                case TRIGLUTDEFS.SIN:
+                    domain = phis
+                    lut = np.sin(phis[TRIGLUTDEFS.SIN])
+                    fn = np.sin
+                case TRIGLUTDEFS.COS:
+                    domain = phis
+                    lut = np.cos(phis[TRIGLUTDEFS.COS])
+                    fn = np.cos
+                case TRIGLUTDEFS.TAN:
+                    domain = phis
+                    lut = np.tan(phis[TRIGLUTDEFS.TAN])
+                    fn = np.tan
+                    k = args['tan_k']
+                case TRIGLUTDEFS.ASIN:
+                    domain = xs
+                    lut = np.arcsin(xs[TRIGLUTDEFS.ASIN])
+                    fn = np.arcsin
+                case TRIGLUTDEFS.ACOS:
+                    domain = xs
+                    lut = np.arcsin(xs[TRIGLUTDEFS.ACOS])
+                    fn = np.arccos
+                case TRIGLUTDEFS.ATAN:
+                    domain = xs
+                    lut = np.arctan(xs[TRIGLUTDEFS.ATAN])
+                    fn = np.arctan
+                    k = args['atan_k']
+                case _:
+                    assert_never(m)
+
+            acc_report = assess_lut_accuracy(fn, lut, domain[m], oversample_factor=8)
+
+            if m == TRIG_LUTS.TAN or m == TRIG_LUTS.ATAN:
+                k_avg_err = max(np.average(acc_report.acc_scores) - k, 0)
+                print(f'\tk (threshold): {args["atan_k"]}'
+                      f'\n\tErr W.R.T k {k_avg_err}'
+                     )
+
+            luts_to_w.append(
+                LUT(lut=lut,
+                    bit_width=args['bw'], table_sz=np.size(lut)/250,
+                    lop=args['hp'][m], table_mode=args['qt'][m],
+                    fn=fn, acc_report=acc_report,
+                    cmd=underline_matches(cmd_line_args, m.name, match_all=True)
+                    )
+            )
+
+    # Done! Write to .hex file
+    for lut in luts_to_w:
+        fn = (f'{lut.fn.__name__}_{lut.bit_width}'
+              f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'
+              )
+        write_lut_to_hex(args['dir'], fn, lut, ow=True)
 
 
-def assess_lut_accuracy(fn: Callable, tbl: Sequence[float], axis: Sequence[float],
-                         oversample_factor: int) -> None:
-    tbl_arr = np.asarray(tbl, dtype=np.double)
+def assess_lut_accuracy(fn: Callable[..., np.float64],
+                         lut: Sequence[np.float64], axis: Sequence[np.float64],
+                         oversample_factor: int) -> LUT_ACC_REPORT:
+    lut_arr = np.asarray(lut, dtype=np.double)
     axis_arr = np.asarray(axis, dtype=np.double)
     l_axis = np.size(axis_arr)
     min_ax_val, max_ax_val = np.min(axis_arr), np.max(axis_arr)
@@ -481,8 +556,8 @@ def assess_lut_accuracy(fn: Callable, tbl: Sequence[float], axis: Sequence[float
         print(f'---Accuracy test results for {fn.__name__}---\n\tAxis is empty. Cannot perform test.')
         return
 
-    if np.size(tbl_arr) != l_axis:
-        print(f'---Accuracy test results for {fn.__name__}---\n\tTable size ({np.size(tbl_arr)}) '
+    if np.size(lut_arr) != l_axis:
+        print(f'---Accuracy test results for {fn.__name__}---\n\tTable size ({np.size(lut_arr)}) '
               f'does not match axis size ({l_axis}). Cannot perform test')
         return
 
@@ -499,22 +574,24 @@ def assess_lut_accuracy(fn: Callable, tbl: Sequence[float], axis: Sequence[float
 
     fn_values_at_eval_points = np.asarray(fn(fn_eval_points), dtype=np.double)
 
-    if fn_values_at_eval_points.shape != tbl_arr.shape:
+    if fn_values_at_eval_points.shape != lut_arr.shape:
         print(f'---Accuracy test results for {fn.__name__}---\n'
               f'\tShape mismatch between evaluated function values ({fn_values_at_eval_points.shape}) '
-              f'and table values ({tbl_arr.shape}). Cannot compute scores.')
+              f'and table values ({lut_arr.shape}). Cannot compute scores.')
         return
 
-    acc_scores = np.abs(tbl_arr - fn_values_at_eval_points)
+    acc_scores = np.abs(lut_arr - fn_values_at_eval_points)
+
+    acc_report = LUT_ACC_REPORT(avg_acc=np.average(acc_scores), min_acc=np.min(acc_scores),
+                                 max_acc=np.max(acc_scores), acc_scores=acc_scores)
 
     print(f'---Accuracy test results for {fn.__name__}---'
-          f'\n\tLUT size in bytes: {np.size(tbl_arr) * 4} ({np.size(tbl_arr) / 250:.3f}kB)'
-          f'\n\tAvg. acc score (lower is better): {np.average(acc_scores)}'
+          f'\n\tLUT size in bytes: {np.size(lut_arr) * 4} ({np.size(lut_arr) / 250:.3f}kB)'
           f'\n\tOver-sample factor for fn evaluation grid: x{oversample_factor}'
-          f'\n\tMin-acc loss: {np.min(acc_scores)}'
-          f'\n\tMax-acc loss: {np.max(acc_scores)}')
+          f'{acc_report}'
+          )
 
-    return acc_scores
+    return acc_report
 
 
 if __name__ == '__main__':
