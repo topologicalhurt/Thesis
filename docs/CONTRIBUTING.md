@@ -52,6 +52,11 @@ y = a.y
 
 Now module a will dynamically retrieve what it needs from module b without getting anything more \& vice versa!
 
+### Dataclasses
+
+Don't use tuples or dictionaries to pass or return complex data types. Encapsulate the data in a dataclass
+(*see: https://docs.python.org/3/library/dataclasses.html*) and place it under the respective ```dataclasses.py```.
+
 ___
 ## System Verilog / Verilog
 

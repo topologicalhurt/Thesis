@@ -1,0 +1,79 @@
+// Coefficient memory for arctan
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Table mode:               high
+//   Table size:               0.256kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 0.25
+//   Measured avg. accuracy:   0.001350856407700789
+//   Min accuracy:             0.0
+//   Max accuracy:             0.006841676999118196//
+
+// Each line contains a value (coeff.) corresponding to the function: arctan
+// File generated @ 2025-06-10 02:14:53.762575
+//
+//
+0000000000000000
+3fe09cd84fd118f3
+3feb434ee31013fd
+3ff0aefd22e6aa37
+3ff288bfa3512419
+3ff3bef63199bba2
+3ff4978fa3269ee1
+3ff5368c951e9cfd
+3ff5afe069f1e104
+3ff60f5a632f34f5
+3ff65c5e14caca40
+3ff69bc2d13f486c
+3ff6d0d46b445d04
+3ff6fde4598296f0
+3ff7249faa996a21
+3ff7464401b1b729
+3ff763c1685d3c9c
+3ff77dd08ece55b8
+3ff79501d4a7a732
+3ff7a9c7af7b08e9
+3ff7bc7e03979308
+3ff7cd6f6dc59db4
+3ff7dcd9223374e7
+3ff7eaedccf0fc27
+3ff7f7d7bcef600f
+3ff803ba8b8cac1a
+3ff80eb4638f101a
+3ff818df00452edd
+3ff82250768ac529
+3ff82b1bd49bd0d4
+3ff83351a2394ab6
+3ff83b0048351f64
+3ff8423464ba5ef6
+3ff848f9105eed34
+3ff84f58171a2413
+3ff8555a2787981f
+3ff85b06fa559364
+3ff860657357f397
+3ff8657bbd695d5b
+3ff86a4f620802ad
+3ff86ee55d6c15f2
+3ff873422fb1254d
+3ff87769eb8e956b
+3ff87b6043047748
+3ff87f28924fa580
+3ff882c5e9696a79
+3ff8863b144b20a0
+3ff8898aa224ad87
+3ff88cb6ebacf182
+3ff88fc218ace9dc
+3ff892ae24e10c0b
+3ff8957ce4481349
+3ff8983006f2ea88
+3ff89ac91c6667b2
+3ff89d49969d15aa
+3ff89fb2ccb539fa
+3ff8a205fd558740
+3ff8a44450d1776c
+3ff8a66edb150cae
+3ff8a8869d5eabd9
+3ff8aa8c87ccdefb
+3ff8ac817ac50c7f
+3ff8ae66483788ce
+3ff8b03bb4c4d9c4

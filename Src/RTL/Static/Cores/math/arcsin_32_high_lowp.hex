@@ -1,0 +1,79 @@
+// Coefficient memory for arcsin
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Table mode:               high
+//   Table size:               0.256kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 0.25
+//   Measured avg. accuracy:   0.005676510233292811
+//   Min accuracy:             0.0
+//   Max accuracy:             0.013606483211069387//
+
+// Each line contains a value (coeff.) corresponding to the function: arcsin
+// File generated @ 2025-06-10 02:14:53.762447
+//
+//
+0000000000000000
+3f86fcb04abe9ead
+3f96fd0f3511beaa
+3fa13e421a7e34f8
+3fa6fe8b311f541c
+3facbf92a6837a35
+3fb140c43d2acb3d
+3fb4224e7906d0bc
+3fb7048053b1808e
+3fb9e7724b8214d0
+3fbccb3d17d00e1a
+3fbfaff9b0a77504
+3fc14ae0ab59bfdf
+3fc2be56cdb36c2c
+3fc4326c34b49460
+3fc5a72e06a903fe
+3fc71ca99f5cf58b
+3fc892ec94d529e4
+3fca0a04bc3b9150
+3fcb82002f05d936
+3fccfaed505b9d63
+3fce74dad2c27516
+3fcfefd7be169b89
+3fd0b5f9baebc627
+3fd1749edfe84b15
+3fd233e365931383
+3fd2f3cf9be8b525
+3fd3b46c0f4a627c
+3fd475c18cba6540
+3fd537d926613bf2
+3fd5fabc38626e18
+3fd6be746e08ede2
+3fd7830bc753bad0
+3fd8488c9eec738f
+3fd90f01b092a18a
+3fd9d6762007cc80
+3fda9ef58089d593
+3fdb688bdceabf2e
+3fdc3345c056ea8c
+3fdcff303fdcfe8b
+3fddcc5904cd2a73
+3fde9ace580858b6
+3fdf6a9f2e5b3b18
+3fe01ded9b027c13
+3fe0874972c6e17e
+3fe0f16bc60b744d
+3fe15c5db1aa03c3
+3fe1c828d1b23230
+3fe234d74c65ecb2
+3fe2a273de6a7e2c
+3fe31109e8590e64
+3fe380a57de08b05
+3fe3f15376b391fc
+3fe4632181874f4b
+3fe4d61e3974c714
+3fe54a593e1d3e65
+3fe5bfe34f051113
+3fe636ce6aaf2041
+3fe6af2df21f4829
+3fe72916d18d7147
+3fe7a49faf3ed090
+3fe821e121b2609d
+3fe8a0f5ee940c8b
+3fe921fb54442d19
