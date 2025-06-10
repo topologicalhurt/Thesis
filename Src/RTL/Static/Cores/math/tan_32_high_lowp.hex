@@ -4,76 +4,76 @@
 //   Table mode:               high
 //   Table size:               0.256kB
 //   LOP (level of precision): lowp
-//   Effective scaling factor: 0.25
-//   Measured avg. accuracy:   0.007660041262432905
+//   Effective scaling factor: 1/4
+//   Measured avg. accuracy:   0.008195914328098297
 //   Min accuracy:             0.0
-//   Max accuracy:             0.021289527899670646//
+//   Max accuracy:             0.022770941257476807//
 
 // Each line contains a value (coeff.) corresponding to the function: tan
-// File generated @ 2025-06-10 02:14:53.762314
+// File generated @ 2025-06-10 18:30:42.190618
 //
 //
-0000000000000000
-3f89887273aeeabd
-3f99897695569c61
-3fa3285e437ecd8a
-3fa98d88149acbd7
-3faff4bbc7e8da22
-3fb32f3e870e5573
-3fb665a8349d55e1
-3fb99dddabd6b537
-3fbcd8224003e0e6
-3fc00a5cf764a5e7
-3fc1a9f4bb717913
-3fc34afb37b375d6
-3fc4ed93afcf8afd
-3fc691e1ebc5cbbd
-3fc8380a449064ae
-3fc9e031b129fea1
-3fcb8a7dd405c9ec
-3fcd37150903fb54
-3fcee61e73ee217a
-3fd04be107c3b3d1
-3fd126145e9ecd57
-3fd201be2ac44c25
-3fd2def3dc835c31
-3fd3bdcb7132e004
-3fd49e5b7c94827e
-3fd580bb32af4e17
-3fd66502722b5f8c
-3fd74b49cf3902d6
-3fd833aa9f0e5465
-3fd91e3f04075fe9
-3fda0b21fa75aa52
-3fdafa6f662d2277
-3fdbec4420dd9b44
-3fdce0be0949382c
-3fddd7fc13699ab2
-3fded21e59972b0a
-3fdfcf462ec788d9
-3fe067cb18fd08d1
-3fe0e9993175bea0
-3fe16d201c15ed8d
-3fe1f2735b5a6226
-3fe279a74590331d
-3fe302d11252933d
-3fe38e06e8fe8b88
-3fe41b5ff03224f8
-3fe4aaf45e6ead63
-3fe53cdd8bf82526
-3fe5d136060e8c70
-3fe66819a3a0bf7b
-3fe701a59b9be42f
-3fe79df89cfe24d2
-3fe83d32e8d7a088
-3fe8df766e692c17
-3fe984e6e995c452
-3fea2daa03e18737
-3fead9e7783fbf1e
-3feb89c939f92318
-3fec3d7b9efc07c9
-3fecf52d8df1fc88
-3fedb110b0816536
-3fee7159aa2e3ed1
-3fef3640545ba0ea
-3fefffffffffffff
+00000000
+94434c3c
+b54bcc3c
+f342193d
+416c4c3d
+dfa57f3d
+f579993d
+412db33d
+edeecc3d
+12c1e63d
+e852003e
+a64f0d3e
+da571a3e
+9d6c273e
+0f8f343e
+52c0413e
+8d014f3e
+ef535c3e
+a8b8693e
+f430773e
+085f823e
+a330893e
+f20d903e
+9ff7963e
+5cee9d3e
+dcf2a43e
+d905ac3e
+1328b33e
+4e5aba3e
+559dc13e
+f8f1c83e
+1059d03e
+7bd3d73e
+2162df3e
+f005e73e
+e1bfee3e
+f390f63e
+327afe3e
+593e033f
+ca4c073f
+01690b3f
+9a930f3f
+3bcd133f
+8816183f
+38701c3f
+ffda203f
+a457253f
+ece6293f
+b1892e3f
+cd40333f
+2e0d383f
+c5ef3c3f
+97e9413f
+b4fb463f
+37274c3f
+506d513f
+3bcf563f
+4a4e5c3f
+dceb613f
+6da9673f
+85886d3f
+ce8a733f
+02b2793f
+0000803f

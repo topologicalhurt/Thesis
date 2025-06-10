@@ -4,76 +4,76 @@
 //   Table mode:               high
 //   Table size:               0.256kB
 //   LOP (level of precision): lowp
-//   Effective scaling factor: 0.25
-//   Measured avg. accuracy:   0.001350856407700789
+//   Effective scaling factor: 1/4
+//   Measured avg. accuracy:   0.0014471439644694328
 //   Min accuracy:             0.0
-//   Max accuracy:             0.006841676999118196//
+//   Max accuracy:             0.007327258586883545//
 
 // Each line contains a value (coeff.) corresponding to the function: arctan
-// File generated @ 2025-06-10 02:14:53.762575
+// File generated @ 2025-06-10 18:30:42.191003
 //
 //
-0000000000000000
-3fe09cd84fd118f3
-3feb434ee31013fd
-3ff0aefd22e6aa37
-3ff288bfa3512419
-3ff3bef63199bba2
-3ff4978fa3269ee1
-3ff5368c951e9cfd
-3ff5afe069f1e104
-3ff60f5a632f34f5
-3ff65c5e14caca40
-3ff69bc2d13f486c
-3ff6d0d46b445d04
-3ff6fde4598296f0
-3ff7249faa996a21
-3ff7464401b1b729
-3ff763c1685d3c9c
-3ff77dd08ece55b8
-3ff79501d4a7a732
-3ff7a9c7af7b08e9
-3ff7bc7e03979308
-3ff7cd6f6dc59db4
-3ff7dcd9223374e7
-3ff7eaedccf0fc27
-3ff7f7d7bcef600f
-3ff803ba8b8cac1a
-3ff80eb4638f101a
-3ff818df00452edd
-3ff82250768ac529
-3ff82b1bd49bd0d4
-3ff83351a2394ab6
-3ff83b0048351f64
-3ff8423464ba5ef6
-3ff848f9105eed34
-3ff84f58171a2413
-3ff8555a2787981f
-3ff85b06fa559364
-3ff860657357f397
-3ff8657bbd695d5b
-3ff86a4f620802ad
-3ff86ee55d6c15f2
-3ff873422fb1254d
-3ff87769eb8e956b
-3ff87b6043047748
-3ff87f28924fa580
-3ff882c5e9696a79
-3ff8863b144b20a0
-3ff8898aa224ad87
-3ff88cb6ebacf182
-3ff88fc218ace9dc
-3ff892ae24e10c0b
-3ff8957ce4481349
-3ff8983006f2ea88
-3ff89ac91c6667b2
-3ff89d49969d15aa
-3ff89fb2ccb539fa
-3ff8a205fd558740
-3ff8a44450d1776c
-3ff8a66edb150cae
-3ff8a8869d5eabd9
-3ff8aa8c87ccdefb
-3ff8ac817ac50c7f
-3ff8ae66483788ce
-3ff8b03bb4c4d9c4
+00000000
+c3e6043f
+781a5a3f
+e977853f
+fd45943f
+b2f79d3f
+7dbca43f
+65b4a93f
+037fad3f
+d37ab03f
+f1e2b23f
+16deb43f
+a386b63f
+23efb73f
+fd24b93f
+2032ba3f
+0b1ebb3f
+84eebb3f
+0fa8bc3f
+3d4ebd3f
+f0e3bd3f
+7b6bbe3f
+c9e6be3f
+6e57bf3f
+bebebf3f
+d41dc03f
+a375c03f
+f8c6c03f
+8412c13f
+df58c13f
+8d9ac13f
+02d8c13f
+a311c23f
+c947c23f
+c17ac23f
+d1aac23f
+38d8c23f
+2c03c33f
+de2bc33f
+7b52c33f
+2b77c33f
+129ac33f
+4fbbc33f
+02dbc33f
+45f9c33f
+2f16c43f
+d931c43f
+554cc43f
+b765c43f
+117ec43f
+7195c43f
+e7abc43f
+80c1c43f
+49d6c43f
+4deac43f
+96fdc43f
+3010c53f
+2322c53f
+7733c53f
+3544c53f
+6454c53f
+0c64c53f
+3273c53f
+de81c53f

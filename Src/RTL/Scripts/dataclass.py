@@ -1,3 +1,4 @@
+import numpy as np
 from Allocator.Interpreter.dataclass import BitField, ExtendedEnum
 
 
@@ -6,12 +7,12 @@ class TRIGLUTDEFS(ExtendedEnum):
 
     Enum storing the supported trig LUTS
     """
-    SIN=0
-    COS=1
-    TAN=2
-    ASIN=3
-    ACOS=4
-    ATAN=5
+    SIN = 0
+    COS = 1
+    TAN = 2
+    ASIN = 3
+    ACOS = 4
+    ATAN = 5
     _SINUSOIDS = (SIN, COS)
     _ARC_SINUSOIDS = (ASIN, ACOS)
 
@@ -25,8 +26,15 @@ class TRIGLUTS(BitField):
 
 
 class TABLEMODE(ExtendedEnum):
+    """# Summary
+
+    Abstract parent of classes defining LUT 'fold' mode
+    I.e. a periodic function (E.g. sinusoids)
+    OR a function having an entire domain that can be reconstructed from a
+    subset of it's domain (E.g. arctan)
+    """
     def __str__(self) -> str:
-        return f'1/{self.value}' if self.value != 1 else '1'
+        return f'1/{2**self.value}' if self.value != 1 else '1'
 
 
 class TRIGFOLD(TABLEMODE):
@@ -45,9 +53,9 @@ class TRIGFOLD(TABLEMODE):
 
     = 2 (high mode - quarter table / quarter period)
     """
-    LOW=0
-    MED=1
-    HIGH=2
+    LOW = 0
+    MED = 1
+    HIGH = 2
 
 
 class TRIGPREC(ExtendedEnum):
@@ -61,6 +69,21 @@ class TRIGPREC(ExtendedEnum):
 
     = 2 (high mode - full precision)
     """
-    LOWP=0
-    MEDP=1
-    HIGHP=2
+    LOWP = 0
+    MEDP = 1
+    HIGHP = 2
+
+
+class FLOAT_STR_NPMAP(ExtendedEnum):
+    """# Summary
+
+    An enum map that relates floats aliased by name / str (E.g. 'FLOAT')
+    to their numpy types
+    """
+    FLOAT16 = 16, np.dtype('f2')
+    FLOAT = 32, np.float32
+    DOUBLE = 64, np.double
+    FLOAT32 = 32, np.float32
+    FLOAT64 = 64, np.float64
+    # FLOAT96 = 96, np.dtype('f12')
+    FLOAT128 = 128, np.dtype('f16')

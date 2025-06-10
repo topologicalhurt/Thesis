@@ -57,11 +57,11 @@ def str2enumval(value: str, target_enum: ExtendedEnum) -> Enum:
             raise ap.ArgumentTypeError('Value must be one of the provided field names:'
                                         f' {target_enum.fields()} (got {value} instead)'
                                         )
-        return target_enum.get_value_from_name(value)
+        return target_enum.get_member_via_value_from_name(value)
 
     try:
         # Indicates we got an integer (I.e. value |-> field)
-        return target_enum.get_name_from_value(posint)
+        return target_enum.get_member_via_name_from_value(posint)
     except ValueError:
         raise ap.ArgumentTypeError(f'Value must be in the provided range of the enum {target_enum.__name__}:'
                                     f' {target_enum.fields()} |-> {target_enum.values()}'
