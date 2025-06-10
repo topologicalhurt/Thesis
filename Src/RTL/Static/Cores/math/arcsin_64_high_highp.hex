@@ -5,12 +5,16 @@
 //   Table size:               2.048kB
 //   LOP (level of precision): highp
 //   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.0015173445322097623
+//   Measured avg. accuracy:   0.0015173443284829486
 //   Min accuracy:             0.0
 //   Max accuracy:             0.0036563058687618666//
 
-// Each line contains a value (coeff.) corresponding to the function: arcsin
-// File generated @ 2025-06-10 18:29:18.673079
+// Each line contains a value (coeff.) corresponding to the function arcsin.
+// This file was automatically generated with the command: --auto-off -hp 2 -bw 64 -bram 2048
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-06-10 21:48:31.908568
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
 0000000000000000
@@ -30,7 +34,7 @@ ae9aaa71533d9f3f
 4ad08471b2e1a33f
 a272c322734da53f
 fe8887963eb9a63f
-271081851525a83f
+261081851525a83f
 d45d94a8f890a93f
 5375ddb8e8fcaa3f
 eb5eb36fe668ac3f
@@ -76,7 +80,7 @@ a459077c3809c53f
 cbaf410f5965c53f
 35b904d484c1c53f
 4b8542febb1dc63f
-28f624c2fe79c63f
+27f624c2fe79c63f
 7ee50e544dd6c63f
 a94c9de8a732c73f
 ed6fa8b40e8fc73f
@@ -86,7 +90,7 @@ ee3abb798ea4c83f
 d379f7382801c93f
 90048d3bcf5dc93f
 772cd1b783bac93f
-c71d5de44517ca3f
+c61d5de44517ca3f
 ac270ff81574ca3f
 43080c2af4d0ca3f
 a83cc0b1e02dcb3f
@@ -118,7 +122,7 @@ dbb36b7ddf2ad23f
 66636a27385ad23f
 0e17d0279b89d23f
 0acd709f08b9d23f
-54d95baf80e8d23f
+53d95baf80e8d23f
 0ce6dc780318d33f
 02f87c1d9147d33f
 5e7703bf2977d33f
@@ -133,8 +137,8 @@ e31e6e1d95c5d43f
 eeeccd248c25d53f
 548dcf219a55d53f
 bf0498a0b485d53f
-3e8e32c6dbb5d53f
-f7e6f7b70fe6d53f
+3f8e32c6dbb5d53f
+f8e6f7b70fe6d53f
 0f9d8f9b5016d63f
 6f64f1969e46d63f
 b97166d0f976d63f
@@ -165,7 +169,7 @@ e31228d6a810db3f
 91c88bd68342db3f
 1be2197c7074db3f
 7e901df86ea6db3f
-c8f5657c7fd8db3f
+c9f5657c7fd8db3f
 f684483ba20adc3f
 bf6ea367d73cdc3f
 a01be0341f6fdc3f
@@ -174,9 +178,9 @@ abb36b82e7d3dc3f
 36925c6c6806dd3f
 7f7178cafc38dd3f
 d8e107d3a46bdd3f
-32b3eebc609edd3f
+31b3eebc609edd3f
 bfd6aebf30d1dd3f
-1e516b131504de3f
+1d516b131504de3f
 5c3debf00d37de3f
 8ae19c911b6ade3f
 17d5982f3e9dde3f
@@ -209,7 +213,7 @@ c3d858385bf7e13f
 de6c4f4a3812e23f
 77fc86ad232de23f
 880e288c1d48e23f
-7958f6102663e23f
+7858f6102663e23f
 952054673d7ee23f
 57b845bb6399e23f
 480f753999b4e23f
@@ -230,7 +234,7 @@ a7ceb3ad2638e43f
 d07bb67c5654e43f
 0197a3a59870e43f
 86d4b662ed8ce43f
-92cf26ef54a9e43f
+93cf26ef54a9e43f
 46412b87cfc5e43f
 0d6a03685de2e43f
 3daffccffefee43f
@@ -251,7 +255,7 @@ f2d5f20c997ae63f
 358024a94eb6e63f
 6889ce6b4dd4e63f
 158cd39764f2e63f
-51780c849410e73f
+50780c849410e73f
 2c481289dd2ee73f
 8a084b01404de73f
 e15ef748bc6be73f

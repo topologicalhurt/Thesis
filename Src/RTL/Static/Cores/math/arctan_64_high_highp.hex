@@ -5,35 +5,39 @@
 //   Table size:               0.512kB
 //   LOP (level of precision): highp
 //   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.0014471442274278535
+//   Measured avg. accuracy:   0.001447149815363296
 //   Min accuracy:             0.0
-//   Max accuracy:             0.007327204687157529//
+//   Max accuracy:             0.00732720468715764//
 
-// Each line contains a value (coeff.) corresponding to the function: arctan
-// File generated @ 2025-06-10 18:29:18.673564
+// Each line contains a value (coeff.) corresponding to the function arctan.
+// This file was automatically generated with the command: --auto-off -hp 2 -bw 64 -bram 2048
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-06-10 21:48:31.924267
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
 0000000000000000
 f318d14fd89ce03f
-fc1310e34e43eb3f
+fd1310e34e43eb3f
 37aae622fdaef03f
 192451a3bf88f23f
-a3bb9931f6bef33f
+a2bb9931f6bef33f
 e19e26a38f97f43f
 fd9c1e958c36f53f
 04e1f169e0aff53f
-f6342f635a0ff63f
+f5342f635a0ff63f
 40caca145e5cf63f
 6c483fd1c29bf63f
 045d446bd4d0f63f
-ef968259e4fdf63f
+f0968259e4fdf63f
 216a99aa9f24f73f
 29b7b1014446f73f
 9c3c5d68c163f73f
 b855ce8ed07df73f
 32a7a7d40195f73f
 e9087bafc7a9f73f
-099397037ebcf73f
+089397037ebcf73f
 b49dc56d6fcdf73f
 e7743322d9dcf73f
 27fcf0ccedeaf73f
@@ -61,8 +65,8 @@ f2156c5de56ef83f
 796a69e9c582f83f
 a0204b143b86f83f
 87ad24a28a89f83f
-83f1acebb68cf83f
-dbe9ac18c28ff83f
+82f1acebb68cf83f
+dce9ac18c28ff83f
 0b0ce124ae92f83f
 491348e47c95f83f
 88eaf2063098f83f

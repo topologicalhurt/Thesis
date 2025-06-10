@@ -5,12 +5,16 @@
 //   Table size:               2.048kB
 //   LOP (level of precision): highp
 //   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.0013307311454290407
+//   Measured avg. accuracy:   0.0013307311454290418
 //   Min accuracy:             0.0
 //   Max accuracy:             0.0020590614186536405//
 
-// Each line contains a value (coeff.) corresponding to the function: sin
-// File generated @ 2025-06-10 18:29:18.672239
+// Each line contains a value (coeff.) corresponding to the function sin.
+// This file was automatically generated with the command: --auto-off -hp 2 -bw 64 -bram 2048
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-06-10 21:48:31.883665
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
 0000000000000000
@@ -88,7 +92,7 @@ b75c76c00b64da3f
 28f32d49b676db3f
 91eff40dbdd1db3f
 956c83a47e2cdc3f
-cc83282bfa86dc3f
+cd83282bfa86dc3f
 8b89e1c02ee1dc3f
 673c5c851b3bdd3f
 1af3f898bf94dd3f
@@ -120,7 +124,7 @@ ff41cc8b1f7de23f
 a2f0c3646b20e33f
 baf1d56ec848e33f
 df493284f570e33f
-dc32f040f298e33f
+db32f040f298e33f
 74209f41bec0e33f
 afb7472359e8e33f
 eec46c83c20fe43f
@@ -149,8 +153,8 @@ e9b6639ff13ee73f
 80e1d8ad8261e73f
 481aa397d983e73f
 84485d07f6a5e73f
-c1be33a8d7c7e73f
-cf0de5257ee9e73f
+c2be33a8d7c7e73f
+d00de5257ee9e73f
 42d6c22ce90ae83f
 8d98b269182ce83f
 ab832e8a0b4de83f
@@ -161,22 +165,22 @@ d0c69f2e3c8ee83f
 332c91623aeee83f
 465e4634be0de93f
 26b764b8032de93f
-e53a28a10a4ce93f
+e63a28a10a4ce93f
 259e68a1d26ae93f
-f6059a6c5b89e93f
+f5059a6c5b89e93f
 31c6cdb6a4a7e93f
 4c1eb334aec5e93f
 a8f4979b77e3e93f
 4b9069a10001ea3f
-1a51b5fc481eea3f
+1b51b5fc481eea3f
 7e66a964503bea3f
 788415911658ea3f
 26976b3a9b74ea3f
 b474c019de90ea3f
-bc8dcce8deacea3f
+bd8dcce8deacea3f
 069cec619dc8ea3f
 b64f224019e4ea3f
-dffa143f52ffea3f
+defa143f52ffea3f
 783b121b481aeb3f
 b9a30e91fa34eb3f
 d060a65e694feb3f

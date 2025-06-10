@@ -9,8 +9,12 @@
 //   Min accuracy:             0.0
 //   Max accuracy:             0.022770941257476807//
 
-// Each line contains a value (coeff.) corresponding to the function: tan
-// File generated @ 2025-06-10 18:30:42.190618
+// Each line contains a value (coeff.) corresponding to the function tan.
+// This file was automatically generated with the command: --auto-off -hp 0 -bw 32 -bram 2048
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-06-10 21:51:04.761938
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
 00000000
@@ -55,11 +59,11 @@ f390f63e
 ca4c073f
 01690b3f
 9a930f3f
-3bcd133f
+3acd133f
 8816183f
 38701c3f
 ffda203f
-a457253f
+a357253f
 ece6293f
 b1892e3f
 cd40333f

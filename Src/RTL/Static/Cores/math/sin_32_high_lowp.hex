@@ -9,8 +9,12 @@
 //   Min accuracy:             0.0
 //   Max accuracy:             0.0041266679763793945//
 
-// Each line contains a value (coeff.) corresponding to the function: sin
-// File generated @ 2025-06-10 18:30:42.190312
+// Each line contains a value (coeff.) corresponding to the function sin.
+// This file was automatically generated with the command: --auto-off -hp 0 -bw 32 -bram 2048
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-06-10 21:51:04.748729
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
 00000000

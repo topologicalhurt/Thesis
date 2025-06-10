@@ -5,12 +5,16 @@
 //   Table size:               0.512kB
 //   LOP (level of precision): highp
 //   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.00819594587006654
+//   Measured avg. accuracy:   0.008195946335727827
 //   Min accuracy:             0.0
 //   Max accuracy:             0.022770941257476696//
 
-// Each line contains a value (coeff.) corresponding to the function: tan
-// File generated @ 2025-06-10 18:29:18.672851
+// Each line contains a value (coeff.) corresponding to the function tan.
+// This file was automatically generated with the command: --auto-off -hp 2 -bw 64 -bram 2048
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-06-10 21:48:31.896041
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
 0000000000000000
@@ -20,7 +24,7 @@ bdeaae737288893f
 d7cb9a14888da93f
 22dae8c7bbf4af3f
 73550e873e2fb33f
-e2559d34a865b63f
+e1559d34a865b63f
 37b5d6abdd9db93f
 e6e0034022d8bc3f
 e7a564f75c0ac03f
@@ -29,30 +33,30 @@ d675b337fb4ac33f
 fd8acfaf93edc43f
 bdcbc5ebe191c63f
 ae6490440a38c83f
-a2fe29b131e0c93f
+a1fe29b131e0c93f
 ecc905d47d8acb3f
-55fb03091537cd3f
-7b21ee731ee6ce3f
+54fb03091537cd3f
+7a21ee731ee6ce3f
 d1b3c307e14bd03f
 57cd9e5e1426d13f
-244cc42abe01d23f
-305c83dcf3ded23f
+254cc42abe01d23f
+315c83dcf3ded23f
 04e03271cbbdd33f
 7e82947c5b9ed43f
 174eaf32bb80d53f
-8d5f2b720265d63f
-d50239cf494bd73f
+8c5f2b720265d63f
+d60239cf494bd73f
 65540e9faa33d83f
 e95f07043f1ed93f
 52aa75fa210bda3f
 77222d666ffada3f
 449bdd2044ecdb3f
-2b384909bee0dc3f
-b19a6913fcd7dd3f
+2c384909bee0dc3f
+b29a6913fcd7dd3f
 0a2b97591ed2de3f
 d988c72e46cfdf3f
 d108fd18cb67e03f
-a1be753199e9e03f
+a0be753199e9e03f
 8ded151c206de13f
 26625a5b73f2e13f
 1d339045a779e23f
@@ -63,17 +67,17 @@ f82432f05f1be43f
 2625f88bdd3ce53f
 708c0e0636d1e53f
 7bbfa0a31968e63f
-30e49b9ba501e73f
+2fe49b9ba501e73f
 d224fe9cf89de73f
 88a0d7e8323de83f
 172c696e76dfe83f
 52c495e9e684e93f
 3787e103aa2dea3f
-1fbf3f78e7d9ea3f
+1ebf3f78e7d9ea3f
 1823f939c989eb3f
 c907fc9e7b3dec3f
 88fcf18d2df5ec3f
-356581b010b1ed3f
+366581b010b1ed3f
 d13e2eaa5971ee3f
 eaa05b544036ef3f
 ffffffffffffef3f

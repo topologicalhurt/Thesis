@@ -34,6 +34,7 @@ from hex_writer import write_lut_to_hex
 def bram(v: int | str) -> int:
     if isinstance(v, str):
         return int(eval_arithmetic_str_unsafe(v)) # Accept arithmetic expressions that will be literally evaluated
+    return v
 
 
 def precmode(v: str) -> ExtendedEnum:
@@ -100,7 +101,7 @@ def main() -> None:
                         help='The output directory for the LUTs'
                         )
 
-    parser.add_argument('-bram', type=bram, default=bram(1024),
+    parser.add_argument('-bram', type=bram, default=bram(2048),
                         help='The maximum allowable bram in bytes (I.e. if in quarter table mode table is of size'
                             ' requested_bram / 4)'
                         )
@@ -511,7 +512,7 @@ def main() -> None:
         xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, sz, dtype=args['bw'])
 
     luts_to_w = []
-    cmd_line_args = ''.join(sys.argv[1:])
+    cmd_line_args = ' '.join(sys.argv[2:])
     for m, bit_v in zip(TRIGLUTDEFS.get_members(), TRIG_LUTS.__members__.values()):
         if trig_opts & bit_v.value:
             match m:

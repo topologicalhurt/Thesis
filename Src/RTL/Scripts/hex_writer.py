@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+from util_helpers import get_git_author
 
 from Allocator.Interpreter.dataclass import LUT
 from Allocator.Interpreter.helpers import float_to_hex
@@ -28,8 +29,11 @@ HEADER =('// Coefficient memory for {fn}'
 '\n//   Min accuracy:             {min_acc}'
 '\n//   Max accuracy:             {max_acc}'
 '//\n'
-'\n// Each line contains a value (coeff.) corresponding to the function: {fn}'
+'\n// Each line contains a value (coeff.) corresponding to the function {fn}.'
+'\n// This file was automatically generated with the command: {cmd}'
+'\n// *Do not* make any manual changes to this file'
 '\n// File generated @ {ts}'
+'\n// Author: {author_name} {author_email}'
 '\n//\n//'
 )
 
@@ -56,6 +60,7 @@ def write_lut_to_hex(fp: Path, fn: str, lut: LUT, ow: bool=False) -> None:
     if not ow and os.path.exists(file_path):
         raise FileExistsError(f'File already exists at location: {file_path}')
 
+    # Do the required formatting for the file header...
     header = HEADER
     f_map = asdict(lut)
     f_map['fn'] = f_map['fn'].__name__
@@ -66,6 +71,7 @@ def write_lut_to_hex(fp: Path, fn: str, lut: LUT, ow: bool=False) -> None:
     f_map['avg_acc'] = acc_report['avg_acc']
     f_map['min_acc'] = acc_report['min_acc']
     f_map['max_acc'] = acc_report['max_acc']
+    f_map['author_name'], f_map['author_email'] = get_git_author()
     if f_map['scale_factor'] != 1:
         f_map['scale_factor'] = f'1/{f_map["scale_factor"]}'
     header = header.format_map(f_map)

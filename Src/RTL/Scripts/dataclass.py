@@ -1,4 +1,7 @@
 import numpy as np
+
+from util_helpers import machine_has_quad_float_support
+
 from Allocator.Interpreter.dataclass import BitField, ExtendedEnum
 
 
@@ -86,4 +89,5 @@ class FLOAT_STR_NPMAP(ExtendedEnum):
     FLOAT32 = 32, np.float32
     FLOAT64 = 64, np.float64
     # FLOAT96 = 96, np.dtype('f12')
-    FLOAT128 = 128, np.dtype('f16')
+    if machine_has_quad_float_support():
+        FLOAT128 = 128, np.dtype('f16')
