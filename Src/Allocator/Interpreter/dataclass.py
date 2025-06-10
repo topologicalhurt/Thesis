@@ -5,12 +5,13 @@ Contains all common dataclasses, enums & schemas
 from __future__ import absolute_import
 
 import importlib
+import itertools
 import numpy as np
 
 from dataclasses import dataclass
 
 from enum import Enum, EnumMeta
-from collections.abc import Callable, Iterable, Mapping, Set
+from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from typing import Any
 
 
@@ -49,7 +50,12 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
 
         Returns the values via iterator
         """
-        return [c.value for c in cls]
+        vals = [c.value for c in cls]
+        nested_vals = [v for v in vals if isinstance(v, Sequence)]
+        unnested_vals = [v for v in vals if not isinstance(v, Sequence)]
+        flat_vals = itertools.chain.from_iterable(nested_vals) # Values may be tuples, return reduced list
+        unnested_vals.extend(list(flat_vals))
+        return unnested_vals
 
     @classmethod
     def get_members(cls) -> Iterable:
@@ -65,7 +71,7 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
         return members
 
     @classmethod
-    def get_name_from_value(cls, value: int) -> Enum:
+    def get_member_via_name_from_value(cls, value: int) -> Enum:
         """ # Summary
         Finds the name of an enum member from its integer value
         (reverse of get_value_from_name)
@@ -77,12 +83,16 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
             The field corresponding to the matching enum member
         """
         for member in cls:
-            if member.value == value:
-                return member
+            if isinstance(member.value, Sequence):
+                if value in member.value:
+                    return member
+            else:
+                if value == member.value:
+                    return member
         raise ValueError(f'"{value}" is not a valid value in {cls.__name__}')
 
     @classmethod
-    def get_value_from_name(cls, name: str) -> Enum:
+    def get_member_via_value_from_name(cls, name: str) -> Enum:
         """ # Summary
         Finds the value of an enum member from its string value / field name
         (reverse of get_name_from_value)
@@ -258,9 +268,9 @@ class LUT_ACC_REPORT:
 
     Dataclass used for the generated LUT acc report
     """
-    avg_acc: np.float64
-    min_acc: np.float64
-    max_acc: np.float64
+    avg_acc: float
+    min_acc: float
+    max_acc: float
     acc_scores: np.array
 
     def __str__(self) -> str:
@@ -279,6 +289,7 @@ class LUT:
     bit_width: int
     table_sz: int
     lop: ExtendedEnum
+    scale_factor: float
     table_mode: ExtendedEnum
     fn: Callable[..., np.float64]
     acc_report: LUT_ACC_REPORT

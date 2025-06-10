@@ -27,28 +27,24 @@ from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum
 from Allocator.Interpreter.helpers import pairwise, underline_matches
 from argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
 get_action_from_parser_by_name, str2float, str2posint
-from dataclass import TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
+from dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
 from hex_writer import write_lut_to_hex
 
 
 def bram(v: int | str) -> int:
     if isinstance(v, str):
-        v = int(eval_arithmetic_str_unsafe(v))
-    if isinstance(v, int):
-        if v <= 4:
-            raise ap.ArgumentTypeError('bram must hold at least one double (sizeof(double) = 4)')
-        v = np.log2(v) - 2 # Convert to table width, - 2 as units are in bytes
-        return int(np.ceil(v))
+        return int(eval_arithmetic_str_unsafe(v)) # Accept arithmetic expressions that will be literally evaluated
 
 
 def precmode(v: str) -> ExtendedEnum:
-    if v in TRIGLUTDEFS:
+    if v.upper() in TRIGLUTDEFS.fields():
         return str2enumval(v, TRIGLUTDEFS)
     return str2enumval(v, TRIGPREC)
 
 
 def kthresh(v: str) -> float:
     v = str2float(v)
+    v: float
     if v >= 1 or v <= 0:
         raise ap.ArgumentTypeError('Value must be positive float in range (0, 1)'
                                    f' but got {v} instead'
@@ -56,26 +52,41 @@ def kthresh(v: str) -> float:
     return v
 
 
-def bw(v: str | int) -> int:
+def bw(v: str | int) -> tuple[int, float]:
     if isinstance(v, str):
         if v.isdigit():
-            v = str2posint(v)
+            v = str2posint(v) # If arg is purely digits attempt to convert to positive integer
         else:
-            match v.upper():
-                case 'float':
-                    return 32
-                case 'double':
-                    return 64
-                case _:
-                    raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
-                                               ' of (float, double)'
-                                               f' but got {v} instead'
-                                               )
-    if v < 16 or v > 64:
-        raise ap.ArgumentTypeError('Value must be positive int in range [16, 64]'
-                                   f' but got {v} instead'
+            # If the arg is a mix of char & digits
+            v = v.upper()
+            if v not in FLOAT_STR_NPMAP:
+                raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
+                                           f' of {FLOAT_STR_NPMAP.fields()} but got {v} instead'
+                                          )
+            return FLOAT_STR_NPMAP.get_member_via_value_from_name(v).value
+    v: int
+    if v < 16 or v > 128:
+        valid_floatw = ' '.join(FLOAT_STR_NPMAP.fields())
+        raise ap.ArgumentTypeError('Value must be positive int in range [16, 128]'
+                                   f' but got {v} instead. I.e.:'
+                                   f'\n{underline_matches(valid_floatw, lambda char: char.isdigit())}'
                                    )
-    return v
+    if v not in FLOAT_STR_NPMAP:
+        raise ap.ArgumentTypeError('If value is specified as a digit it must be one'
+                                    f' of {[v for v in FLOAT_STR_NPMAP.values() if isinstance(v, int)]} but got {v} instead'
+                                    )
+    return FLOAT_STR_NPMAP.get_member_via_name_from_value(v).value
+
+
+def os_factor(v: str) -> int:
+    v = str2posint(v)
+    v = float(np.log2(v))
+    v: float
+    if not v.is_integer():
+        raise ap.ArgumentTypeError('Value must be a power of 2'
+                                   f' but got {v} instead'
+                                  )
+    return int(v)
 
 
 def main() -> None:
@@ -94,7 +105,7 @@ def main() -> None:
                             ' requested_bram / 4)'
                         )
 
-    parser.add_argument('-bw', type=bw, default=32,
+    parser.add_argument('-bw', type=bw, default=bw(32),
                         help='The bit width of each value in the LUT (default: float / 32bit)'
                         )
 
@@ -103,16 +114,20 @@ def main() -> None:
                     ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
                     )
 
-    qt_enum_description = ''.join(TRIGFOLD.__doc__.strip().splitlines())
-    qt_enum_description = re.sub(r'\s{2,}', ' ', qt_enum_description)
-    qt_enum_description = qt_enum_description.removeprefix('# Summary Enum corresponding to ')
-    parser.add_argument('-qt', type=functools.partial(str2enumval, target_enum=TRIGFOLD),
+    parser.add_argument('-osf', type=os_factor, default=16,
+                        help='The oversampling factor to use on the reference LUT on the accuracy testbench'
+                       )
+
+    table_mode_enum_description = ''.join(TRIGFOLD.__doc__.strip().splitlines())
+    table_mode_enum_description = re.sub(r'\s{2,}', ' ', table_mode_enum_description)
+    table_mode_enum_description = table_mode_enum_description.removeprefix('# Summary Enum corresponding to ')
+    parser.add_argument('-table_mode', type=functools.partial(str2enumval, target_enum=TRIGFOLD),
                         nargs='*', default=TRIGFOLD.HIGH,
                         help='Over which period all LUT\'s will be built'
                         ' (highest optimisation mode used if none specified, applies to all values if none provided)'
                         ' E.G. a value or field from either:'
                         f' {TRIGFOLD.fields()} | {TRIGFOLD.values()}.'
-                        f' The following description might proove valuable: "{qt_enum_description}"'
+                        f' The following description might proove valuable: "{table_mode_enum_description}"'
                         )
 
     parser.add_argument('-hp', type=precmode, nargs='*', default=TRIGPREC.LOWP,
@@ -120,11 +135,11 @@ def main() -> None:
                         ' to apply low precision mode to OR a list of trig values & explicit precision mode to use'
                         ' E.g. -hp cos medp sin medp tan highp.'
                         ' (lowest p-mode used if none specified, applies to all values if none provided)'
-                        ' For example, if -qt (see: -qt) is in the highest mode (quarter table mode)'
+                        ' For example, if -table_mode (see: -table_mode) is in the highest mode (quarter table mode)'
                         ' then the default behaviour is to also reduce the LUT size'
                         ' by a factor of 4. In hp mode the requested table size remains the same (effective x4 oversampling)'
                         ' meaning it operates in a higher mode of precision.'
-                        ' If a value is explicitly provided & qt differs E.g. -qt -hp cos medp | 1 then the factors are multiplied'
+                        ' If a value is explicitly provided & table_mode differs E.g. -table_mode -hp cos medp | 1 then the factors are multiplied'
                         ' to size the table. I.e. in this scenario'
                         ' => a quarter table lookup method is used for half the period of the function (effective x2 oversampling)'
                         )
@@ -188,6 +203,8 @@ def main() -> None:
 
     args = vars(parser.parse_args())
 
+    bw_int, args['bw'] = args['bw'] # Store the actual integer value of the bit_width in bw_int and the type in args['bw']
+
     NON_FLAGS = [action.option_strings for action in parser._actions]
     NON_FLAGS = [opt.removeprefix('-').replace('-', '_') for opt in
                  itertools.chain.from_iterable(NON_FLAGS)
@@ -195,7 +212,12 @@ def main() -> None:
     NON_FLAGS.extend(('auto_off', 'all')) # Excl. flags manually
     NON_FLAGS.extend([action.dest for action in parser._get_positional_actions()]) # Excl. positionals
     TRIG_LUTS = TRIGLUTS(**{k : 1 for k in TRIGLUTDEFS.fields()})
-    N_TABLE_ENTRIES = 1 << args['bram']
+
+    # Calculate the table size based on the entry size
+    bw_int_bytes = bw_int // 8
+    if args['bram'] < bw_int_bytes:
+        raise ap.ArgumentTypeError('bram must hold at least one value of the provided size')
+    N_TABLE_ENTRIES = args['bram'] // bw_int_bytes
 
     trig_args = {k : v for k, v in args.items() if k not in NON_FLAGS}
     if sum(trig_args.values()) == 0:
@@ -206,13 +228,16 @@ def main() -> None:
     else:
         trig_opts = bools2bitstr(*trig_args.values())
 
-    if not args['qt'] or args['qt'] in TRIGFOLD:
-        # If qt parameter is provided but with no arg represent all functions as highest optimisation by default
-        # If qt parameter wasn't provided at all it fallsback to the singular default value
-        qt_default = get_action_from_parser_by_name(parser, 'qt').default
-        args['qt'] = {k: qt_default for k in TRIGLUTDEFS}
+    if not args['table_mode'] or args['table_mode'] in TRIGFOLD:
+        # If table_mode parameter is provided but with no arg represent all functions as highest optimisation by default
+        # If table_mode parameter wasn't provided at all it fallsback to the singular default value
+        table_mode_default = get_action_from_parser_by_name(parser, 'table_mode').default
+        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS}
 
-    if not args['hp'] or args['hp'] in TRIGPREC:
+    if args['hp'] and isinstance(args['hp'], Sequence) and len(args['hp']) == 1 and args['hp'][0] in TRIGPREC:
+        # If hp is provided as just a precision mode use that precision mode on all functions
+        args['hp'] = {k: args['hp'][0] for k in TRIGLUTDEFS}
+    elif not args['hp'] or args['hp'] in TRIGPREC:
         # If hp parameter provided but with no arg represent all functions as lowest precision by default
         # If hp parameter wasn't provided at all it fallsback to the singular default value (same as above)
         hp_default = get_action_from_parser_by_name(parser, 'hp').default
@@ -235,11 +260,10 @@ def main() -> None:
             last_w = err_msg[-1]
             err_msg.append('*missing value*')
             err_msg = ' '.join(err_msg)
-            last_w_index = err_msg.rindex(last_w)
             raise ap.ArgumentError(err_invoker,
                                    '-hp takes <trig function> <precision mode> pairs as argument'
                                    ' but the argument length was odd. I.e.:'
-                                   f'\n{underline_matches(err_msg, last_w, start_index=last_w_index)}'
+                                   f'\n{underline_matches(err_msg, last_w)}'
                                    )
 
         for trig_v, pmode in pairwise(args['hp']):
@@ -302,6 +326,9 @@ def main() -> None:
                                'k must be supplied if auto mode is turned on'
                                )
 
+    def _calculate_scale_factor(table_mode: TRIGFOLD, table_prec: TRIGPREC):
+        return max(table_mode.value * (TRIGPREC.HIGHP.value - table_prec.value), 1)
+
     phis = {}
     xs = {}
     if trig_opts & (TRIG_LUTS.SIN.value | TRIG_LUTS.COS.value):
@@ -318,20 +345,19 @@ def main() -> None:
         sin(x) + (-sin(x)) = 0
         => It is horizontally flipped => x |-> [0, pi/2]
         """
-        sinusoids = {k: v for k, v in args['qt'].items() if k.value in TRIGLUTDEFS._SINUSOIDS.value}
-        for k, qt in sinusoids.items():
-            match qt:
+        sinusoids = {k: v for k, v in args['table_mode'].items() if k.value in TRIGLUTDEFS._SINUSOIDS.value}
+        for k, table_mode in sinusoids.items():
+            sz = N_TABLE_ENTRIES >> int(np.log2(_calculate_scale_factor(args['table_mode'][k], args['hp'][k])))
+            match table_mode:
                 case TRIGFOLD.HIGH:
                     stop = np.pi / 2
-                    sz = N_TABLE_ENTRIES >> 2
                 case TRIGFOLD.MED:
                     raise NotImplementedError('Half table not yet supported')
                 case TRIGFOLD.LOW:
                     stop = np.pi * 2
-                    sz = N_TABLE_ENTRIES
                 case _:
-                    assert_never(args['qt'])
-            phis[k] = np.linspace(0, stop, sz, dtype=np.double)
+                    assert_never(args['table_mode'])
+            phis[k] = np.linspace(0, stop, sz, dtype=args['bw'])
 
     if trig_opts & TRIG_LUTS.TAN.value:
         """
@@ -357,7 +383,7 @@ def main() -> None:
         tan(x) is obviously monotonically increasing on the interval [0, pi/4]
         => max(|sec^2(x)|) = (1/cos(pi/4))^2 = sqrt(2)^2 = 2 => h <= k/2
         """
-        match args['qt'][TRIGLUTDEFS.TAN]:
+        match args['table_mode'][TRIGLUTDEFS.TAN]:
             case TRIGFOLD.HIGH:
                 k = args['tan_k']
                 start = 0
@@ -373,9 +399,9 @@ def main() -> None:
                 start = -stop
                 sz = N_TABLE_ENTRIES
             case _:
-                assert_never(args['qt'])
+                assert_never(args['table_mode'])
 
-        phis[TRIGLUTDEFS.TAN] = np.linspace(start, stop, sz, dtype=np.double)
+        phis[TRIGLUTDEFS.TAN] = np.linspace(start, stop, sz, dtype=args['bw'])
 
     if trig_opts & (TRIG_LUTS.ASIN.value | TRIG_LUTS.ACOS.value):
         """
@@ -385,22 +411,21 @@ def main() -> None:
         => arcsin(x) = pi/2 - arcsin(sqrt(1 - x^2))
         => x |-> [0, sqrt(2) / 2]
         """
-        arc_sinusoids = {k: v for k, v in args['qt'].items() if k.value in TRIGLUTDEFS._ARC_SINUSOIDS.value}
-        for k, qt in arc_sinusoids.items():
-            match qt:
+        arc_sinusoids = {k: v for k, v in args['table_mode'].items() if k.value in TRIGLUTDEFS._ARC_SINUSOIDS.value}
+        for k, table_mode in arc_sinusoids.items():
+            sz = N_TABLE_ENTRIES >> int(np.log2(_calculate_scale_factor(args['table_mode'][k], args['hp'][k])))
+            match table_mode:
                 case TRIGFOLD.HIGH:
                     stop = np.sqrt(2) / 2
-                    sz = N_TABLE_ENTRIES >> 2
                 case TRIGFOLD.MED:
                     raise NotImplementedError('Half table not yet supported')
                 case TRIGFOLD.LOW:
                     # Naive (no optimisation)
                     stop = 1
-                    sz = N_TABLE_ENTRIES >> 1
                 case _:
-                    assert_never(args['qt'])
+                    assert_never(args['table_mode'])
 
-            xs[k] = np.linspace(0, stop, sz, dtype=np.double)
+            xs[k] = np.linspace(0, stop, sz, dtype=args['bw'])
 
     if trig_opts & TRIG_LUTS.ATAN.value:
         """
@@ -451,7 +476,7 @@ def main() -> None:
 
             return
 
-        match args['qt'][TRIGLUTDEFS.ATAN]:
+        match args['table_mode'][TRIGLUTDEFS.ATAN]:
             case TRIGFOLD.HIGH:
                 k = args['atan_k']
                 N = newton_raphson_N(k)
@@ -481,9 +506,9 @@ def main() -> None:
                 stop = N
                 sz = N_TABLE_ENTRIES
             case _:
-                assert_never(args['qt'])
+                assert_never(args['table_mode'])
 
-        xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, sz)
+        xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, sz, dtype=args['bw'])
 
     luts_to_w = []
     cmd_line_args = ''.join(sys.argv[1:])
@@ -519,18 +544,25 @@ def main() -> None:
                 case _:
                     assert_never(m)
 
-            acc_report = assess_lut_accuracy(fn, lut, domain[m], oversample_factor=8)
+            acc_report = assess_lut_accuracy(fn, lut, domain[m],
+                                             oversample_factor=args['osf'], type=args['bw']
+                                            )
 
+            # Special cases
             if m == TRIG_LUTS.TAN or m == TRIG_LUTS.ATAN:
                 k_avg_err = max(np.average(acc_report.acc_scores) - k, 0)
                 print(f'\tk (threshold): {args["atan_k"]}'
                       f'\n\tErr W.R.T k {k_avg_err}'
                      )
 
+            # The factor that indicates mix of precision and optimisation
+            scale_factor = _calculate_scale_factor(args['table_mode'][m], args['hp'][m])
+
             luts_to_w.append(
                 LUT(lut=lut,
-                    bit_width=args['bw'], table_sz=np.size(lut)/250,
-                    lop=args['hp'][m], table_mode=args['qt'][m],
+                    bit_width=bw_int, table_sz=((bw_int_bytes * np.size(lut)) / 1000),
+                    lop=args['hp'][m], table_mode=args['table_mode'][m],
+                    scale_factor=scale_factor,
                     fn=fn, acc_report=acc_report,
                     cmd=underline_matches(cmd_line_args, m.name, match_all=True)
                     )
@@ -544,11 +576,17 @@ def main() -> None:
         write_lut_to_hex(args['dir'], fn, lut, ow=True)
 
 
-def assess_lut_accuracy(fn: Callable[..., np.float64],
-                         lut: Sequence[np.float64], axis: Sequence[np.float64],
-                         oversample_factor: int) -> LUT_ACC_REPORT:
-    lut_arr = np.asarray(lut, dtype=np.double)
-    axis_arr = np.asarray(axis, dtype=np.double)
+def assess_lut_accuracy(fn: Callable[..., float],
+                         lut: Sequence[float], axis: Sequence[float],
+                         oversample_factor: int, type: float,
+                         test_type: float = np.float32) -> LUT_ACC_REPORT:
+    """ # Summary
+
+    Assesses the lut accuracy against a function, fn, sampled at oversample_factor
+    over the axis, axis.
+    """
+    lut_arr = np.asarray(lut, dtype=type)
+    axis_arr = np.asarray(axis, dtype=type)
     l_axis = np.size(axis_arr)
     min_ax_val, max_ax_val = np.min(axis_arr), np.max(axis_arr)
 
@@ -563,16 +601,16 @@ def assess_lut_accuracy(fn: Callable[..., np.float64],
 
     fn_eval_points: np.ndarray
     if l_axis == 1:
-        fn_eval_points = np.array([axis_arr[0]], dtype=np.double)
+        fn_eval_points = np.array([axis_arr[0]], dtype=type)
     else:
         l_test_axis_orig = oversample_factor * l_axis
-        test_axis_orig = np.linspace(min_ax_val, max_ax_val, l_test_axis_orig, dtype=np.double)
+        test_axis_orig = np.linspace(min_ax_val, max_ax_val, l_test_axis_orig, dtype=test_type)
         actual_indices_for_tbl = np.arange(l_axis)
         fn_eval_indices = actual_indices_for_tbl * oversample_factor
         fn_eval_indices = np.clip(fn_eval_indices, 0, l_test_axis_orig - 1)
         fn_eval_points = test_axis_orig[fn_eval_indices]
 
-    fn_values_at_eval_points = np.asarray(fn(fn_eval_points), dtype=np.double)
+    fn_values_at_eval_points = np.asarray(fn(fn_eval_points), dtype=type)
 
     if fn_values_at_eval_points.shape != lut_arr.shape:
         print(f'---Accuracy test results for {fn.__name__}---\n'
@@ -585,8 +623,9 @@ def assess_lut_accuracy(fn: Callable[..., np.float64],
     acc_report = LUT_ACC_REPORT(avg_acc=np.average(acc_scores), min_acc=np.min(acc_scores),
                                  max_acc=np.max(acc_scores), acc_scores=acc_scores)
 
+    type_sz = np.size(lut_arr) * np.dtype(type).itemsize
     print(f'---Accuracy test results for {fn.__name__}---'
-          f'\n\tLUT size in bytes: {np.size(lut_arr) * 4} ({np.size(lut_arr) / 250:.3f}kB)'
+          f'\n\tLUT size in bytes: {type_sz} ({type_sz / 1000:.3f}kB)'
           f'\n\tOver-sample factor for fn evaluation grid: x{oversample_factor}'
           f'{acc_report}'
           )

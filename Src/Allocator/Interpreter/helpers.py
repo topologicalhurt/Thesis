@@ -4,12 +4,11 @@ Common helper / utility functions
 
 
 import xxhash
-import struct
 import importlib
 import numpy as np
 import regex as re
 
-from collections.abc import Iterable, Hashable, Sequence
+from collections.abc import Callable, Iterable, Hashable, Sequence
 
 
 def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
@@ -32,12 +31,15 @@ def pairwise(t: Iterable) -> zip:
     return zip(it,it)
 
 
-def underline_match(text: str, to_match: str, start_index: int = 0, end_index: int | None = None) -> Sequence[str] | None:
+def underline_match(text: str, to_match: str,
+                     start_index: int = 0, end_index: int | None = None) -> Sequence[str] | None:
+    """# Summary
+
+    Underlines a single match. Parameters alias underline_matches (see: underline_matches)
+    """
     i = text.find(to_match, start_index, end_index)
     if i == -1:
         return
-    if i == start_index:
-        start_index = 0
 
     if end_index is None:
         end_index = i + len(to_match)
@@ -48,15 +50,19 @@ def underline_match(text: str, to_match: str, start_index: int = 0, end_index: i
     return end_index, underlined
 
 
-def underline_matches(text: str, to_match: Iterable | str, start_index: int = 0, end_index: int | None = None,
-                      match_all: bool = False, literal: bool = True,) -> str | None:
+def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool],
+                      start_index: int = 0, end_index: int | None = None,
+                      match_all: bool = False, literal: bool = True) -> str | None:
     """ # Summary
 
     Generates a string that underlines a regex match or matches in a given text.
 
    ## Args:
         text: The original string.
-        to_match: The object to be indexed that indicates the part of the string to underline.
+        to_match: The object or object(s) to be indexed that indicates the part of the string to underline.\
+        May also be a predicate / condition matched against the string per char
+        start_index: The beginning of the string to search in
+        end_index: The end ofthe string to search in
         match_all: Determines whether to underline every occurance of match rather than the first found.
         literal: Determines whether to match against to_match as a literal or pattern
 
@@ -64,9 +70,14 @@ def underline_matches(text: str, to_match: Iterable | str, start_index: int = 0,
         A string containing the original text and the underline.
         Returns an error message if the match is None.
     """
+    predicate_match = False
+    if isinstance(to_match, Callable):
+        to_match = list(set(char for char in text if to_match(char)))
+        predicate_match = True
+
     underlined = []
     prev_i = start_index
-    if match_all:
+    if match_all or predicate_match:
         # Either match every pattern in to_match if it is a collection object
         # or, if it is a singular string, match that against the entire text.
         if isinstance(to_match, str):
@@ -77,10 +88,9 @@ def underline_matches(text: str, to_match: Iterable | str, start_index: int = 0,
         for m in re.finditer(to_match, text, pos=start_index, endpos=end_index):
             if m is None:
                 return None
-            i = m.end(0)
-            _, txt = underline_match(text, m.group(0), prev_i)
-            prev_i = i
+            i, txt = underline_match(text, m.group(0), prev_i)
             underlined.extend(txt)
+            prev_i = i
 
         return f'{text}\n{"".join(underlined)}'
 
@@ -97,20 +107,26 @@ def underline_matches(text: str, to_match: Iterable | str, start_index: int = 0,
     return f'{text}\n{"".join(underlined)}'
 
 
-def float64_to_hex(f: np.float64) -> str:
+def float_to_hex(f: float) -> str:
     """
-    Converts a 64-bit float (np.float64) into its raw 16-character
+    Converts a np n-bit float (E.g. np.float64) into its raw character
     hexadecimal string representation (IEEE 754 format).
 
     ## Args:
-        f: The float64 value to convert.
+        f: The float value to convert.
 
     ## Returns:
-        A string of 16 hexadecimal characters (e.g., '400921fb54442d18').
+        A string of hexadecimal characters (e.g., '400921fb54442d18').
     """
-    # Pack the float into 8 bytes using big-endian format ('>d')
-    # and then convert the resulting bytes object to a hex string.
-    return struct.pack('>d', f).hex()
+    # Pack the float into n bytes using big-endian format ('>d')
+    # and then convert the resulting bytes object to a big endian hex string.
+    if f.dtype.byteorder == '<' or (f.dtype.byteorder == '=' and np.little_endian):
+        # Convert to big-endian if current dtype is little-endian or native is little-endian
+        packed_bytes = f.astype(f.dtype.newbyteorder('>')).tobytes()
+    else:
+        # Otherwise, assume it's already big-endian or native big-endian
+        packed_bytes = f.tobytes()
+    return packed_bytes.hex()
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

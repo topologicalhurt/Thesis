@@ -12,17 +12,18 @@ from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+
 from Allocator.Interpreter.dataclass import LUT
-from Allocator.Interpreter.helpers import float64_to_hex
+from Allocator.Interpreter.helpers import float_to_hex
 
 
-HEADER ='// Coefficient memory for {fn}'
+HEADER =('// Coefficient memory for {fn}'
 '\n// ----------------------------------------------'
 '\n//   Bits per coeff.:          {bit_width}'
 '\n//   Table mode:               {table_mode}'
 '\n//   Table size:               {table_sz}kB'
 '\n//   LOP (level of precision): {lop}'
-'\n//   Effective scaling factor: {q_multiplier}'
+'\n//   Effective scaling factor: {scale_factor}'
 '\n//   Measured avg. accuracy:   {avg_acc}'
 '\n//   Min accuracy:             {min_acc}'
 '\n//   Max accuracy:             {max_acc}'
@@ -30,6 +31,7 @@ HEADER ='// Coefficient memory for {fn}'
 '\n// Each line contains a value (coeff.) corresponding to the function: {fn}'
 '\n// File generated @ {ts}'
 '\n//\n//'
+)
 
 
 def write_lut_to_hex(fp: Path, fn: str, lut: LUT, ow: bool=False) -> None:
@@ -64,11 +66,11 @@ def write_lut_to_hex(fp: Path, fn: str, lut: LUT, ow: bool=False) -> None:
     f_map['avg_acc'] = acc_report['avg_acc']
     f_map['min_acc'] = acc_report['min_acc']
     f_map['max_acc'] = acc_report['max_acc']
-    f_map['q_multiplier'] = (lut.lop.value + 1) * (1 / (2**lut.table_mode.value))
+    if f_map['scale_factor'] != 1:
+        f_map['scale_factor'] = f'1/{f_map["scale_factor"]}'
     header = header.format_map(f_map)
 
     with open(file_path, 'w') as f:
         f.write(header)
         for entry in lut.lut:
-            # TODO: support other float types too
-            f.write(f'\n{float64_to_hex(entry)}')
+            f.write(f'\n{float_to_hex(entry)}')
