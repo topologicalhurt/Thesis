@@ -347,7 +347,7 @@ def main() -> None:
         """
         sinusoids = {k: v for k, v in args['table_mode'].items() if k.value in TRIGLUTDEFS._SINUSOIDS.value}
         for k, table_mode in sinusoids.items():
-            sz = N_TABLE_ENTRIES >> int(np.log2(_calculate_scale_factor(args['table_mode'][k], args['hp'][k])))
+            sz = N_TABLE_ENTRIES // _calculate_scale_factor(args['table_mode'][k], args['hp'][k])
             match table_mode:
                 case TRIGFOLD.HIGH:
                     stop = np.pi / 2
@@ -413,7 +413,7 @@ def main() -> None:
         """
         arc_sinusoids = {k: v for k, v in args['table_mode'].items() if k.value in TRIGLUTDEFS._ARC_SINUSOIDS.value}
         for k, table_mode in arc_sinusoids.items():
-            sz = N_TABLE_ENTRIES >> int(np.log2(_calculate_scale_factor(args['table_mode'][k], args['hp'][k])))
+            sz = N_TABLE_ENTRIES // _calculate_scale_factor(args['table_mode'][k], args['hp'][k])
             match table_mode:
                 case TRIGFOLD.HIGH:
                     stop = np.sqrt(2) / 2
