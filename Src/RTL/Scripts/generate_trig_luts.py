@@ -23,17 +23,20 @@ from typing import assert_never
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum
-from Allocator.Interpreter.helpers import pairwise, underline_matches
+from decorators import warning
 from argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
 get_action_from_parser_by_name, str2float, str2posint
 from dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
 from hex_writer import write_lut_to_hex
 
+from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum
+from Allocator.Interpreter.helpers import pairwise, underline_matches
 
+
+@warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
 def bram(v: int | str) -> int:
     if isinstance(v, str):
-        return int(eval_arithmetic_str_unsafe(v)) # Accept arithmetic expressions that will be literally evaluated
+        return int(eval_arithmetic_str_unsafe(v))
     return v
 
 
@@ -43,8 +46,13 @@ def precmode(v: str) -> ExtendedEnum:
     return str2enumval(v, TRIGPREC)
 
 
-def kthresh(v: str) -> float:
-    v = str2float(v)
+@warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
+def kthresh(v: float | str) -> float:
+    if isinstance(v, str):
+        if v.isdigit():
+            v = str2float(v)
+        v = float(eval_arithmetic_str_unsafe(v))
+
     v: float
     if v >= 1 or v <= 0:
         raise ap.ArgumentTypeError('Value must be positive float in range (0, 1)'
@@ -79,15 +87,19 @@ def bw(v: str | int) -> tuple[int, float]:
     return FLOAT_STR_NPMAP.get_member_via_name_from_value(v).value
 
 
-def os_factor(v: str) -> int:
-    v = str2posint(v)
-    v = float(np.log2(v))
-    v: float
-    if not v.is_integer():
+@warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
+def os_factor(v: int | str) -> int:
+    if isinstance(v, str):
+        if v.isdigit():
+            v = str2posint(v)
+        else:
+            v = int(eval_arithmetic_str_unsafe(v))
+
+    if not float(np.log2(v)).is_integer():
         raise ap.ArgumentTypeError('Value must be a power of 2'
-                                   f' but got {v} instead'
-                                  )
-    return int(v)
+                                f' but got {v} instead'
+                                )
+    return v
 
 
 def main() -> None:
@@ -101,12 +113,12 @@ def main() -> None:
                         help='The output directory for the LUTs'
                         )
 
-    parser.add_argument('-bram', type=bram, default=bram(2048),
+    parser.add_argument('-bram', type=bram, default=2048,
                         help='The maximum allowable bram in bytes (I.e. if in quarter table mode table is of size'
                             ' requested_bram / 4)'
                         )
 
-    parser.add_argument('-bw', type=bw, default=bw(32),
+    parser.add_argument('-bw', type=bw, default=FLOAT_STR_NPMAP.FLOAT32.value,
                         help='The bit width of each value in the LUT (default: float / 32bit)'
                         )
 
@@ -149,9 +161,9 @@ def main() -> None:
                         nargs='*', default=True,
                         help='A list of values to include in auto mode'
                         ' This generates all luts in an ideal table size based on a global threshold (see: -k)'
-                        ' This is done by using the newton raphson method or a known bound'
+                        ' This is done by using the newton raphson method, a known bound or other estimation techniques'
                         ' NOTE: the value of the gloal threshold, -k (see: -k), is independent of -tan-k (see: -tan-k)'
-                        ' & -atan-k (see: -atan-k)'
+                        ' & -atan-k (see: -atan-k) which are individually supplied'
                         ' dependencies: -k (see: -k)'
                         ' prohibitions: -excl-auto (see: -excl-auto)'
                         )
@@ -162,20 +174,20 @@ def main() -> None:
                         ' prohibitions: -auto (see: -auto)'
                         )
 
-    parser.add_argument('--auto-off', action='store_true', default=False,
-                        help='Turns auto mode off if specified'
-                        )
-
-    parser.add_argument('--all', action='store_true', default=False,
-                        help='Will generate cosine, arccos (in addition to sin, arcsin) if specified'
-                        )
-
     parser.add_argument('-tan-k', type=kthresh, default=0.05,
                         help='A floating point threshold value which determines the error tolerance for tan'
                         )
 
     parser.add_argument('-atan-k', type=kthresh, default=0.1,
                         help='A floating point threshold value which determines the error tolerance for atan'
+                        )
+
+    parser.add_argument('--auto-off', action='store_true', default=False,
+                        help='Turns auto mode off if specified'
+                        )
+
+    parser.add_argument('--all', action='store_true', default=False,
+                        help='Will generate cosine, arccos (in addition to sin, arcsin) if specified'
                         )
 
     parser.add_argument('--sin', action='store_true', default=False,
@@ -514,51 +526,52 @@ def main() -> None:
     luts_to_w = []
     cmd_line_args = ' '.join(sys.argv[2:])
     for m, bit_v in zip(TRIGLUTDEFS.get_members(), TRIG_LUTS.__members__.values()):
+        k = args['k']
         if trig_opts & bit_v.value:
             match m:
                 case TRIGLUTDEFS.SIN:
                     domain = phis
-                    lut = np.sin(phis[TRIGLUTDEFS.SIN])
                     fn = np.sin
                 case TRIGLUTDEFS.COS:
                     domain = phis
-                    lut = np.cos(phis[TRIGLUTDEFS.COS])
                     fn = np.cos
                 case TRIGLUTDEFS.TAN:
                     domain = phis
-                    lut = np.tan(phis[TRIGLUTDEFS.TAN])
                     fn = np.tan
                     k = args['tan_k']
                 case TRIGLUTDEFS.ASIN:
                     domain = xs
-                    lut = np.arcsin(xs[TRIGLUTDEFS.ASIN])
                     fn = np.arcsin
                 case TRIGLUTDEFS.ACOS:
                     domain = xs
-                    lut = np.arcsin(xs[TRIGLUTDEFS.ACOS])
                     fn = np.arccos
                 case TRIGLUTDEFS.ATAN:
                     domain = xs
-                    lut = np.arctan(xs[TRIGLUTDEFS.ATAN])
                     fn = np.arctan
                     k = args['atan_k']
                 case _:
                     assert_never(m)
 
+            # Lut is nothing more than the given function evaluated over the proper domain
+            # Effort was in 'folding' the domain, determining periodicity, error, etc.
+            lut = fn(domain[m])
+
             acc_report = assess_lut_accuracy(fn, lut, domain[m],
                                              oversample_factor=args['osf'], type=args['bw']
                                             )
 
-            # Special cases
-            if m == TRIG_LUTS.TAN or m == TRIG_LUTS.ATAN:
+            # If k specified print the err compared to avg acc.
+            if args['k'] and (m in TRIGLUTDEFS._SINUSOIDS.value or m in TRIGLUTDEFS._ARC_SINUSOIDS.value)\
+            or (args['tan_k'] and m == TRIG_LUTS.TAN) or (args['atan_k'] and m == TRIG_LUTS.ATAN):
                 k_avg_err = max(np.average(acc_report.acc_scores) - k, 0)
-                print(f'\tk (threshold): {args["atan_k"]}'
+                print(f'\tk (threshold): {args[m]}'
                       f'\n\tErr W.R.T k {k_avg_err}'
                      )
 
             # The factor that indicates mix of precision and optimisation
             scale_factor = _calculate_scale_factor(args['table_mode'][m], args['hp'][m])
 
+            # Package the lut into a dataclass for writing out to .hex file (see: LUT in dataclass)
             luts_to_w.append(
                 LUT(lut=lut,
                     bit_width=bw_int, table_sz=((bw_int_bytes * np.size(lut)) / 1000),
