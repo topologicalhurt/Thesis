@@ -161,7 +161,8 @@ def main() -> None:
                         nargs='*', default=True,
                         help='A list of values to include in auto mode'
                         ' This generates all luts in an ideal table size based on a global threshold (see: -k)'
-                        ' This is done by using the newton raphson method, a known bound or other estimation techniques'
+                        ' This is done by using the newton raphson method, a known bound or other estimation techniques.'
+                        ' If none supplied the default behaviour is to use auto.'
                         ' NOTE: the value of the gloal threshold, -k (see: -k), is independent of -tan-k (see: -tan-k)'
                         ' & -atan-k (see: -atan-k) which are individually supplied'
                         ' dependencies: -k (see: -k)'
@@ -308,6 +309,14 @@ def main() -> None:
             else:
                 return member_set if s1 is True else set()
         return set(s1)
+
+    if type(args['auto']) is not bool and args['auto_off']:
+        err_invoker = get_action_from_parser_by_name(parser, 'auto')
+        err_msg = ' '.join(sys.argv[1:])
+        raise ap.ArgumentError(err_invoker,
+                               'Supplied -auto and --auto-off simultaneously. A contradiction. Use one or the other. I.e.:'
+                               f'\n{underline_matches(err_msg, ("-auto-off", "-auto"), match_all=True)}'
+                              )
 
     if args['auto_off']:
         args['auto'] = set()
