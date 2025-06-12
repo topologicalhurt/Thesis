@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
 helpFunction()
 {
    echo ""
-   echo "Usage: $0 --force"
-   echo -e "\t--extra-dev-tools installs auxiliary dev tools that some devs probably don't care for"
+   echo "Usage: $0 --force --extra-dev-tools"
+   echo -e "\t--privilege-scripts will apply privileging to script dirs"
+   echo -e "\t--extra-dev-tools installs auxiliary dev tools that aren't needed for non-developers"
    echo -e "\t--force means the setup script attempts to disregard cache & runs install naively (I.e. from new)"
    exit 0
 }
 
 paramForce=0
 installDevTools=0
+pScripts=0
 while [[ $# -gt 0 ]]; do
    case "$1" in
       --force ) paramForce=1
       shift;;
       --extra-dev-tools ) installDevTools=1
+      shift;;
+      --privilege-scripts ) pScripts=1
       shift;;
       --help ) helpFunction ;;
       *) helpFunction ;;
@@ -29,26 +33,61 @@ ACT_DIR="/usr/local/bin/"
 SETUP_CACHE="$PWD/bin/cache"
 
 HOOKS_DIR="$PWD/.github/hooks"
+RTL_SCRIPTS_DIR="$PWD/Src/RTL/Scripts"
 RUN_HOOKS_SCRIPT="$HOOKS_DIR/run_hooks.sh"
-PRE_COMMIT_CONFIG_YAML="$PWD/.git/.pre-commit-config.yaml"
+PRE_COMMIT_CONFIG_YAML="$PWD/.github/hooks/.pre-commit-config.yaml"
 
 RAN_LLAC_SETUP_SHELL=$([ "$paramForce" -eq 0 ] && [ -f "$SETUP_CACHE/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
 
 git rev-parse --git-dir > /dev/null 2>&1 ||
-[ "$(git -C "$directory" rev-parse --show-toplevel)" = "$(realpath "$directory")" ] ||
-exit 1
+[ "$(git -C "$directory" rev-parse --show-toplevel)" = "$(realpath "$directory")" ]
 
 ###############
 # PRIVILEGING #
 ###############
 
-[ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || {
+privilegeScriptDir() {
+  local target_dir="$1"
+  local patterns_ref="${2}[@]"
+  local script_patterns=("${!patterns_ref}")
+
+  # Root script directory gets 755 permission (r+w+e)
+  find "$target_dir" -type d -exec sudo chmod -R 755 {} \;
+
+  local include_patterns=()
+  for pattern in "${script_patterns[@]}"; do
+    [ ${#include_patterns[@]} -gt 0 ] && {
+      include_patterns+=("-o")
+    }
+    include_patterns+=("-name" "$pattern")
+  done
+
+  # all is every script matching a pattern
+  # script_p is every script with a shebang in it's header (indicating it should be priveleged)
+  # normal_p is every script in All that is NOT in script_p (set difference of all, script_p)
+  all=$(find "$target_dir" -type f \( "${include_patterns[@]}" \))
+  script_p=$(find "$target_dir" -type f -exec awk 'NR==1 && /^#!/ {print FILENAME}' {} \;)
+  normal_p=$(comm -23 <(sort <<< "$all") <(sort <<< "$script_p"))
+
+  # Regular files (normal_p) get 644 permissions
+  # Privileged files (script_p) get more advanced permissions
+  [ -n "$normal_p" ] && {
+    echo "$normal_p" | xargs -I {} sudo chmod 644 {}
+  }
+
+  [ -n "$script_p" ] && {
+    echo "$script_p" | xargs -I {} sudo chmod 755 {}
+  }
+}
+
+[[ ("$RAN_LLAC_SETUP_SHELL" -eq 0) || ("$pScripts" -eq 1) ]] && {
   git config --add safe.directory "$PWD"
-  find "$HOOKS_DIR" -type d -exec sudo chmod -R 755 {} \;
-  find "$HOOKS_DIR" -type f ! -name "*.sh" -exec sudo chmod 644 {} \;
-  find "$HOOKS_DIR" -type f -name "*.sh" -exec sudo chmod u+r,g+r,o+r {} \;
+  git_hook_ptrns=( "*.sh" )
+  rtl_script_ptrns=( "*.sh" "*.py" )
+  privilegeScriptDir "$HOOKS_DIR" "git_hook_ptrns"
+  privilegeScriptDir "$RTL_SCRIPTS_DIR" "rtl_script_ptrns"
   sudo chmod 755 "$RUN_HOOKS_SCRIPT"
-  sudo chmod 644 "$PRE_COMMIT_CONFIG_YAML"
+  sudo chmod -x "$PRE_COMMIT_CONFIG_YAML"
 }
 
 ###############
@@ -76,12 +115,6 @@ esac
 
       case "${distro}" in
         Debian* | Ubuntu*)
-
-          # Attempt to automatically update package manager ~ no promises
-          set +e
-          sudo apt -y -q update > /dev/null 2>&1 && sudo apt -y upgrade > /dev/null 2>&1
-          set -e
-
           sudo add-apt-repository ppa:deadsnakes/ppa
           sudo apt-get -y -q install gcc help2man perl python3.11 make autoconf g++ flex bison ccache \
           libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlib1g zlib1g-dev \
@@ -130,8 +163,6 @@ clone_submodules () {
 # Github Workflow #
 ###################
 
-git config --add --bool push.autoSetupRemote true
-
 [ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || command -v act &> /dev/null || {
   echo "Act not installed. Installing..."
   sudo curl --proto '=https' --tlsv1.2 \
@@ -139,18 +170,21 @@ git config --add --bool push.autoSetupRemote true
   | sudo bash -s -- -b /usr/local/bin
 }
 
+[ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || {
+  git config --add --bool push.autoSetupRemote true
+}
+
 ##########
 # Python #
 ##########
-
-. "$VENV_DIR/bin/activate"
-
-export PYTHONDONTWRITEBYTECODE=1
 
 [ -d "$VENV_DIR" ] || {
   echo "Virtual environment not found. Creating one..."
   python3 -m venv "$VENV_DIR"
 }
+
+. "$VENV_DIR/bin/activate"
+export PYTHONDONTWRITEBYTECODE=1
 
 pip3 install --upgrade pip --quiet
 pip3 install -r "$PWD/Src/Allocator/Interpreter/requirements.txt" --quiet
