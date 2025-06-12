@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Generates a LUT for various trig functions (sin, cos, tan, asin, acos, atan)
 with variable precision, size & options to use a heuristic to determine
