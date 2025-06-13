@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import assert_never
 from enum import Enum
 
-
 from Allocator.Interpreter.dataclass import ExtendedEnum
 from Allocator.Interpreter.helpers import underline_matches
 from Allocator.Interpreter.exceptions import PosIntParseException, ExpectedIntParseException

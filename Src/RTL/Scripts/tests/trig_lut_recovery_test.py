@@ -1,0 +1,119 @@
+"""
+From the .hex memory for trig functions, attempt to 'reconstruct' the original function and perform
+tests based on accuracy of the reconstruction
+"""
+
+
+# TODO:
+# (1) Fix sin test
+# (2) Implement all other tests
+
+
+import pytest
+import numpy as np
+
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+
+from Allocator.Interpreter.dataclass import ByteOrder
+
+from RTL.Scripts.consts import RTL_HEX_DIR
+from RTL.Scripts.dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTFNDEFS
+from RTL.Scripts.generate_trig_luts import assess_lut_accuracy
+from RTL.Scripts.hex_utils import HexLutManager
+
+
+class ReconstructFn:
+    def __init__(self, domain: Sequence[np.floating], fn: Callable[..., np.floating],
+                 dtype: np.floating):
+        self.domain = np.asarray(domain, dtype=dtype)
+        self.fn = fn
+        self._size = self.domain.size
+
+    def quantize(self, x: np.floating | int) -> int:
+        idx = (np.abs(self.domain - x)).argmin()
+        return self.domain[idx]
+
+    @property
+    def size(self) -> int:
+        return self._size
+
+
+class ReconstructSin(ReconstructFn):
+    def __init__(self, domain: Sequence[np.floating], dtype: np.floating):
+        super().__init__(domain=domain, fn=np.sin, dtype=dtype)
+
+    def reconstruct_high(self, theta: np.floating) -> np.floating:
+        theta = theta % (2 * np.pi)
+        if 0 <= theta and theta < np.pi/2:
+            return self.quantize(theta)
+        if np.pi / 2 <= theta and theta < np.pi:
+            return self.quantize(np.pi - theta)
+        if np.pi <= theta < np.pi * 3/2:
+            return -self.quantize(theta - np.pi)
+        if np.pi * 3/2 <= theta < 2 * np.pi:
+            return -self.quantize(2 * np.pi - theta)
+
+
+@pytest.fixture
+def hex_manager():
+    return HexLutManager(RTL_HEX_DIR)
+
+
+@pytest.fixture
+def high_opt_lowp_wout_cos_domains(hex_manager: HexLutManager):
+    # Read in all files with (function_name)_32_high_lowp name
+    domains = {m : f'{fn.__name__.lower()}_32_high_lowp.hex'
+                for (_, m), fn in zip(TRIGLUTDEFS.__members__.items(), TRIGLUTFNDEFS.values())}
+    # Exclude cos, arccos .hex files (which are excluded by default)
+    domains = {m : hex_manager.read_lut_from_hex(file_name, FLOAT_STR_NPMAP.FLOAT32.value[1],
+                                                 target_order=ByteOrder.NATIVE)
+                for m, file_name in domains.items()
+                if not file_name.startswith('cos') and not file_name.startswith('arccos')}
+    return domains
+
+
+@dataclass
+class TestDomains:
+    sin: Sequence[np.floating]
+    cos: Sequence[np.floating] | None
+    tan: Sequence[np.floating]
+    asin: Sequence[np.floating]
+    acos: Sequence[np.floating] | None
+    atan: Sequence[np.floating]
+
+
+@dataclass
+class SinusoidLutDomains:
+    sin: ReconstructSin
+    cos: ReconstructSin | None # TODO: should be ReconstructCos
+
+
+@pytest.fixture
+def sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
+    domains = high_opt_lowp_wout_cos_domains
+    return SinusoidLutDomains(
+        sin=ReconstructSin(domain=domains[TRIGLUTDEFS.SIN],
+                           dtype=FLOAT_STR_NPMAP.FLOAT32.value[1]),
+        cos=None # TODO: implement ReconstructCos
+    )
+
+
+@pytest.fixture
+def sinusoids_test_axis(sinusoids: SinusoidLutDomains):
+    return TestDomains(
+        sin=np.linspace(0, np.pi * 2, sinusoids.sin.size),
+        cos=None,
+        tan=None,
+        asin=None,
+        acos=None,
+        atan=None
+    )
+
+
+def test_reconstruct_sin_high_32(sinusoids: SinusoidLutDomains,
+                         sinusoids_test_axis: TestDomains):
+    reconstructed_sin = [sinusoids.sin.reconstruct_high(theta) for theta in sinusoids_test_axis.sin]
+    assess_lut_accuracy(np.sin, reconstructed_sin, sinusoids_test_axis.sin, oversample_factor=16,
+                        type=FLOAT_STR_NPMAP.FLOAT32.value[1])
+    assert True

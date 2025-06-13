@@ -181,6 +181,8 @@ clone_submodules () {
 [ -d "$VENV_DIR" ] || {
   echo "Virtual environment not found. Creating one..."
   python3 -m venv "$VENV_DIR"
+  pip3 install -e ./Src --quiet
+  pip3 install -u pytest --quiet
 }
 
 . "$VENV_DIR/bin/activate"

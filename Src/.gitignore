@@ -1,9 +1,11 @@
 # Pytest
 *.pytest_cache
 
-*.xpr
+# Pip
+LLAC.egg-info
 
 # Verilator
+*.xpr
 obj_dir
 
 # IDE

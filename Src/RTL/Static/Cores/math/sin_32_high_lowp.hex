@@ -1,6 +1,7 @@
 // Coefficient memory for sin
 // ----------------------------------------------
 //   Bits per coeff.:          32
+//   Endianness.:              big
 //   Table mode:               high
 //   Table size:               0.512kB
 //   LOP (level of precision): lowp
@@ -10,10 +11,10 @@
 //   Max accuracy:             0.0041266679763793945//
 
 // Each line contains a value (coeff.) corresponding to the function sin.
-// This file was automatically generated with the command: --auto-off -hp 0 -bw 32 -bram 2048
+// This file was automatically generated with the command: -hp 0 --auto-off
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-10 21:51:04.748729
+// File generated @ 2025-06-13 17:56:00.433929
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
