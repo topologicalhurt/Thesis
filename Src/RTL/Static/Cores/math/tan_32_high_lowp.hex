@@ -6,15 +6,15 @@
 //   Table size:               0.256kB
 //   LOP (level of precision): lowp
 //   Effective scaling factor: 1/4
-//   Measured avg. accuracy:   0.008195914328098297
+//   Measured avg. accuracy:   0.008663635700941086
 //   Min accuracy:             0.0
-//   Max accuracy:             0.022770941257476807//
+//   Max accuracy:             0.024063050746917725//
 
 // Each line contains a value (coeff.) corresponding to the function tan.
-// This file was automatically generated with the command: -hp 0 --auto-off
+// This file was automatically generated with the command: -bw 32 -hp 0 --auto-off
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-13 17:56:00.454098
+// File generated @ 2025-06-13 23:44:40.783055
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //

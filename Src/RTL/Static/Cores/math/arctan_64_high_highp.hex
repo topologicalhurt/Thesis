@@ -6,15 +6,15 @@
 //   Table size:               0.512kB
 //   LOP (level of precision): highp
 //   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.001447149815363296
+//   Measured avg. accuracy:   0.0015314014134068382
 //   Min accuracy:             0.0
-//   Max accuracy:             0.00732720468715764//
+//   Max accuracy:             0.007751723570008862//
 
 // Each line contains a value (coeff.) corresponding to the function arctan.
 // This file was automatically generated with the command: -bw 64 -hp 2 --auto-off
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-13 17:56:17.310371
+// File generated @ 2025-06-13 23:45:00.327071
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //

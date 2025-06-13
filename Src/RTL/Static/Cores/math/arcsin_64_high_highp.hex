@@ -6,15 +6,15 @@
 //   Table size:               2.048kB
 //   LOP (level of precision): highp
 //   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.0015173443284829486
+//   Measured avg. accuracy:   0.0016054414852949015
 //   Min accuracy:             0.0
-//   Max accuracy:             0.0036563058687618666//
+//   Max accuracy:             0.0038683781858412924//
 
 // Each line contains a value (coeff.) corresponding to the function arcsin.
 // This file was automatically generated with the command: -bw 64 -hp 2 --auto-off
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-13 17:56:17.301395
+// File generated @ 2025-06-13 23:45:00.318497
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
