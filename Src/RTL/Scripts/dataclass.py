@@ -1,8 +1,20 @@
+import importlib
 import numpy as np
 
-from util_helpers import machine_has_quad_float_support
+from enum import Enum
 
-from Allocator.Interpreter.dataclass import BitField, ExtendedEnum
+from RTL.Scripts.util_helpers import machine_has_quad_float_support
+
+
+class ByteOrder(Enum):
+    LITTLE=0
+    BIG=1
+    NATIVE=2
+
+
+dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
+BitField = dataclasses.BitField
+ExtendedEnum = dataclasses.ExtendedEnum
 
 
 class TRIGLUTDEFS(ExtendedEnum):
@@ -18,6 +30,19 @@ class TRIGLUTDEFS(ExtendedEnum):
     ATAN = 5
     _SINUSOIDS = (SIN, COS)
     _ARC_SINUSOIDS = (ASIN, ACOS)
+
+
+class TRIGLUTFNDEFS(ExtendedEnum):
+    """# Summary
+
+    Enum storing the trig names & their corresponding functions
+    """
+    SIN = np.sin
+    COS = np.cos
+    TAN = np.tan
+    ASIN = np.arcsin
+    ACOS = np.arccos
+    ATAN = np.arctan
 
 
 class TRIGLUTS(BitField):

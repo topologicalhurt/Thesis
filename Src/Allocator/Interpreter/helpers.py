@@ -5,7 +5,6 @@ Common helper / utility functions
 
 import xxhash
 import importlib
-import numpy as np
 import regex as re
 
 from collections.abc import Callable, Iterable, Hashable, Sequence
@@ -105,28 +104,6 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
     _, txt = underline_match(text, to_match, start_index, end_index)
     underlined.extend(txt)
     return f'{text}\n{"".join(underlined)}'
-
-
-def float_to_hex(f: float) -> str:
-    """
-    Converts a np n-bit float (E.g. np.float64) into its raw character
-    hexadecimal string representation (IEEE 754 format).
-
-    ## Args:
-        f: The float value to convert.
-
-    ## Returns:
-        A string of hexadecimal characters (e.g., '400921fb54442d18').
-    """
-    # Pack the float into n bytes using big-endian format ('>d')
-    # and then convert the resulting bytes object to a big endian hex string.
-    if f.dtype.byteorder == '<' or (f.dtype.byteorder == '=' and np.little_endian):
-        # Convert to big-endian if current dtype is little-endian or native is little-endian
-        packed_bytes = f.astype(f.dtype.newbyteorder('>')).tobytes()
-    else:
-        # Otherwise, assume it's already big-endian or native big-endian
-        packed_bytes = f.tobytes()
-    return packed_bytes.hex()
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

@@ -15,23 +15,20 @@ import collections
 import numpy as np
 import regex as re
 import sys
-import os
 import functools
 import itertools
 
 from collections.abc import Sequence, Callable
 from typing import assert_never
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from decorators import warning
-from argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
-get_action_from_parser_by_name, str2float, str2posint
-from dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
-from hex_writer import write_lut_to_hex
-
 from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum
 from Allocator.Interpreter.helpers import pairwise, underline_matches
+
+from RTL.Scripts.decorators import warning
+from RTL.Scripts.argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
+get_action_from_parser_by_name, str2float, str2posint
+from RTL.Scripts.dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC, ByteOrder
+from RTL.Scripts.hex_utils import HexLutManager
 
 
 @warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
@@ -541,29 +538,24 @@ def main() -> None:
             match m:
                 case TRIGLUTDEFS.SIN:
                     domain = phis
-                    fn = np.sin
                 case TRIGLUTDEFS.COS:
                     domain = phis
-                    fn = np.cos
                 case TRIGLUTDEFS.TAN:
                     domain = phis
-                    fn = np.tan
                     k = args['tan_k']
                 case TRIGLUTDEFS.ASIN:
                     domain = xs
-                    fn = np.arcsin
                 case TRIGLUTDEFS.ACOS:
                     domain = xs
-                    fn = np.arccos
                 case TRIGLUTDEFS.ATAN:
                     domain = xs
-                    fn = np.arctan
                     k = args['atan_k']
                 case _:
                     assert_never(m)
 
             # Lut is nothing more than the given function evaluated over the proper domain
             # Effort was in 'folding' the domain, determining periodicity, error, etc.
+            fn = TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value
             lut = fn(domain[m])
 
             acc_report = assess_lut_accuracy(fn, lut, domain[m],
@@ -584,6 +576,7 @@ def main() -> None:
             # Package the lut into a dataclass for writing out to .hex file (see: LUT in dataclass)
             luts_to_w.append(
                 LUT(lut=lut,
+                    endianness=ByteOrder.BIG,
                     bit_width=bw_int, table_sz=((bw_int_bytes * np.size(lut)) / 1000),
                     lop=args['hp'][m], table_mode=args['table_mode'][m],
                     scale_factor=scale_factor,
@@ -593,11 +586,12 @@ def main() -> None:
             )
 
     # Done! Write to .hex file
+    hexManager = HexLutManager(args['dir'])
     for lut in luts_to_w:
         fn = (f'{lut.fn.__name__}_{lut.bit_width}'
               f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'
               )
-        write_lut_to_hex(args['dir'], fn, lut, ow=True)
+        hexManager.write_lut_to_hex(fn, lut, ow=True, target_order=ByteOrder.BIG)
 
 
 def assess_lut_accuracy(fn: Callable[..., float],

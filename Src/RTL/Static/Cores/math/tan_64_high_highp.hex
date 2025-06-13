@@ -1,6 +1,7 @@
 // Coefficient memory for tan
 // ----------------------------------------------
 //   Bits per coeff.:          64
+//   Endianness.:              big
 //   Table mode:               high
 //   Table size:               0.512kB
 //   LOP (level of precision): highp
@@ -10,10 +11,10 @@
 //   Max accuracy:             0.022770941257476696//
 
 // Each line contains a value (coeff.) corresponding to the function tan.
-// This file was automatically generated with the command: --auto-off -hp 2 -bw 64 -bram 2048
+// This file was automatically generated with the command: -bw 64 -hp 2 --auto-off
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-10 21:48:31.896041
+// File generated @ 2025-06-13 17:56:17.291614
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //

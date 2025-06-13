@@ -1,6 +1,7 @@
 // Coefficient memory for arcsin
 // ----------------------------------------------
 //   Bits per coeff.:          64
+//   Endianness.:              big
 //   Table mode:               high
 //   Table size:               2.048kB
 //   LOP (level of precision): highp
@@ -10,10 +11,10 @@
 //   Max accuracy:             0.0036563058687618666//
 
 // Each line contains a value (coeff.) corresponding to the function arcsin.
-// This file was automatically generated with the command: --auto-off -hp 2 -bw 64 -bram 2048
+// This file was automatically generated with the command: -bw 64 -hp 2 --auto-off
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-10 21:48:31.908568
+// File generated @ 2025-06-13 17:56:17.301395
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //

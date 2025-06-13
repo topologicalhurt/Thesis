@@ -18,6 +18,7 @@ executing==2.2.0
 filelock==3.18.0
 fonttools==4.57.0
 idna==3.10
+iniconfig==2.1.0
 ipykernel==6.29.5
 ipython==9.1.0
 ipython_pygments_lexers==1.1.1
@@ -30,6 +31,7 @@ jupyter_core==5.7.2
 kiwisolver==1.4.8
 lazy_loader==0.4
 librosa==0.11.0
+-e git+https://github.com/topologicalhurt/Thesis.git@35aa7e4be447df1fbaba4194b125ad83f7661298#egg=LLAC&subdirectory=Src
 llvmlite==0.44.0
 matplotlib==3.10.1
 matplotlib-inline==0.1.7
@@ -43,6 +45,7 @@ parso==0.8.4
 pexpect==4.9.0
 pillow==11.1.0
 platformdirs==4.3.7
+pluggy==1.6.0
 pooch==1.8.2
 prompt_toolkit==3.0.50
 psutil==7.0.0
@@ -56,6 +59,7 @@ pynq==3.0.1
 pynqmetadata==0.1.5
 pynqutils==0.1.1
 pyparsing==3.2.3
+pytest==8.4.0
 python-dateutil==2.9.0.post0
 python-magic==0.4.27
 PyYAML==6.0.2

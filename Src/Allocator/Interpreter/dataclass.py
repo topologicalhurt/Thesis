@@ -9,7 +9,6 @@ import itertools
 import numpy as np
 
 from dataclasses import dataclass
-
 from enum import Enum, EnumMeta
 from collections.abc import Callable, Iterable, Mapping, Sequence, Set
 from typing import Any
@@ -262,6 +261,10 @@ class BitField(Enum, metaclass=_BitFieldEnumMeta):
     """
 
 
+dataclasses = importlib.import_module('.dataclass', package='RTL.Scripts')
+ByteOrder = dataclasses.ByteOrder
+
+
 @dataclass(frozen=True)
 class LUT_ACC_REPORT:
     """# Summary
@@ -286,6 +289,7 @@ class LUT:
     Dataclass used for an arbitrary generated LUT
     """
     lut: np.array
+    endianness: ByteOrder
     bit_width: int
     table_sz: int
     lop: ExtendedEnum

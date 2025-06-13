@@ -6,17 +6,12 @@ A Synthesized Vivado IP core
 
 
 import itertools
-import sys
 import os
 import argparse as ap
 import regex as re
 from pathlib import Path
 
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-
-from argparse_helpers import str2bool, str2path
+from RTL.Scripts.argparse_helpers import str2bool, str2path
 
 
 def veo(v) -> Path:

@@ -1,0 +1,9 @@
+[project]
+name = "LLAC"
+version = "0.0.0a"
+
+[tool.setuptools.packages.find]
+where = ["../Src"]
+
+[tool.pytest.ini_options]
+pythonpath = "../Src"

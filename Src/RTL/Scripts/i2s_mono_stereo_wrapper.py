@@ -8,15 +8,12 @@ the buffer register width.
 
 
 import argparse as ap
-import sys
-import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from consts import MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
-I2S_DUPLICATE_REGISTER_PATH
 from Allocator.Interpreter.consts import LOGGER
-from argparse_helpers import str2bool
+
+from RTL.Scripts.consts import MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
+I2S_DUPLICATE_REGISTER_PATH
+from RTL.Scripts.argparse_helpers import str2bool
 
 
 def main() -> None:
