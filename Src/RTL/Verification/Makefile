@@ -23,7 +23,7 @@ ELAB_FLAGS =
 SIM_FLAGS = -R
 
 # Default target
-all: clean compile elaborate simulate
+all: compile elaborate simulate
 
 # Xsim targets
 xsim_compile:

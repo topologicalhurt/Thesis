@@ -25,44 +25,37 @@ module buf_audio_in #(
     //  I²S RECEIVE (codec clock domain)
     logic [I2S_WIDTH-1:0] shift_reg;
     logic [4:0]           bit_counter;
-    logic                 prev_lrclk;
     logic                 captured_lrclk_i2s;            // To store lrclk at the time of sample latch
 
     logic                 sample_ready_i2s;
     logic [I2S_WIDTH-1:0] sample_latched_i2s;
     logic                 word_fully_shifted_flag_i2s;
-    logic                 valid_lrclk_for_latch_i2s;
 
     always_ff @(posedge i2s_bclk or posedge sys_rst) begin
         if (sys_rst) begin
             shift_reg          <= '0;
             bit_counter        <= '0;
-            prev_lrclk         <= 1'b0;
             sample_ready_i2s   <= 1'b0;
             captured_lrclk_i2s <= 1'b0;
             word_fully_shifted_flag_i2s <= 1'b0;
-            valid_lrclk_for_latch_i2s   <= 1'b0;
         end else begin
             word_fully_shifted_flag_i2s <= 1'b0;
-            if (prev_lrclk != i2s_lrclk) begin           // Channel edge
-                if (bit_counter == I2S_WIDTH) begin      // Full word captured
-                    word_fully_shifted_flag_i2s <= 1'b1; // Signal that the shift_reg (from prev cycle) is ready
-                    captured_lrclk_i2s <= prev_lrclk;    // Latch the LRCLK for the latest sample
-                end
-                bit_counter <= '0;
-            end else begin
-                bit_counter <= bit_counter + 5'd1;
+
+            // Count bits continuously
+            bit_counter <= bit_counter + 5'd1;
+
+            // Check for word completion every 24 bits
+            if (bit_counter == I2S_WIDTH) begin
+                word_fully_shifted_flag_i2s <= 1'b1; // Signal that we have a complete word
+                captured_lrclk_i2s <= i2s_lrclk;     // Latch current LRCLK for this word
+                sample_latched_i2s <= {shift_reg[I2S_WIDTH-2:0], i2s_data}; // Latch the completed word (including current bit)
+                bit_counter <= 5'd1;                 // Reset counter (current bit is bit 0 of next word)
             end
 
-            sample_ready_i2s <= word_fully_shifted_flag_i2s; // sample_ready is the delayed flag
-            if (word_fully_shifted_flag_i2s) begin
-                sample_latched_i2s <= shift_reg;             // shift_reg here is value from previous cycle (which was the fully shifted word)
-                captured_lrclk_i2s <= valid_lrclk_for_latch_i2s;
-            end
-
+            // Always shift in new data AFTER checking for completion
             shift_reg <= {shift_reg[I2S_WIDTH-2:0], i2s_data};
 
-            prev_lrclk <= i2s_lrclk;
+            sample_ready_i2s <= word_fully_shifted_flag_i2s; // sample_ready is the flag from this cycle
 
         end
     end
@@ -122,7 +115,7 @@ module buf_audio_in #(
                         This sample is written to ALL ch_pair_idx FIFOs for that specific L/R stream.
                         (This means the single I2S input is fanned out to NUM_AUDIO_CHANNELS stereo buffers).
                         */
-                        if (sample_ready_sys && (captured_lrclk_sys == lr_idx)) begin
+                        if (sample_ready_sys && (captured_lrclk_sys != lr_idx)) begin
                             circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <= sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH]; // Ensure correct width, MSB aligned
 
                             write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
@@ -169,7 +162,15 @@ module buf_audio_in #(
                 audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
             end
         end
-      
+
+        // buffer_ready: all mono channels have at least one sample
+        buffer_ready = 1'b1; // Assume true, then AND with all non-empty flags
+        for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
+            for (int j = 0; j < STEREO_MULTIPLIER; j++) begin
+                buffer_ready &= (buffer_count[i][j] != '0);
+            end
+        end
+
         // buffer_full: any mono channel is full
         buffer_full = 1'b0; // Assume false, then OR with all full flags
         for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
@@ -177,5 +178,6 @@ module buf_audio_in #(
                 buffer_full |= channel_full[i][j];
             end
         end
+    end
 
 endmodule
