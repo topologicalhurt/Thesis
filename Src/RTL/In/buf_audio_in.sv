@@ -37,14 +37,13 @@ module buf_audio_in #(
             bit_counter        <= '0;
             sample_ready_i2s   <= 1'b0;
             captured_lrclk_i2s <= 1'b0;
-            word_fully_shifted_flag_i2s <= 1'b0;
         end else begin
             word_fully_shifted_flag_i2s <= 1'b0;
 
             // Count bits continuously
             bit_counter <= bit_counter + 5'd1;
 
-            // Check for word completion every 24 bits
+            // Check for word completion every I2S_WIDTH bits
             if (bit_counter == I2S_WIDTH) begin
                 word_fully_shifted_flag_i2s <= 1'b1; // Signal that we have a complete word
                 captured_lrclk_i2s <= i2s_lrclk;     // Latch current LRCLK for this word
@@ -107,8 +106,10 @@ module buf_audio_in #(
                         write_ptr[ch_pair_idx][lr_idx]    <= '0;
                         read_ptr[ch_pair_idx][lr_idx]     <= '0;
                         buffer_count[ch_pair_idx][lr_idx] <= '0;
+                        for (int k = 0; k < BUFFER_DEPTH; k++) begin
+                            circ_buf[ch_pair_idx][lr_idx][k] <= '0;
+                        end
                     end else begin
-
                         /* Write path:
                         A new sample arrives (sample_ready_sys is high for one cycle).
                         It belongs to the L/R channel indicated by captured_lrclk_sys.
@@ -116,7 +117,8 @@ module buf_audio_in #(
                         (This means the single I2S input is fanned out to NUM_AUDIO_CHANNELS stereo buffers).
                         */
                         if (sample_ready_sys && (captured_lrclk_sys != lr_idx)) begin
-                            circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <= sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH]; // Ensure correct width, MSB aligned
+                            circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <=
+                            sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH]; // Ensure correct width, MSB aligned
 
                             write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
 
@@ -138,7 +140,7 @@ module buf_audio_in #(
                 end
 
                 // Combinational flags for this mono FIFO
-                assign channel_full[ch_pair_idx][lr_idx]      = (buffer_count[ch_pair_idx][lr_idx] == BUFFER_COUNT_WIDTH'(BUFFER_DEPTH));
+                assign channel_full[ch_pair_idx][lr_idx] = (buffer_count[ch_pair_idx][lr_idx] == BUFFER_COUNT_WIDTH'(BUFFER_DEPTH));
             end
         end
     endgenerate
@@ -159,7 +161,11 @@ module buf_audio_in #(
         for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin     // i is ch_pair_idx
             for (int j = 0; j < STEREO_MULTIPLIER; j++) begin  // j is lr_idx (0 for L, 1 for R)
                 // Output the sample at the current read pointer of the respective mono FIFO
-                audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
+                if (sys_rst) begin
+                    audio_channel_out[i * STEREO_MULTIPLIER + j] = '0;
+                end else begin
+                    audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
+                end
             end
         end
 

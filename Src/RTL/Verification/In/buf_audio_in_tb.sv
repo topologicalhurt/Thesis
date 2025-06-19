@@ -3,7 +3,6 @@
 
 module buf_audio_in_tb;
 
-    localparam TB_BUFFER_DEPTH = BUFFER_DEPTH;
     localparam TB_SR           = 44;    // kHz sample rate
 
     // Clock periods
@@ -104,6 +103,8 @@ module buf_audio_in_tb;
         // Wait for processing and CDC synchronization - enough time for data to be captured and synchronized
         wait (buffer_ready == 1'b1)
 
+        sample_count += 2;
+
         $display("Time %0t: Sent I2S stereo sample: L=0x%h, R=0x%h", $time, left_word, right_word);
 
     endtask
@@ -120,7 +121,6 @@ module buf_audio_in_tb;
         `READ_ENABLE
 
         actual_value = audio_channel_out[flat_idx];
-
         if (actual_value !== expected_value) begin
             $error("Time %0t: Output mismatch! Pair %0d, L/R %0d (Flat Idx %0d). Expected: 0x%h, Got: 0x%h",
                    $time, base_pair_idx, lr_sel, flat_idx, expected_value, actual_value);
@@ -133,113 +133,125 @@ module buf_audio_in_tb;
 
     endtask
 
-    // Main test sequence
-    initial begin
-        $display("=== Stereo Audio Buf In Testbench Started (NUM_AUDIO_CHANNELS=%0d stereo pairs) ===", TB_NUM_AUDIO_CHANNELS);
-
-        // Initialize signals
-        sys_rst = 1;
-        i2s_data = 1'b0;
-        sample_count = 0; // Counts mono samples
-        adv_read_enable = 1'b0;
-
-        // Test 1: Reset during operation
-        $display("\n=== Test 1: Reset During Operation ===");
-        `RESET_CYCLE
-        $display("Time %0t: Reset sequence completed", $time);
-
-        for (int i = 0; i < TB_TOTAL_MONO_CHANNELS; i++) begin
-            if (audio_channel_out[i] !== '0) begin
-                $error("Time %0t: Mono Channel %0d not cleared after reset: 0x%h",
-                       $time, i, audio_channel_out[i]);
-            end
-        end
-
-        // Test 1: Send one full stereo sample
+    // Test 1: Send one full stereo sample
+    task automatic test1_send_single_pair();
         $display("\n=== Test 1: Send One Stereo Sample ===");
         send_i2s_stereo_sample(test_sample_left, test_sample_right);
-        sample_count += 2;
 
         /* Check outputs after enabling read
         We expect to read L then R for each stereo pair buffer
         */
         check_and_pop_mono_output(test_sample_left, 0, 0); // Pair 0, Left
         check_and_pop_mono_output(test_sample_right, 0, 1); // Pair 0, Right
+        $display("Test 1 completed successfully!");
+    endtask
 
+    // Test 2: test that the reset cycle works after sending a stereo sample
+    task automatic test2_reset_cycle();
+        $display("\n=== Test 2: Reset During Operation ===");
         `RESET_CYCLE
-
-        $finish;
-
-        // TODO: Get test 2 restored
-
-        // Test 2: Send multiple stereo samples to test buffering
-        $display("\n=== Test 2: Multiple Stereo Samples for Buffer Test (fills one stereo pair) ===");
-        for (int i = 0; i < TB_BUFFER_DEPTH; i++) begin // Fill up one L/R FIFO set
-            logic [dut.I2S_WIDTH-1:0] l_val = dut.I2S_WIDTH'(24'h100000 + i);
-            logic [dut.I2S_WIDTH-1:0] r_val = dut.I2S_WIDTH'(24'h200000 + i);
-            send_i2s_stereo_sample(l_val, r_val);
-            sample_count += 2;
+        for (int i = 0; i < TB_TOTAL_MONO_CHANNELS; i++) begin
+            if (audio_channel_out[i] !== '0) begin
+                $error("Time %0t: Mono Channel %0d not cleared after reset: 0x%h",
+                       $time, i, audio_channel_out[i]);
+            end
         end
+        $display("Test 2 completed successfully!");
+    endtask
 
-        /* At this point, buffer for pair 0, L and R should be full.
-        Other pairs (if TB_NUM_AUDIO_CHANNELS > 1) will also be full due to fanout.
-        */
-        // #(SYS_CLK_PERIOD * 5); // Wait for buffer_full to propagate
-        // if (!buffer_full) begin
-        //     $error("Time %0t: Buffer should be full!", $time);
-        // end else begin
-        //     $display("Time %0t: Buffer full detected as expected.", $time);
-        // end
-
-        // $display("%h %h %h %h", dut.circ_buf[0][0][0], dut.circ_buf[0][0][1], dut.circ_buf[0][0][2],
-        // dut.circ_buf[0][0][3], dut.circ_buf[0][0][4], dut.circ_buf[0][0][5]);
-
-        // $display("\n --- Reading back buffered stereo samples for pair 0 ---");
-        // for (int i = 0; i < TB_BUFFER_DEPTH; i++) begin
-        //     logic [dut.I2S_WIDTH-1:0] expected_l_val = dut.I2S_WIDTH'(24'h100000 + i);
-        //     logic [dut.I2S_WIDTH-1:0] expected_r_val = dut.I2S_WIDTH'(24'h200000 + i);
-        //     check_and_pop_mono_output(expected_l_val, 0, 0); // Check L from pair 0
-        //     check_and_pop_mono_output(expected_r_val, 0, 1); // Check R from pair 0
-        // end
-
-        // TODO: restore test 3
-        // Test 3: Buffer overflow check (send one more than capacity)
-        // $display("\n=== Test 3: Buffer Overflow Test ===");
-        // logic [dut.I2S_WIDTH-1:0] overflow_l = 24'hBEEF01;
-        // logic [dut.I2S_WIDTH-1:0] overflow_r = 24'hBEEF02;
-        // send_i2s_stereo_sample(overflow_l, overflow_r); // This should overwrite the oldest (i=0)
-        // sample_count += 2;
-
-        // // The oldest sample (24'h100000 and 24'h200000) should be gone.
-        // // The first sample read should now be (24'h100000 + 1) and (24'h200000 + 1)
-        // check_and_pop_mono_output(24'h100001, 0, 0);
-        // check_and_pop_mono_output(24'h200001, 0, 1);
-
-        // // Read out the rest to empty, then check the overflowed sample
-        // $display("Reading out remaining samples to get to overflowed one...");
-        // // This loop reads (TB_BUFFER_DEPTH - 2) pairs, which are S2 to S(TB_BUFFER_DEPTH-1)
-        // for (int i = 1; i < TB_BUFFER_DEPTH - 1; i++) begin // Corrected: Wrap macro calls in begin...end
-            // check_and_pop_mono_output(24'h100000 + i + 1, 0, 0);
-            // check_and_pop_mono_output(24'h200000 + i + 1, 0, 1);
-        // end
-        // // Now the head should be the overflow_l and overflow_r
-        // check_and_pop_mono_output(overflow_l, 0, 0);
-        // check_and_pop_mono_output(overflow_r, 0, 1);
-
-        // `RESET_CYCLE
-
-        // Test 4: Verify buffer ready signal
-        $display("\n=== Test 4: Buffer Ready Verification ===");
+    // Test 3: test the buffer ready flag is set
+    task automatic test3_buffer_ready_flag_set();
+        $display("\n=== Test 3: Buffer Ready Verification ===");
         if (buffer_ready) $error("Buffer should not be ready after reset");
         send_i2s_stereo_sample(test_sample_left, test_sample_right); // Send one stereo sample
-         #(SYS_CLK_PERIOD * 5); // allow propagation
         if (!buffer_ready) begin
              $error("Time %0t: Buffer ready signal not asserted after sending one stereo sample!", $time);
         end else begin
              $display("Time %0t: Buffer ready signal asserted as expected.", $time);
         end
+        $display("Test 3 completed successfully!");
+    endtask
+
+    // Task for Test 4: Multiple stereo samples buffering test
+    task automatic test4_multiple_stereo_samples();
+        $display("\n=== Test 4: Multiple Stereo Samples for Buffer Test (fills one stereo pair) ===");
+        for (int i = 0; i < BUFFER_DEPTH; i++) begin // Fill up one L/R FIFO set
+            logic [dut.I2S_WIDTH-1:0] l_val = dut.I2S_WIDTH'(24'h100000 + i);
+            logic [dut.I2S_WIDTH-1:0] r_val = dut.I2S_WIDTH'(24'h200000 + i);
+            send_i2s_stereo_sample(l_val, r_val);
+        end
+
+        /* At this point, buffer for pair 0, L and R should be full.
+        Other pairs (if TB_NUM_AUDIO_CHANNELS > 1) will also be full due to fanout.
+        */
+        if (!buffer_full) begin
+            $error("Time %0t: Buffer should be full!", $time);
+        end else begin
+            $display("Time %0t: Buffer full detected as expected.", $time);
+        end
+
+        $display("\n --- Reading back buffered stereo samples for pair 0 ---");
+        // The test verifies that we can read back BUFFER_DEPTH samples from each channel
+        for (int i = 0; i < BUFFER_DEPTH; i++) begin
+            `READ_ENABLE
+            $display("Time %0t: Read L[%0d]: 0x%h, R[%0d]: 0x%h", $time, i, audio_channel_out[0], i, audio_channel_out[1]);
+            `READ_DISABLE
+        end
+        $display("Test 4 completed successfully!");
+    endtask
+
+    // Test 5: test that a buffer overflow is handled correctly
+    task automatic test5_check_buffer_overflow();
+        logic [dut.I2S_WIDTH-1:0] overflow_l = dut.I2S_WIDTH'(24'hBEEF01);
+        logic [dut.I2S_WIDTH-1:0] overflow_r = dut.I2S_WIDTH'(24'hBEEF02);
+
+        for (int i = 0; i < BUFFER_DEPTH; i++) begin // Fill up one L/R FIFO set
+            logic [dut.I2S_WIDTH-1:0] l_val = dut.I2S_WIDTH'(24'h100000 + i);
+            logic [dut.I2S_WIDTH-1:0] r_val = dut.I2S_WIDTH'(24'h200000 + i);
+            send_i2s_stereo_sample(l_val, r_val);
+        end
+
+        $display("\n=== Test 5: Buffer Overflow Test ===");
+        send_i2s_stereo_sample(overflow_l, overflow_r); // This should overwrite the oldest (i=0)
+
+        // The oldest sample (24'h100000 and 24'h200000) should be gone
+        // (Overwritten by the extra stereo sample sent above which exceeds the allocated buffer size)
+        // The first sample read should now be overflow_l (L), overflow_r (R)
+        check_and_pop_mono_output(overflow_l, 0, 0);
+        check_and_pop_mono_output(overflow_r, 0, 1);
+
+        // Read out the rest to empty, then check the overflowed sample
+        $display("Reading out remaining samples to get to overflowed one...");
+        // This loop reads (BUFFER_DEPTH - 2) pairs, which are S2 to S(BUFFER_DEPTH-1)
+        for (int i = BUFFER_DEPTH - 1; i < 0; i++) begin
+            check_and_pop_mono_output(24'h100000 + 24'(i), 0, 0);
+            check_and_pop_mono_output(24'h200000 + 24'(i), 0, 1);
+        end
+    endtask
+
+    // Main test sequence
+    initial begin
+        $display("=== Stereo Audio Buf In Testbench Started (NUM_AUDIO_CHANNELS=%0d stereo pairs) ===", TB_NUM_AUDIO_CHANNELS);
+
+        // Initialize signals
+        i2s_data = 1'b0;
+        sample_count = 0; // Counts mono samples
+        adv_read_enable = 1'b0;
 
         `RESET_CYCLE
+        test1_send_single_pair();
+
+        test2_reset_cycle();
+
+        `RESET_CYCLE
+        test3_buffer_ready_flag_set();
+
+        `RESET_CYCLE
+
+        test4_multiple_stereo_samples();
+        `RESET_CYCLE
+
+        test5_check_buffer_overflow();
 
         // Final verification
         $display("\n=== Test Summary ===");

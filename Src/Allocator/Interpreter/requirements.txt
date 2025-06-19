@@ -33,7 +33,7 @@ jupyter_core==5.7.2
 kiwisolver==1.4.8
 lazy_loader==0.4
 librosa==0.11.0
--e git+https://github.com/topologicalhurt/Thesis.git@d7ce2cfec3eeab7ed173c497b93f2451748e30c1#egg=LLAC&subdirectory=Src
+-e git+https://github.com/topologicalhurt/Thesis.git@5786debf80851b95349defd30db7defacaa8a692#egg=LLAC&subdirectory=Src
 llvmlite==0.44.0
 matplotlib==3.10.1
 matplotlib-inline==0.1.7
