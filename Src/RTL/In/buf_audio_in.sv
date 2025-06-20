@@ -116,15 +116,26 @@ module buf_audio_in #(
                         This sample is written to ALL ch_pair_idx FIFOs for that specific L/R stream.
                         (This means the single I2S input is fanned out to NUM_AUDIO_CHANNELS stereo buffers).
                         */
+
                         if (sample_ready_sys && (captured_lrclk_sys != lr_idx)) begin
-                            circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <=
-                            sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH]; // Ensure correct width, MSB aligned
 
-                            write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
+                            // Check if either channel in the stereo pair is full for overflow decision
+                            bit stereo_pair_full;
+                            for (int i = 0; i < STEREO_MULTIPLIER; i++) begin
+                                stereo_pair_full |= (buffer_count[ch_pair_idx][i] >= BUFFER_COUNT_WIDTH'(BUFFER_DEPTH));
+                            end
 
-                            if (buffer_count[ch_pair_idx][lr_idx] == BUFFER_COUNT_WIDTH'(BUFFER_DEPTH)) begin // FIFO was full
-                                read_ptr[ch_pair_idx][lr_idx] <= read_ptr[ch_pair_idx][lr_idx] + 1'b1;        // Overwrite: advance read_ptr (drop oldest)
+                            if (stereo_pair_full) begin
+                                // Stereo pair overflow - overwrite oldest data at read_ptr position
+                                circ_buf[ch_pair_idx][lr_idx][read_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <=
+                                sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH];
+                                read_ptr[ch_pair_idx][lr_idx] <= read_ptr[ch_pair_idx][lr_idx] + 1'b1; // Advance read_ptr (drop oldest)
                             end else begin
+                                // Buffer not full - normal write at write_ptr
+                                circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <=
+                                sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH];
+
+                                write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
                                 buffer_count[ch_pair_idx][lr_idx] <= buffer_count[ch_pair_idx][lr_idx] + 1'b1;
                             end
                         end
@@ -161,11 +172,7 @@ module buf_audio_in #(
         for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin     // i is ch_pair_idx
             for (int j = 0; j < STEREO_MULTIPLIER; j++) begin  // j is lr_idx (0 for L, 1 for R)
                 // Output the sample at the current read pointer of the respective mono FIFO
-                if (sys_rst) begin
-                    audio_channel_out[i * STEREO_MULTIPLIER + j] = '0;
-                end else begin
-                    audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
-                end
+                audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
             end
         end
 

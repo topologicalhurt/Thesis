@@ -63,7 +63,8 @@ vcs_simulate:
 # Verilator targets
 verilator_compile:
 	@echo "Compiling with Verilator..."
-	verilator -Wall --binary --assert --timing -I../In $(DUT_FILE) $(TB_FILE) --top-module $(TB_TOP)
+	verilator -Wall --binary --assert --timing -I../In $(DUT_FILE) $(TB_FILE) --top-module $(TB_TOP) \
+		--threads 8 -j 4 --build-jobs 4 -O3
 
 verilator_simulate:
 	@echo "Running simulation with Verilator..."
@@ -71,7 +72,7 @@ verilator_simulate:
 
 verilator_lint:
 	@echo "Linting with Verilator..."
-	verilator --lint-only -sv $(DUT_FILE) --top-module buf_audio_in
+	verilator --lint-only -sv $(DUT_FILE) --top-module buf_audio_in -j 4
 
 # Icarus Verilog targets
 iverilog_compile:
