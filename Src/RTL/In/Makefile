@@ -14,15 +14,14 @@ N_CHANNELS ?= 24
 AUDIO_WIDTH ?= 24
 I2S_WIDTH ?= 24
 
-# Default target (does NOT overwrite existing files)
-all: check_syntax
+all: check_syntax compile_check
 
 # Syntax check for SystemVerilog files using Verilator
 check_syntax:
 	@echo "Checking SystemVerilog syntax with Verilator..."
 	@for file in $(SV_FILES); do \
 		echo "Linting $$file..."; \
-		$(VERILATOR) --lint-only -sv $$file --top-module buf_audio_in || exit 1; \
+		$(VERILATOR) --lint-only -sv -I. -I.. $$file --top-module buf_audio_in || exit 1; \
 	done
 	@echo "Syntax check completed successfully."
 
@@ -50,11 +49,11 @@ generate_wrapper_force:
 # Additional Verilator targets
 lint_detailed:
 	@echo "Running detailed Verilator lint..."
-	$(VERILATOR) -Wall --lint-only -sv $(SV_FILES) --top-module buf_audio_in
+	$(VERILATOR) -Wall --lint-only -sv -I. -I.. $(SV_FILES) --top-module buf_audio_in
 
 compile_check:
 	@echo "Testing compilation with Verilator..."
-	$(VERILATOR) --cc -sv $(SV_FILES) --top-module buf_audio_in
+	$(VERILATOR) --cc -sv -I. -I.. $(SV_FILES) --top-module buf_audio_in
 
 # Clean generated files
 clean:

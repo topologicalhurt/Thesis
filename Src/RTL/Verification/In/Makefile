@@ -6,10 +6,10 @@ SIM ?= verilator
 
 # File paths
 TB_TOP = buf_audio_in_tb
-DUT_PATH = ../In
+DUT_PATH = ../../In
 DUT_FILE = $(DUT_PATH)/buf_audio_in.sv
 DUT_HEADER = $(DUT_PATH)/buf_audio_in.svh
-TB_FILE = ./In/buf_audio_in_tb.sv
+TB_FILE = buf_audio_in_tb.sv
 
 # Simulation parameters
 NUM_CHANNELS ?= 8
@@ -63,8 +63,8 @@ vcs_simulate:
 # Verilator targets
 verilator_compile:
 	@echo "Compiling with Verilator..."
-	verilator -Wall --binary --assert --timing -I../In $(DUT_FILE) $(TB_FILE) --top-module $(TB_TOP) \
-		--threads 8 -j 4 --build-jobs 4 -O3
+	verilator -Wall --binary --assert --timing -I. -I../../ -I$(DUT_PATH) $(DUT_FILE) $(TB_FILE) --top-module $(TB_TOP) \
+	-j `nproc` --build-jobs `nproc` -O3
 
 verilator_simulate:
 	@echo "Running simulation with Verilator..."
@@ -72,7 +72,7 @@ verilator_simulate:
 
 verilator_lint:
 	@echo "Linting with Verilator..."
-	verilator --lint-only -sv $(DUT_FILE) --top-module buf_audio_in -j 4
+	verilator --lint-only -sv -I. -I../../ -I$(DUT_PATH) $(DUT_FILE) --top-module buf_audio_in -j `nproc`
 
 # Icarus Verilog targets
 iverilog_compile:
