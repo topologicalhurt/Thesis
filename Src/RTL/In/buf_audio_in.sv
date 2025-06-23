@@ -1,4 +1,11 @@
 `include "buf_audio_in.svh"
+`include "Common/pos_edge_det.sv"
+
+// TODO's:
+// (1): build debug wrapper
+// (2): ensure bram is accessed legally
+// (3): make / ensure synthesizable
+
 
 module buf_audio_in #(
     parameter I2S_WIDTH          = 24,
@@ -14,83 +21,85 @@ module buf_audio_in #(
     input  wire                        i2s_data,         // Serial data in
 
     // Consumer handshake
-    input  wire                        adv_read_enable,  // Advance read_ptr (active high)
+    input   wire                       adv_read_req,     // Request by consumer to advance read_ptr
+    output  wire                       adv_read_enable,  // Advance read_ptr
 
     // Parallel audio outputs
     output logic [AUDIO_WIDTH-1:0]     audio_channel_out [(NUM_AUDIO_CHANNELS * STEREO_MULTIPLIER)-1:0],
-    output logic                       sample_valid,     // One-cycle pulse when new samples accepted
+    output wire                        sample_valid,     // One-cycle pulse when new samples accepted
     output logic                       buffer_ready,     // All channels hold at least one sample
     output logic                       buffer_full       // Any channel FIFO full
 );
-    //  I²S RECEIVE (codec clock domain)
+    //================================================================
+    // I²S RECEIVE (i2s_bclk clock domain)
+    //================================================================
     logic [I2S_WIDTH-1:0] shift_reg;
-    logic [4:0]           bit_counter;
-    logic                 prev_lrclk;
-    logic                 captured_lrclk_i2s;            // To store lrclk at the time of sample latch
-
-    logic                 sample_ready_i2s;
     logic [I2S_WIDTH-1:0] sample_latched_i2s;
-    logic                 word_fully_shifted_flag_i2s;
-    logic                 valid_lrclk_for_latch_i2s;
+    logic                 i2s_lrclk_d;
+    logic                 sample_ready_i2s;
+    logic                 captured_lrclk_i2s;
 
     always_ff @(posedge i2s_bclk or posedge sys_rst) begin
         if (sys_rst) begin
             shift_reg          <= '0;
-            bit_counter        <= '0;
-            prev_lrclk         <= 1'b0;
-            sample_ready_i2s   <= 1'b0;
+            sample_latched_i2s <= '0;
             captured_lrclk_i2s <= 1'b0;
-            word_fully_shifted_flag_i2s <= 1'b0;
-            valid_lrclk_for_latch_i2s   <= 1'b0;
+            i2s_lrclk_d        <= 1'b0;
+            sample_ready_i2s   <= 1'b0;
         end else begin
-            word_fully_shifted_flag_i2s <= 1'b0;
-            if (prev_lrclk != i2s_lrclk) begin           // Channel edge
-                if (bit_counter == I2S_WIDTH) begin      // Full word captured
-                    word_fully_shifted_flag_i2s <= 1'b1; // Signal that the shift_reg (from prev cycle) is ready
-                    captured_lrclk_i2s <= prev_lrclk;    // Latch the LRCLK for the latest sample
-                end
-                bit_counter <= '0;
-            end else begin
-                bit_counter <= bit_counter + 5'd1;
-            end
-
-            sample_ready_i2s <= word_fully_shifted_flag_i2s; // sample_ready is the delayed flag
-            if (word_fully_shifted_flag_i2s) begin
-                sample_latched_i2s <= shift_reg;             // shift_reg here is value from previous cycle (which was the fully shifted word)
-                captured_lrclk_i2s <= valid_lrclk_for_latch_i2s;
-            end
-
+            sample_ready_i2s   <= 1'b0;
             shift_reg <= {shift_reg[I2S_WIDTH-2:0], i2s_data};
+            i2s_lrclk_d <= i2s_lrclk;
 
-            prev_lrclk <= i2s_lrclk;
-
+            // Check for word completion every I2S_WIDTH bits
+            if (i2s_lrclk != i2s_lrclk_d) begin
+                $display("--> DUT @ %0t [I2S DOMAIN]: LRCLK edge detected. Pulsing sample_ready_i2s.", $time);
+                sample_latched_i2s <= {shift_reg[I2S_WIDTH-2:0], i2s_data};        // Latch the completed word
+                captured_lrclk_i2s <= i2s_lrclk_d;                                 // Latch current LRCLK for this word
+                sample_ready_i2s   <= 1'b1;
+            end
         end
     end
 
-    //  CDC: 2-FF synchroniser into sys_clk domain
-    logic                 sample_ready_sys_meta, sample_ready_sys;
-    logic [I2S_WIDTH-1:0] sample_latched_sys_meta, sample_latched_sys;
-    logic                 captured_lrclk_sys_meta, captured_lrclk_sys; // Synchronized LRCLK
+    //================================================================
+    //  CDC & STAGING LOGIC (sys_clk domain)
+    //================================================================
+    // These registers hold flags that are pased with a 2-FF synchroniser
+    logic                   sample_ready_sys_meta, sample_ready_sys;
+    logic                   captured_lrclk_sys_meta, captured_lrclk_sys;
 
+    // Synchronize the single-bit control signals from the i2s_bclk domain
     always_ff @(posedge sys_clk or posedge sys_rst) begin
         if (sys_rst) begin
             sample_ready_sys_meta   <= 1'b0;
             sample_ready_sys        <= 1'b0;
-            sample_latched_sys_meta <= '0;
-            sample_latched_sys      <= '0;
             captured_lrclk_sys_meta <= 1'b0;
             captured_lrclk_sys      <= 1'b0;
         end else begin
             sample_ready_sys_meta   <= sample_ready_i2s;
             sample_ready_sys        <= sample_ready_sys_meta;
-            sample_latched_sys_meta <= sample_latched_i2s;
-            sample_latched_sys      <= sample_latched_sys_meta;
             captured_lrclk_sys_meta <= captured_lrclk_i2s;
             captured_lrclk_sys      <= captured_lrclk_sys_meta;
         end
     end
 
-    // Channel independent FIFO's / Circular bufs for each MONO stream
+    // Create a single-cycle 'valid' pulse from the synchronized 'ready' signal
+    pos_edge_det sample_valid_detector (
+        .sig(sample_ready_sys),
+        .clk(sys_clk),
+        .pe(sample_valid)
+    );
+
+    // Create a single-cycle 'read' pulse from the 'read' signal
+    pos_edge_det read_detector (
+        .sig(adv_read_req),
+        .clk(sys_clk),
+        .pe(adv_read_enable)
+    );
+
+    //================================================================
+    // FIFO BUFFERS (sys_clk clock domain)
+    //================================================================
     localparam PTR_W = $clog2(BUFFER_DEPTH); // Ptr width for FIFO depth
     localparam BUFFER_COUNT_WIDTH = PTR_W + 1;
 
@@ -106,6 +115,15 @@ module buf_audio_in #(
     genvar ch_pair_idx, lr_idx; // ch_pair_idx for stereo_pair, lr_idx for L/R
     generate
         for (ch_pair_idx = 0; ch_pair_idx < NUM_AUDIO_CHANNELS; ch_pair_idx++) begin : FIFO_PER_STEREO_PAIR
+
+            logic stereo_pair_full;
+            always_comb begin
+                stereo_pair_full = 1'b0;
+                for (int i = 0; i < STEREO_MULTIPLIER; i++) begin
+                    stereo_pair_full |= (buffer_count[ch_pair_idx][i] >= BUFFER_COUNT_WIDTH'(BUFFER_DEPTH));
+                end
+            end
+
             for (lr_idx = 0; lr_idx < STEREO_MULTIPLIER; lr_idx++) begin : FIFO_PER_MONO_STREAM
 
                 // This block defines behavior for one mono FIFO
@@ -122,14 +140,18 @@ module buf_audio_in #(
                         This sample is written to ALL ch_pair_idx FIFOs for that specific L/R stream.
                         (This means the single I2S input is fanned out to NUM_AUDIO_CHANNELS stereo buffers).
                         */
-                        if (sample_ready_sys && (captured_lrclk_sys == lr_idx)) begin
-                            circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <= sample_latched_sys[$bits(sample_latched_sys)-1 -: AUDIO_WIDTH]; // Ensure correct width, MSB aligned
+                        if (sample_valid && (captured_lrclk_sys == lr_idx)) begin
+                            $display("--> DUT @ %0t [SYS DOMAIN]: sample_valid PULSE generated!", $time);
+                            circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <=
+                            sample_latched_i2s[$bits(sample_latched_i2s)-1 -: AUDIO_WIDTH];
 
-                            write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
-
-                            if (buffer_count[ch_pair_idx][lr_idx] == BUFFER_COUNT_WIDTH'(BUFFER_DEPTH)) begin // FIFO was full
-                                read_ptr[ch_pair_idx][lr_idx] <= read_ptr[ch_pair_idx][lr_idx] + 1'b1;        // Overwrite: advance read_ptr (drop oldest)
+                            if (stereo_pair_full) begin
+                                // Stereo pair overflow - advance read pointer first to drop oldest sample
+                                read_ptr[ch_pair_idx][lr_idx] <= read_ptr[ch_pair_idx][lr_idx] + 1'b1;
+                                write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
                             end else begin
+                                // Buffer not full - normal write
+                                write_ptr[ch_pair_idx][lr_idx] <= write_ptr[ch_pair_idx][lr_idx] + 1'b1;
                                 buffer_count[ch_pair_idx][lr_idx] <= buffer_count[ch_pair_idx][lr_idx] + 1'b1;
                             end
                         end
@@ -143,23 +165,11 @@ module buf_audio_in #(
                         end
                     end
                 end
-
                 // Combinational flags for this mono FIFO
-                assign channel_full[ch_pair_idx][lr_idx]      = (buffer_count[ch_pair_idx][lr_idx] == BUFFER_COUNT_WIDTH'(BUFFER_DEPTH));
+                assign channel_full[ch_pair_idx][lr_idx] = stereo_pair_full;
             end
         end
     endgenerate
-
-    logic sample_ready_sys_prev;
-    always_ff @(posedge sys_clk or posedge sys_rst) begin
-        if (sys_rst) begin
-            sample_ready_sys_prev <= 1'b0;
-            sample_valid          <= 1'b0;
-        end else begin
-            sample_valid          <=  sample_ready_sys & ~sample_ready_sys_prev;
-            sample_ready_sys_prev <=  sample_ready_sys;
-        end
-    end
 
     // Continuous read-side data
     always_comb begin
@@ -169,7 +179,15 @@ module buf_audio_in #(
                 audio_channel_out[i * STEREO_MULTIPLIER + j] = circ_buf[i][j][read_ptr[i][j][PTR_W-1:0]];
             end
         end
-      
+
+        // buffer_ready: all mono channels have at least one sample
+        buffer_ready = 1'b1; // Assume true, then AND with all non-empty flags
+        for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
+            for (int j = 0; j < STEREO_MULTIPLIER; j++) begin
+                buffer_ready &= (buffer_count[i][j] != '0);
+            end
+        end
+
         // buffer_full: any mono channel is full
         buffer_full = 1'b0; // Assume false, then OR with all full flags
         for (int i = 0; i < NUM_AUDIO_CHANNELS; i++) begin
@@ -177,5 +195,6 @@ module buf_audio_in #(
                 buffer_full |= channel_full[i][j];
             end
         end
+    end
 
 endmodule

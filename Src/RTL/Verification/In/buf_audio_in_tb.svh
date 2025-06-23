@@ -20,7 +20,7 @@ localparam int TB_NUM_AUDIO_CHANNELS = 1;
 `ifndef READ_ENABLE
 `define READ_ENABLE \
     begin \
-        adv_read_enable = 1'b1; \
+        adv_read_req = 1'b1; \
         @(posedge sys_clk); \
     end
 `endif
@@ -28,7 +28,7 @@ localparam int TB_NUM_AUDIO_CHANNELS = 1;
 `ifndef READ_DISABLE
 `define READ_DISABLE \
     begin \
-        adv_read_enable = 1'b0; \
+        adv_read_req = 1'b0; \
         @(posedge sys_clk); \
     end
 `endif

@@ -125,7 +125,7 @@ def main() -> None:
                     ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
                     )
 
-    parser.add_argument('-osf', type=os_factor, default=16,
+    parser.add_argument('-osf', type=os_factor, default=128,
                         help='The oversampling factor to use on the reference LUT on the accuracy testbench'
                        )
 
@@ -377,7 +377,11 @@ def main() -> None:
                     stop = np.pi * 2
                 case _:
                     assert_never(args['table_mode'])
-            phis[k] = np.linspace(0, stop, sz, dtype=args['bw'])
+
+            # https://zipcpu.com/dsp/2017/08/26/quarterwave.html
+            # Minimize harmonic distortion
+            phis[k] = (np.pi * 2 * np.arange(sz, dtype=args['bw'])) / N_TABLE_ENTRIES
+            phis[k] += np.pi / N_TABLE_ENTRIES
 
     if trig_opts & TRIG_LUTS.TAN.value:
         """
@@ -559,7 +563,8 @@ def main() -> None:
             lut = fn(domain[m])
 
             acc_report = assess_lut_accuracy(fn, lut, domain[m],
-                                             oversample_factor=args['osf'], type=args['bw']
+                                             oversample_factor=args['osf'], type=args['bw'],
+                                             test_type=args['bw']
                                             )
 
             # If k specified print the err compared to avg acc.
