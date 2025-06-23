@@ -3,6 +3,8 @@ Common helper / utility functions
 """
 
 
+import itertools
+import numpy as np
 import xxhash
 import importlib
 import regex as re
@@ -15,6 +17,24 @@ def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
     for val in data:
         hasher.update(val)
     return hasher.intdigest()
+
+
+def machine_has_quad_float_support() -> bool:
+    try:
+        # Try to access the float128 type.
+        return hasattr(np, 'float128')
+    except (TypeError, AttributeError):
+        print('Warning: 128-bit float (float128) is not supported on this platform. Skipping.')
+        return False
+
+
+def machine_has_extended_float_support() -> bool:
+    """Check if the machine supports 80-bit extended precision floats (longdouble on x86)."""
+    try:
+        # Check if longdouble is actually extended precision (80-bit) vs just double (64-bit)
+        return hasattr(np, 'longdouble') and np.finfo(np.longdouble).bits > 64
+    except (TypeError, AttributeError):
+        return False
 
 
 dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
@@ -104,6 +124,37 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
     _, txt = underline_match(text, to_match, start_index, end_index)
     underlined.extend(txt)
     return f'{text}\n{"".join(underlined)}'
+
+
+def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
+    """# Summary
+
+    Pad the shorter list by extending it with its last element to match the longer list's length.
+
+    ## Args:
+        list1: First list
+        list2: Second list
+
+    ## Returns:
+        tuple[list, list]: A tuple of (padded_list1, padded_list2) where both lists have the same length
+    """
+    if not list1 or not list2:
+        raise ValueError('Provided lists must be non-empty')
+
+    len1, len2 = len(list1), len(list2)
+
+    if len1 == len2:
+        return list1, list2
+
+    # Determine which list is shorter and pad it
+    if len1 < len2:
+        # Pad list1 to match list2's length
+        padded_list1 = list1 + list(itertools.repeat(list1[-1], len2 - len1))
+        return padded_list1, list2
+    else:
+        # Pad list2 to match list1's length
+        padded_list2 = list2 + list(itertools.repeat(list2[-1], len1 - len2))
+        return list1, padded_list2
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

@@ -6,8 +6,8 @@ the 'best' fit automatically
 """
 
 # TODO's:
-# 1. Fix atan so it can generate a quarter table LUT as well
-# 2. Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (1) Fix atan so it can generate a quarter table LUT as well
+# (2) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
 
 
 import argparse as ap
@@ -21,14 +21,14 @@ import itertools
 from collections.abc import Sequence, Callable
 from typing import assert_never
 
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum
+from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum, FLOAT_STR_NPMAP
 from Allocator.Interpreter.helpers import pairwise, underline_matches
 
 from RTL.Scripts.decorators import warning
-from RTL.Scripts.argparse_helpers import str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
+from RTL.Scripts.argparse_helpers import str2bitwidth, str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
 get_action_from_parser_by_name, str2float, str2posint
-from RTL.Scripts.dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC, ByteOrder
-from RTL.Scripts.hex_utils import HexLutManager
+from RTL.Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC, ByteOrder
+from RTL.Scripts.hex_utils import TrigLutManager
 
 
 @warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
@@ -57,32 +57,6 @@ def kthresh(v: float | str) -> float:
                                    f' but got {v} instead'
                                    )
     return v
-
-
-def bw(v: str | int) -> tuple[int, float]:
-    if isinstance(v, str):
-        if v.isdigit():
-            v = str2posint(v) # If arg is purely digits attempt to convert to positive integer
-        else:
-            # If the arg is a mix of char & digits
-            v = v.upper()
-            if v not in FLOAT_STR_NPMAP:
-                raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
-                                           f' of {FLOAT_STR_NPMAP.fields()} but got {v} instead'
-                                          )
-            return FLOAT_STR_NPMAP.get_member_via_value_from_name(v).value
-    v: int
-    if v < 16 or v > 128:
-        valid_floatw = ' '.join(FLOAT_STR_NPMAP.fields())
-        raise ap.ArgumentTypeError('Value must be positive int in range [16, 128]'
-                                   f' but got {v} instead. I.e.:'
-                                   f'\n{underline_matches(valid_floatw, lambda char: char.isdigit())}'
-                                   )
-    if v not in FLOAT_STR_NPMAP:
-        raise ap.ArgumentTypeError('If value is specified as a digit it must be one'
-                                    f' of {[v for v in FLOAT_STR_NPMAP.values() if isinstance(v, int)]} but got {v} instead'
-                                    )
-    return FLOAT_STR_NPMAP.get_member_via_name_from_value(v).value
 
 
 @warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
@@ -116,7 +90,7 @@ def main() -> None:
                             ' requested_bram / 4)'
                         )
 
-    parser.add_argument('-bw', type=bw, default=FLOAT_STR_NPMAP.FLOAT32.value,
+    parser.add_argument('-bw', type=functools.partial(str2bitwidth, is_int=False), default=FLOAT_STR_NPMAP.FLOAT32.value,
                         help='The bit width of each value in the LUT (default: float / 32bit)'
                         )
 
@@ -578,7 +552,6 @@ def main() -> None:
             # The factor that indicates mix of precision and optimisation
             scale_factor = _calculate_scale_factor(args['table_mode'][m], args['hp'][m])
 
-            # Package the lut into a dataclass for writing out to .hex file (see: LUT in dataclass)
             luts_to_w.append(
                 LUT(lut=lut,
                     endianness=ByteOrder.BIG,
@@ -591,7 +564,7 @@ def main() -> None:
             )
 
     # Done! Write to .hex file
-    hexManager = HexLutManager(args['dir'])
+    hexManager = TrigLutManager(args['dir'])
     for lut in luts_to_w:
         fn = (f'{lut.fn.__name__}_{lut.bit_width}'
               f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'

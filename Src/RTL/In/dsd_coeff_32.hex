@@ -1,0 +1,82 @@
+// Coefficient memory for design_audio_downsample_filter
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Endianness.:              ByteOrder.BIG
+//   Table mode:               N/A
+//   Table size:               0.252kB
+//   LOP (level of precision): N/A
+//   Effective scaling factor: N/A
+//   Measured avg. accuracy:   N/A
+//   Min accuracy:             N/A
+//   Max accuracy:             N/A//
+
+// Each line contains a value (coeff.) corresponding to the function design_audio_downsample_filter.
+// This file was automatically generated with the command:
+// *Do not* make any manual changes to this file
+// File generated @ N/A
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//
+//
+53580000
+19cfffff
+8819ffff
+00000000
+6bb40100
+91b30000
+9465fdff
+fdd3fdff
+a0410300
+da950400
+0ddefcff
+3616f8ff
+658e0100
+bfcd0b00
+052d0200
+8382f0ff
+1b64f7ff
+65c41100
+9fe51100
+a2eeeeff
+1f71e2ff
+66aa0b00
+59462a00
+00000000
+7e33caff
+7b19edff
+62053d00
+5ef42c00
+6ac1c3ff
+2065b3ff
+3bac2f00
+73876e00
+abeaebff
+dc6c72ff
+909de7ff
+7efda200
+7e6e5500
+d80559ff
+4e1560ff
+3e8b9100
+8869f100
+446ca4ff
+c9e9bffe
+00000000
+c4f17e01
+9e268300
+5ea761fe
+1017d4fe
+8f988c01
+a1fcf301
+8ce1c9fe
+23192ffd
+d43c8400
+d2b0b403
+dfe8a700
+c5dd70fb
+7c257afd
+6b604f05
+e0ada005
+03411afa
+bd5400f4
+d4844506
+32463428
