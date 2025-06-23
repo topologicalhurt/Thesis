@@ -9,6 +9,11 @@ Everything under ```Src``` is designed to be structured in a way that is as modu
 
 ## Python
 
+### Be careful about introducing core dependencies into Allocator/Interpreter
+
+Modules outside of the Allocator can depend upon the allocator but **NOT** vice versa. I.e. allocator must be completely seperate from ```Scripts``` other python modules Etc.
+Additionally, all dependencies / libraries introduced into Allocator have to be reviewed while this is not necessarily the case for elsewhere. All dependencies will have to
+play well with cpython, in addition to being performant & secure.
 
 ### Style guideline
 
