@@ -1,5 +1,4 @@
 import subprocess as sp
-import numpy as np
 
 
 def get_git_author() -> tuple[str, str] | None:
@@ -23,11 +22,3 @@ def get_git_author() -> tuple[str, str] | None:
         print(f'Error retrieving git config: {e}')
         return None
     return author, author_email
-
-
-def machine_has_quad_float_support() -> bool:
-    try:
-        # Try to access the float128 type.
-        return hasattr(np, 'float128')
-    except (TypeError, AttributeError):
-        print('Warning: 128-bit float (float128) is not supported on this platform. Skipping.')

@@ -2,6 +2,10 @@
 Manage (write to, read from) a generic LUT table in a managed .hex file
 """
 
+# TODO's
+# (1) Properly format downsample lut file
+# (2) Use the INT NPMAP to convert hex to int rather than improper type coverage solution that exists now
+
 
 import os
 import sys
@@ -9,7 +13,7 @@ import itertools
 import datetime as dt
 import numpy as np
 
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
@@ -42,6 +46,43 @@ class HexLutManager:
 
     def __init__(self, dir: Path):
         self.dir = dir
+        self._author_info = get_git_author()
+        self._fmap = {
+                'fn': 'N/A',
+                'bit_width': 'N/A',
+                'endianness': 'N/A',
+                'table_mode': 'N/A',
+                'table_sz': 'N/A',
+                'lop': 'N/A',
+                'scale_factor': 'N/A',
+                'avg_acc': 'N/A',
+                'min_acc': 'N/A',
+                'max_acc': 'N/A',
+                'cmd': 'N/A',
+                'ts': 'N/A',
+                'author_name': 'N/A',
+                'author_email': 'N/A'
+        }
+        self._header = self._get_header()
+
+    def _change_format_mapping(self, fmap: Mapping) -> Mapping:
+        if hasattr(fmap['fn'], '__name__'):
+            fmap['fn'] = fmap['fn'].__name__
+
+        if self._author_info is not None:
+            fmap['author_name'], fmap['author_email'] = self._author_info
+
+        fmap = {k: 'N/A' if v is None else v for k,v in fmap.items()} # Values with None will show 'N/A'
+        return fmap
+
+    def _get_header(self) -> str:
+        fmap = self._change_format_mapping(self._fmap)
+        header = HexLutManager.HEADER.format_map(fmap)
+        return header
+
+    @property
+    def header(self) -> str:
+        return self._header
 
     @staticmethod
     def _get_byte_order_symbol_from_sys():
@@ -60,7 +101,7 @@ class HexLutManager:
         return target_order
 
     @staticmethod
-    def _convert_to_byte_order(f: np.floating, target_order: ByteOrder = ByteOrder.BIG) -> bytes:
+    def _convert_to_byte_order(f: np.floating | np.integer, target_order: ByteOrder = ByteOrder.BIG) -> bytes:
         target_order = HexLutManager._get_byte_order_symbol_from_target(target_order)
         f_type = np.dtype(f)
         current_order = f_type.byteorder
@@ -90,19 +131,20 @@ class HexLutManager:
         return packed_bytes.hex()
 
     @staticmethod
-    def hex_to_float(hex_str: str, dtype: np.floating, target_order: ByteOrder = ByteOrder.BIG) -> np.floating:
+    def hex_to_dtype(hex_str: str, dtype: np.floating | np.integer,
+                      target_order: ByteOrder = ByteOrder.BIG) -> np.floating | np.integer:
         """
-        Converts a raw hexadecimal string representation (IEEE 754 format)
-        back into a numpy n-bit float. Assumes the hex string is in
+        Converts a raw hexadecimal string representation
+        back into a numpy n-bit float or integer. Assumes the hex string is in
         big-endian format.
 
         Args:
             hex_str: A string of hexadecimal characters (e.g., '400921fb54442d18').
-            dtype: The target numpy float type (e.g., np.float32, np.float64).
-                This determines how many bytes to interpret.
+            dtype: The target numpy float or integer type (e.g., np.float32, np.float64, np.int32, np.int64 Etc.)
+            This determines how many bytes to interpret.
 
         Returns:
-            A numpy float value of the specified dtype.
+            A numpy float or integer value of the specified dtype.
         """
         # Ensure the hex string has an even number of characters
         if len(hex_str) % 2 != 0:
@@ -124,6 +166,68 @@ class HexLutManager:
         target_order = HexLutManager._get_byte_order_symbol_from_target(target_order=target_order)
         return np.frombuffer(packed_bytes, dtype=np.dtype(dtype).newbyteorder(target_order))[0]
 
+    @staticmethod
+    def int_to_hex(i: int | np.integer, target_order: ByteOrder = ByteOrder.BIG) -> str:
+        """# Summary
+
+        Converts a numpy n-bit integer (e.g. np.int32, np.uint64) into its raw
+        hexadecimal string representation.
+
+        ## Args:
+            i: The integer value to convert.
+            target_order: The byte order for the output hex string.
+
+        ## Returns:
+            A string of hexadecimal characters (e.g., '0000beef').
+        """
+        if not isinstance(i, np.integer):
+            if isinstance(i, int):
+                if 0 <= i.bit_length() < 31:
+                    i = np.int32(i)
+                elif 31 <= i.bit_length() < 63:
+                    i = np.int64(i)
+                elif 63 <= i.bit_length() < 127:
+                    i = np.int128(i)
+                else:
+                    raise ValueError(f'Integer {i} is too large for standard numpy integer types')
+            else:
+                raise TypeError(f'Expected int or np.integer, got {type(i)} instead')
+
+        packed_bytes = HexLutManager._convert_to_byte_order(i, target_order=target_order)
+        return packed_bytes.hex()
+
+    @staticmethod
+    def hex_to_int(hex_str: str, dtype: np.integer, target_order: ByteOrder = ByteOrder.BIG) -> np.integer:
+        """# Summary
+
+        Converts a raw hexadecimal string representation back into a numpy n-bit integer.
+
+        ## Args:
+            hex_str: A string of hexadecimal characters (e.g., '0000beef').
+            dtype: The target numpy integer type (e.g., np.int32, np.uint64).
+            target_order: The byte order of the input hex string.
+
+        ## Returns:
+            A numpy integer value of the specified dtype.
+        """
+        return HexLutManager.hex_to_dtype(hex_str, dtype, target_order=target_order)
+
+    @staticmethod
+    def hex_to_float(hex_str: str, dtype: np.floating, target_order: ByteOrder = ByteOrder.BIG) -> np.floating:
+        """# Summary
+
+        Converts a raw hexadecimal string representation (IEEE 754 format)
+        back into a numpy n-bit float.
+
+        ## Args:
+            hex_str: A string of hexadecimal characters (e.g., '400921fb54442d18').
+            dtype: The target numpy float type (e.g., np.float32, np.float64).
+            target_order: The byte order of the input hex string.
+
+        ## Returns:
+            A numpy float value of the specified dtype.
+        """
+        return HexLutManager.hex_to_dtype(hex_str, dtype, target_order=target_order)
 
     def _get_valid_file_path(self, file_name: str, ow: bool | None = None) -> Path:
         """# Summary
@@ -151,7 +255,9 @@ class HexLutManager:
 
         return file_path
 
-    def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool=False,
+    def write_lut_to_hex(self, file_name: str, lut: LUT,
+                         write_type: Callable[..., str],
+                         ow: bool=False,
                          target_order: ByteOrder = ByteOrder.BIG) -> None:
         """# Summary
 
@@ -163,31 +269,16 @@ class HexLutManager:
             lut (LUT): lut (see: LUT dataclass)
             ow (bool): overwrite files with same name?
         """
+        self._fmap.update(asdict(lut)) # Modify the format map based on the LUT (do a dict update)
+
         file_path = self._get_valid_file_path(file_name=file_name, ow=ow)
-
-        # Do the required formatting for the file header...
-        header = HexLutManager.HEADER
-        f_map = asdict(lut)
-        f_map['fn'] = f_map['fn'].__name__
-        f_map['endianness'] = f_map['endianness'].name.lower()
-        f_map['lop'] = f_map['lop'].name.lower()
-        f_map['table_mode'] = f_map['table_mode'].name.lower()
-        f_map['ts'] = dt.datetime.now()
-        acc_report = f_map.pop('acc_report')
-        f_map['avg_acc'] = acc_report['avg_acc']
-        f_map['min_acc'] = acc_report['min_acc']
-        f_map['max_acc'] = acc_report['max_acc']
-        f_map['author_name'], f_map['author_email'] = get_git_author()
-        if f_map['scale_factor'] != 1:
-            f_map['scale_factor'] = f'1/{f_map["scale_factor"]}'
-        header = header.format_map(f_map)
-
         with open(file_path, 'w') as f:
-            f.write(header)
+            f.write(self._get_header())
             for entry in lut.lut:
-                f.write(f'\n{HexLutManager.float_to_hex(entry, target_order=target_order)}')
+                f.write(f'\n{write_type(entry, target_order=target_order)}')
 
     def read_lut_from_hex(self, file_name: str, dtype: np.floating,
+                          read_type: Callable[..., np.floating | np.integer],
                           target_order: ByteOrder = ByteOrder.NATIVE) -> Sequence[np.floating]:
         file_path = self._get_valid_file_path(file_name=file_name)
         with open(file_path, 'r') as f:
@@ -195,5 +286,64 @@ class HexLutManager:
             data = []
             for ln in after_header:
                 ln = ln.strip()
-                data.append(HexLutManager.hex_to_float(ln, dtype, target_order=target_order))
+                data.append(read_type(ln, dtype, target_order=target_order))
             return data
+
+
+class TrigLutManager(HexLutManager):
+        def __init__(self, dir: Path):
+            super().__init__(dir)
+
+        def _change_format_mapping(self, fmap: Mapping) -> Mapping:
+            # Handle enum fields that might be placeholder strings
+            if hasattr(fmap['endianness'], 'name'):
+                fmap['endianness'] = fmap['endianness'].name.lower()
+            if hasattr(fmap['lop'], 'name'):
+                fmap['lop'] = fmap['lop'].name.lower()
+            if hasattr(fmap['table_mode'], 'name'):
+                fmap['table_mode'] = fmap['table_mode'].name.lower()
+
+            fmap['ts'] = dt.datetime.now()
+
+            # Handle acc_report field that might be placeholder
+            if isinstance(fmap.get('acc_report'), dict):
+                acc_report = fmap.pop('acc_report')
+                fmap['avg_acc'] = acc_report['avg_acc']
+                fmap['min_acc'] = acc_report['min_acc']
+                fmap['max_acc'] = acc_report['max_acc']
+
+            if fmap['scale_factor'] != 'N/A' and fmap['scale_factor'] != 1:
+                fmap['scale_factor'] = f'1/{fmap["scale_factor"]}'
+
+            super()._change_format_mapping(fmap)
+            return fmap
+
+        def _get_header(self) -> str:
+            return super()._get_header()
+
+        def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: ByteOrder = ByteOrder.BIG) -> None:
+            return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.float_to_hex,
+                                            ow=ow, target_order=target_order)
+
+        def read_lut_from_hex(self, file_name: str, dtype: np.floating, target_order: ByteOrder = ByteOrder.NATIVE) -> Sequence[np.floating]:
+            return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_float,
+                                             target_order=target_order)
+
+
+class DownSamplerLutManager(HexLutManager):
+    def __init__(self, dir: Path):
+        super().__init__(dir)
+
+    def _change_format_mapping(self, fmap: Mapping) -> Mapping:
+        return super()._change_format_mapping(fmap)
+
+    def _get_header(self) -> str:
+        return super()._get_header()
+
+    def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: ByteOrder = ByteOrder.BIG) -> None:
+        return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.int_to_hex,
+                                        ow=ow, target_order=target_order)
+
+    def read_lut_from_hex(self, file_name: str, dtype: np.integer, target_order: ByteOrder = ByteOrder.NATIVE) -> Sequence[np.integer]:
+        return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_int,
+                                         target_order=target_order)

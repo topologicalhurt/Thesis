@@ -3,8 +3,6 @@ import numpy as np
 
 from enum import Enum
 
-from RTL.Scripts.util_helpers import machine_has_quad_float_support
-
 
 class ByteOrder(Enum):
     LITTLE=0
@@ -100,19 +98,3 @@ class TRIGPREC(ExtendedEnum):
     LOWP = 0
     MEDP = 1
     HIGHP = 2
-
-
-class FLOAT_STR_NPMAP(ExtendedEnum):
-    """# Summary
-
-    An enum map that relates floats aliased by name / str (E.g. 'FLOAT')
-    to their numpy types
-    """
-    FLOAT16 = 16, np.dtype('f2')
-    FLOAT = 32, np.float32
-    DOUBLE = 64, np.double
-    FLOAT32 = 32, np.float32
-    FLOAT64 = 64, np.float64
-    # FLOAT96 = 96, np.dtype('f12')
-    if machine_has_quad_float_support():
-        FLOAT128 = 128, np.dtype('f16')

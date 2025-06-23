@@ -110,6 +110,8 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
 
 helpers = importlib.import_module('.helpers', package='Allocator.Interpreter')
 combined_fast_stable_hash = helpers.combined_fast_stable_hash
+machine_has_extended_float_support = helpers.machine_has_extended_float_support
+machine_has_quad_float_support = helpers.machine_has_quad_float_support
 
 
 class _BitFieldEnumMeta(EnumMeta):
@@ -263,6 +265,65 @@ class BitField(Enum, metaclass=_BitFieldEnumMeta):
 
 dataclasses = importlib.import_module('.dataclass', package='RTL.Scripts')
 ByteOrder = dataclasses.ByteOrder
+
+
+class FLOAT_STR_NPMAP(ExtendedEnum):
+    """# Summary
+
+    An enum map that relates floats aliased by name / str (E.g. 'FLOAT')
+    to their numpy types
+    """
+    # Half precision
+    FLOAT16 = 16, np.float16
+    HALF = 16, np.float16
+
+    # Single precision
+    FLOAT = 32, np.float32
+    FLOAT32 = 32, np.float32
+    SINGLE = 32, np.float32
+
+    # Double precision
+    DOUBLE = 64, np.float64
+    FLOAT64 = 64, np.float64
+
+    # Extended precision (80-bit on x86, platform dependent)
+    if machine_has_extended_float_support():
+        LONGDOUBLE = np.finfo(np.longdouble).bits, np.longdouble
+        EXTENDED = np.finfo(np.longdouble).bits, np.longdouble
+
+    # Quad precision (128-bit, not available on all platforms)
+    if machine_has_quad_float_support():
+        FLOAT128 = 128, np.float128
+        QUAD = 128, np.float128
+
+
+class INT_STR_NPMAP(ExtendedEnum):
+    """# Summary
+
+    An enum map that relates ints aliased by name / str (E.g. 'INT')
+    to their numpy types
+    """
+    INT8 = 8, np.int8
+    INT16 = 16, np.int16
+    INT = 32, np.int32
+    INT32 = 32, np.int32
+    INT64 = 64, np.int64
+    UINT8 = 8, np.uint8
+    UINT16 = 16, np.uint16
+    UINT = 32, np.uint32
+    UINT32 = 32, np.uint32
+    UINT64 = 64, np.uint64
+
+
+class FREQ(Enum):
+    """# Summary
+
+    Enum used for referring to 'frequency' granularities (I.e. Hz, KHz, MHz etc.)
+    """
+    HZ=1
+    KHZ=HZ*1000
+    MHZ=KHZ*1000
+    GHZ=MHZ*1000
 
 
 @dataclass(frozen=True)
