@@ -36,7 +36,7 @@ jupyterlab_pygments==0.3.0
 kiwisolver==1.4.8
 lazy_loader==0.4
 librosa==0.11.0
--e git+ssh://git@github.com/topologicalhurt/Thesis.git@42359af9917ab2ed3cc3bc5288fc8d88f8c9c748#egg=LLAC&subdirectory=Src
+-e git+ssh://git@github.com/topologicalhurt/Thesis.git@e3673cf64f0ced6c4efb018672ab438470ecc41e#egg=LLAC&subdirectory=Src
 llvmlite==0.44.0
 MarkupSafe==3.0.2
 matplotlib==3.10.1

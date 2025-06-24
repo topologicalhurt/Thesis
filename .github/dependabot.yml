@@ -1,0 +1,55 @@
+version: 2
+updates:
+  # Python dependencies (both production and development)
+  - package-ecosystem: "pip"
+    directory: "Src"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+    reviewers:
+      - "topologicalhurt"
+    assignees:
+      - "topologicalhurt"
+    labels:
+      - "dependencies"
+      - "automated"
+    open-pull-requests-limit: 5
+    target-branch: "main"
+    # Allow both direct, indirect, and development dependencies
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+      - dependency-type: "development"
+    # Ignore specific packages if needed (uncomment and modify as required)
+    # ignore:
+    #   - dependency-name: "package-name"
+    #     versions: ["1.x", "2.x"]
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "UTC"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+    reviewers:
+      - "topologicalhurt"
+    labels:
+      - "github-actions"
+      - "ci"
+      - "automated"
+    open-pull-requests-limit: 2
