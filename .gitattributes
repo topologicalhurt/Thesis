@@ -1,2 +1,4 @@
 Src/RTL/Ip/** linguist-generated
 *.ipynb linguist-language=Python
+.git/**/*.py linguist-generated
+.github/**/*.py linguist-generated
