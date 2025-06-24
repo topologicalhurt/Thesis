@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: local-pre-commit
         name: local-pre-commit
-        entry: .github/hooks/run_hooks.sh "pre-commit"
+        entry: .github/hooks/run_hook.sh "pre_commit"
         language: script
         pass_filenames: false
         verbose: true
@@ -17,7 +17,7 @@ repos:
       - id: verilator-lint
         name: verilator-lint
         description: Runs verilator to lint System Verilog designs
-        entry: .github/hooks/pre-commit/verilator.sh
+        entry: .github/hooks/pre_commit/verilator.sh
         language: script
         pass_filenames: false
         verbose: true
@@ -58,7 +58,7 @@ repos:
     - id: codespell
       name: codespell
       description: Checks for common misspellings in text files.
-      entry: .github/hooks/pre-commit/codespell.sh
+      entry: .github/hooks/pre_commit/codespell.sh
       language: python
       types: [text]
 
@@ -66,7 +66,7 @@ repos:
     hooks:
       - id: clean-ipynb
         name: clean-ipynb
-        entry: .github/hooks/pre-commit/clean_ipynb.sh
+        entry: .github/hooks/pre_commit/clean_ipynb.sh
         language: script
         pass_filenames: false
         verbose: true

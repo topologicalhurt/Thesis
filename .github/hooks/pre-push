@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Pre-push hook to run GitHub Actions locally using act
+# This ensures all actions pass before pushing to remote
+
+echo "Running GitHub Actions locally with act..."
+
+# Use local act configuration file
+ROOT=$(git rev-parse --show-toplevel)
+TOP_DIR="$ROOT/.github/workflows"
+cd "$TOP_DIR" || exit 1
+
+# Check if Docker is available and accessible
+if ! docker ps >/dev/null 2>&1; then
+    echo "⚠️  Docker not accessible. Trying with sudo..."
+    if ! sudo docker ps >/dev/null 2>&1; then
+        echo "❌ Docker not available. Cannot run GitHub Actions locally."
+        echo "To fix this:"
+        echo "  1. Make sure Docker is installed and running via: systemctl start docker"
+        echo "  2. Add your user to the docker group: sudo usermod -aG docker \$USER"
+        echo "  3. Log out and back in, or run: newgrp docker"
+        echo "  4. Or re-run setup.sh to configure Docker properly"
+        echo ""
+        echo "Skipping local GitHub Actions check..."
+        exit 0
+    fi
+    ACT_CMD="sudo act"
+else
+    ACT_CMD="act"
+fi
+
+# DOCKER_OPTS="--network host"
+
+# Run GitHub Actions workflows locally (push event)
+if ! $ACT_CMD -W "$TOP_DIR"; then
+    echo "❌ GitHub Actions failed locally."
+
+    # Check if it's a network issue
+    if ! ping -c 1 github.com >/dev/null 2>&1; then
+        echo "⚠️  Network connectivity issue detected."
+        echo "Running local ruff check as fallback..."
+
+        # Fallback to local ruff check
+        cd "$ROOT" || exit 1
+        if command -v ruff >/dev/null 2>&1; then
+            TARGETS=$(git ls-files '*.py' | grep -v '\.ipynb$')
+            if ! ruff check $TARGETS; then
+                echo "❌ Local ruff check failed. Push aborted."
+                exit 1
+            fi
+            echo "✅ Local ruff check passed. Proceeding with push..."
+        else
+            echo "⚠️  Ruff not available locally. Skipping checks..."
+        fi
+    else
+        echo "Fix the issues and try pushing again."
+        exit 1
+    fi
+fi
+
+echo "✅ All GitHub Actions passed locally. Proceeding with push..."
+exit 0

@@ -93,3 +93,6 @@ if __name__ == '__main__':
     if new_installations:
         installed_cache.update(new_installations)
         save_cache(cache_file, installed_cache)
+
+    # Exit with code 1 if new packages were installed, 0 if all cached
+    sys.exit(1 if new_installations else 0)
