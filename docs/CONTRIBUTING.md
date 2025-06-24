@@ -38,9 +38,9 @@ Every one of these README.md's should have:
 ### Be careful about introducing core dependencies into Allocator/Interpreter
 
 Modules outside of the Allocator can depend upon the allocator but **NOT** vice versa. I.e. allocator must comply with:
-A. Being completely abstracted away from (_that is, not reliant upon whatsoever_)```Scripts```, ```Docs``` or any other local python modules in this project.
-B. All dependencies / libraries introduced into Allocator have to be reviewed. This is not necessarily the case for elsewhere.
-C. All dependencies must 'play well' with cpython, in addition to being performant & secure.
+1. Being completely abstracted away from (_that is, not reliant upon whatsoever_)```Scripts```, ```Docs``` or any other local python modules in this project.
+2. All dependencies / libraries introduced into Allocator have to be reviewed. This is not necessarily the case for elsewhere.
+3. All dependencies must 'play well' with cpython, in addition to being performant & secure.
 
 # Syntax & tips
 
@@ -62,6 +62,38 @@ Put todo lists underneath the document docstring in order of priority E.G.
 # 1. Most important
 # 2. Second most important
 ...
+```
+
+### Import style
+
+```python3
+# System libs first (1st)
+import sys
+import os
+...
+# Third party dependencies second (2nd)
+import scipy
+import pandas
+...
+# Aliased imports third (3rd)
+import numpy as np
+import regex as re
+...
+# Notice the linebreak!
+
+# Imports with a 'from' fourth (4th) (even if it is a system lib)
+# But in the same order as above (I.e. sys |-> 3rd party)
+from itertools import chain
+from PIL import Image
+...
+# Another linebreak!
+
+# Local libs OUTSIDE of current module fifth (5th)
+from Allocator.Interpreter.dataclass import ...
+from Allocator.Interpreter.helpers import ...
+# Local libs INSIDE current module last
+from consts import ...
+from helpers import ...
 ```
 
 ### Dealing with circular imports
@@ -100,6 +132,10 @@ Don't use tuples or dictionaries to pass or return complex data types. Encapsula
 
 Enums, like Dataclasses, should be stored underneath ```dataclasses.py```. Any time you would use a simple state or a tuple (implement via. the ```ExtendedTuple``` class) use an Enum instead.
 
+## Match vs elif statements
+
+**Are** allowed & encouraged **except** for under the allocator module as this violates cython requirements. For unreachable cases the preference is to use typings ```assert_never```.
+
 ___
 ## System Verilog / Verilog
 
@@ -114,7 +150,7 @@ ___
 
 ## Wrappers:
 
-Any scripts introduced under ```Src``` must be written in python. Specifically, please target **python 3.11+** (although **python3.9** is the minimum spec) for cross-platform compatability & consistency reasons. The ```Src/RTL/Scripts``` directory is where you should put them. Please strive to make these as portable \& cross-platform friendly as possible. This project strives to catalogue \& maintain verilog wrapper and/or system scripts in a manner where they are as robust \& reflective of the current RTL design as possible.
+Any scripts introduced under ```Src``` must be written in python. Specifically, please target **python 3.11+** (although **python3.10** is the minimum spec) for cross-platform compatability & consistency reasons. The ```Src/RTL/Scripts``` directory is where you should put them. Please strive to make these as portable \& cross-platform friendly as possible. This project strives to catalogue \& maintain verilog wrapper and/or system scripts in a manner where they are as robust \& reflective of the current RTL design as possible.
 
 ## Developer:
 

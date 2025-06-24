@@ -12,8 +12,17 @@ LLAC started as a research project for low-latency user defined audio cores. It 
 6. **Allow for the platform to be user-configurable, with low-barrier to entry** in a way not offered by un-extensible, non-reusable & non-configurable platforms.
 7. **Allow for the design to be as predictive as possible, and as un-reactive as possible**
 
-> [!WARNING]
+> [!INFO]
 > This README is not a substitute for the whitepaper / thesis included under ```docs```. That is the real 'jumping off' point for the project: it's motivations, it's context, it's design & it's theoretical underpinnings. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
+
+## Requirements
+
+- python3.10+
+- docker
+- verilator
+- appropriate Xilinx FPGA vendor software (E.g. Vivado)
+
+The ```setup.sh``` script is designed as a 'one-shot' method to install all needed dependencies, with full-support for the docker.
 
 ## FPGA based system architecture overview
 
