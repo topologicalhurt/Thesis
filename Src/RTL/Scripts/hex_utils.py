@@ -11,15 +11,15 @@ import os
 import sys
 import itertools
 import datetime as dt
+from typing import assert_never
 import numpy as np
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import LUT
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER
 
-from RTL.Scripts.dataclass import ByteOrder
 from RTL.Scripts.util_helpers import get_git_author
 
 
@@ -66,11 +66,16 @@ class HexLutManager:
         self._header = self._get_header()
 
     def _change_format_mapping(self, fmap: Mapping) -> Mapping:
+        fmap['ts'] = dt.datetime.now()
+
         if hasattr(fmap['fn'], '__name__'):
             fmap['fn'] = fmap['fn'].__name__
 
         if self._author_info is not None:
             fmap['author_name'], fmap['author_email'] = self._author_info
+
+        if hasattr(fmap['endianness'], 'name'):
+            fmap['endianness'] = fmap['endianness'].name.lower()
 
         fmap = {k: 'N/A' if v is None else v for k,v in fmap.items()} # Values with None will show 'N/A'
         return fmap
@@ -89,19 +94,20 @@ class HexLutManager:
         return '<' if sys.byteorder == 'little' else '>'
 
     @staticmethod
-    def _get_byte_order_symbol_from_target(target_order: ByteOrder = ByteOrder.BIG) -> str:
-        if target_order == ByteOrder.BIG:
-            target_order = '>'
-        elif target_order ==  ByteOrder.LITTLE:
-            target_order = '<'
-        elif target_order == ByteOrder.NATIVE:
-            target_order = HexLutManager._get_byte_order_symbol_from_sys()
-        else:
-            raise ValueError('Endian must be contained in ByteOrder')
+    def _get_byte_order_symbol_from_target(target_order: BYTEORDER = BYTEORDER.BIG) -> str:
+        match target_order:
+            case BYTEORDER.BIG:
+                target_order = '>'
+            case BYTEORDER.LITTLE:
+                target_order = '<'
+            case BYTEORDER.NATIVE:
+                target_order = HexLutManager._get_byte_order_symbol_from_sys()
+            case _:
+                assert_never('Endian must be contained in BYTEORDER')
         return target_order
 
     @staticmethod
-    def _convert_to_byte_order(f: np.floating | np.integer, target_order: ByteOrder = ByteOrder.BIG) -> bytes:
+    def _convert_to_byte_order(f: np.floating | np.integer, target_order: BYTEORDER = BYTEORDER.BIG) -> bytes:
         target_order = HexLutManager._get_byte_order_symbol_from_target(target_order)
         f_type = np.dtype(f)
         current_order = f_type.byteorder
@@ -116,7 +122,7 @@ class HexLutManager:
         return packed_bytes
 
     @staticmethod
-    def float_to_hex(f: float, target_order: ByteOrder = ByteOrder.BIG) -> str:
+    def float_to_hex(f: float, target_order: BYTEORDER = BYTEORDER.BIG) -> str:
         """
         Converts a np n-bit float (E.g. np.float64) into its raw character
         hexadecimal string representation (IEEE 754 format).
@@ -132,7 +138,7 @@ class HexLutManager:
 
     @staticmethod
     def hex_to_dtype(hex_str: str, dtype: np.floating | np.integer,
-                      target_order: ByteOrder = ByteOrder.BIG) -> np.floating | np.integer:
+                      target_order: BYTEORDER = BYTEORDER.BIG) -> np.floating | np.integer:
         """
         Converts a raw hexadecimal string representation
         back into a numpy n-bit float or integer. Assumes the hex string is in
@@ -164,10 +170,10 @@ class HexLutManager:
         # Use numpy.frombuffer to interpret the raw bytes as a numpy array.
         # The dtype is set to be big-endian ('>') by default to match the input format.
         target_order = HexLutManager._get_byte_order_symbol_from_target(target_order=target_order)
-        return np.frombuffer(packed_bytes, dtype=np.dtype(dtype).newbyteorder(target_order))[0]
+        return np.frombuffer(packed_bytes, dtype=np.dtype(dtype).newBYTEORDER(target_order))[0]
 
     @staticmethod
-    def int_to_hex(i: int | np.integer, target_order: ByteOrder = ByteOrder.BIG) -> str:
+    def int_to_hex(i: int | np.integer, target_order: BYTEORDER = BYTEORDER.BIG) -> str:
         """# Summary
 
         Converts a numpy n-bit integer (e.g. np.int32, np.uint64) into its raw
@@ -197,7 +203,7 @@ class HexLutManager:
         return packed_bytes.hex()
 
     @staticmethod
-    def hex_to_int(hex_str: str, dtype: np.integer, target_order: ByteOrder = ByteOrder.BIG) -> np.integer:
+    def hex_to_int(hex_str: str, dtype: np.integer, target_order: BYTEORDER = BYTEORDER.BIG) -> np.integer:
         """# Summary
 
         Converts a raw hexadecimal string representation back into a numpy n-bit integer.
@@ -213,7 +219,7 @@ class HexLutManager:
         return HexLutManager.hex_to_dtype(hex_str, dtype, target_order=target_order)
 
     @staticmethod
-    def hex_to_float(hex_str: str, dtype: np.floating, target_order: ByteOrder = ByteOrder.BIG) -> np.floating:
+    def hex_to_float(hex_str: str, dtype: np.floating, target_order: BYTEORDER = BYTEORDER.BIG) -> np.floating:
         """# Summary
 
         Converts a raw hexadecimal string representation (IEEE 754 format)
@@ -258,7 +264,7 @@ class HexLutManager:
     def write_lut_to_hex(self, file_name: str, lut: LUT,
                          write_type: Callable[..., str],
                          ow: bool=False,
-                         target_order: ByteOrder = ByteOrder.BIG) -> None:
+                         target_order: BYTEORDER = BYTEORDER.BIG) -> None:
         """# Summary
 
         Writes a lut to a .hex file at the specified file path &
@@ -279,7 +285,7 @@ class HexLutManager:
 
     def read_lut_from_hex(self, file_name: str, dtype: np.floating,
                           read_type: Callable[..., np.floating | np.integer],
-                          target_order: ByteOrder = ByteOrder.NATIVE) -> Sequence[np.floating]:
+                          target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.floating]:
         file_path = self._get_valid_file_path(file_name=file_name)
         with open(file_path, 'r') as f:
             after_header = itertools.dropwhile(lambda ln: ln.startswith('//') or ln == '\n', f)
@@ -296,14 +302,10 @@ class TrigLutManager(HexLutManager):
 
         def _change_format_mapping(self, fmap: Mapping) -> Mapping:
             # Handle enum fields that might be placeholder strings
-            if hasattr(fmap['endianness'], 'name'):
-                fmap['endianness'] = fmap['endianness'].name.lower()
             if hasattr(fmap['lop'], 'name'):
                 fmap['lop'] = fmap['lop'].name.lower()
             if hasattr(fmap['table_mode'], 'name'):
                 fmap['table_mode'] = fmap['table_mode'].name.lower()
-
-            fmap['ts'] = dt.datetime.now()
 
             # Handle acc_report field that might be placeholder
             if isinstance(fmap.get('acc_report'), dict):
@@ -321,11 +323,11 @@ class TrigLutManager(HexLutManager):
         def _get_header(self) -> str:
             return super()._get_header()
 
-        def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: ByteOrder = ByteOrder.BIG) -> None:
+        def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: BYTEORDER = BYTEORDER.BIG) -> None:
             return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.float_to_hex,
                                             ow=ow, target_order=target_order)
 
-        def read_lut_from_hex(self, file_name: str, dtype: np.floating, target_order: ByteOrder = ByteOrder.NATIVE) -> Sequence[np.floating]:
+        def read_lut_from_hex(self, file_name: str, dtype: np.floating, target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.floating]:
             return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_float,
                                              target_order=target_order)
 
@@ -340,10 +342,10 @@ class DownSamplerLutManager(HexLutManager):
     def _get_header(self) -> str:
         return super()._get_header()
 
-    def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: ByteOrder = ByteOrder.BIG) -> None:
-        return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.int_to_hex,
+    def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: BYTEORDER = BYTEORDER.BIG) -> None:
+        return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.float_to_hex,
                                         ow=ow, target_order=target_order)
 
-    def read_lut_from_hex(self, file_name: str, dtype: np.integer, target_order: ByteOrder = ByteOrder.NATIVE) -> Sequence[np.integer]:
-        return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_int,
+    def read_lut_from_hex(self, file_name: str, dtype: np.integer, target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.integer]:
+        return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_float,
                                          target_order=target_order)

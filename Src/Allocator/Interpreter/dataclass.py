@@ -114,6 +114,23 @@ machine_has_extended_float_support = helpers.machine_has_extended_float_support
 machine_has_quad_float_support = helpers.machine_has_quad_float_support
 
 
+class BYTEORDER(Enum):
+    LITTLE=0
+    BIG=1
+    NATIVE=2
+
+
+class FILTERTYPE(Enum):
+    """# Summary
+
+    Enum storing common filter shapes
+    """
+    LOWPASS=0x1
+    HIGHPASS=0x2
+    BANDPASS=0x3
+    BANDSTOP=0x4
+
+
 class _BitFieldEnumMeta(EnumMeta):
     """# Summary
 
@@ -244,7 +261,7 @@ class _BitFieldEnumMeta(EnumMeta):
         )
 
 
-class BitField(Enum, metaclass=_BitFieldEnumMeta):
+class BITFIELD(Enum, metaclass=_BitFieldEnumMeta):
     """# Summary
 
     Base class for Enums where members are defined via keyword arguments
@@ -261,10 +278,6 @@ class BitField(Enum, metaclass=_BitFieldEnumMeta):
 
         MyFlags.F3.value will be 4 (1 << 2)
     """
-
-
-dataclasses = importlib.import_module('.dataclass', package='RTL.Scripts')
-ByteOrder = dataclasses.ByteOrder
 
 
 class FLOAT_STR_NPMAP(ExtendedEnum):
@@ -350,7 +363,7 @@ class LUT:
     Dataclass used for an arbitrary generated LUT
     """
     lut: np.array
-    endianness: ByteOrder
+    endianness: BYTEORDER
     bit_width: int
     table_sz: int
     lop: ExtendedEnum

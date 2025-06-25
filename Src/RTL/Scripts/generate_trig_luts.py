@@ -27,7 +27,7 @@ from Allocator.Interpreter.helpers import pairwise, underline_matches
 from RTL.Scripts.decorators import warning
 from RTL.Scripts.argparse_helpers import str2bitwidth, str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path,\
 get_action_from_parser_by_name, str2float, str2posint
-from RTL.Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC, ByteOrder
+from RTL.Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC, BYTEORDER
 from RTL.Scripts.hex_utils import TrigLutManager
 
 
@@ -554,7 +554,7 @@ def main() -> None:
 
             luts_to_w.append(
                 LUT(lut=lut,
-                    endianness=ByteOrder.BIG,
+                    endianness=BYTEORDER.BIG,
                     bit_width=bw_int, table_sz=((bw_int_bytes * np.size(lut)) / 1000),
                     lop=args['hp'][m], table_mode=args['table_mode'][m],
                     scale_factor=scale_factor,
@@ -569,7 +569,7 @@ def main() -> None:
         fn = (f'{lut.fn.__name__}_{lut.bit_width}'
               f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'
               )
-        hexManager.write_lut_to_hex(fn, lut, ow=True, target_order=ByteOrder.BIG)
+        hexManager.write_lut_to_hex(fn, lut, ow=True, target_order=BYTEORDER.BIG)
 
 
 def assess_lut_accuracy(fn: Callable[..., float],

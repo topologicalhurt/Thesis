@@ -15,7 +15,7 @@ import numpy as np
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from Allocator.Interpreter.dataclass import ByteOrder
+from Allocator.Interpreter.dataclass import BYTEORDER
 
 from RTL.Scripts.consts import RTL_HEX_DIR
 from RTL.Scripts.dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTFNDEFS
@@ -78,7 +78,7 @@ def high_opt_lowp_wout_cos_domains(hex_manager: HexLutManager):
                 for (_, m), fn in zip(TRIGLUTDEFS.__members__.items(), TRIGLUTFNDEFS.values())}
     # Exclude cos, arccos .hex files (which are excluded by default)
     domains = {m : hex_manager.read_lut_from_hex(file_name, FLOAT_STR_NPMAP.FLOAT32.value[1],
-                                                 target_order=ByteOrder.NATIVE)
+                                                 target_order=BYTEORDER.NATIVE)
                 for m, file_name in domains.items()
                 if not file_name.startswith('cos') and not file_name.startswith('arccos')}
     return domains
