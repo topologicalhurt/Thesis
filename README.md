@@ -1,3 +1,8 @@
+[![Follow](https://img.shields.io/github/followers/topologicalhurt?label=Follow&style=social)](https://github.com/topologicalhurt)
+[![Sponsor](https://img.shields.io/badge/Sponsor-❤️-pink?style=social)](https://github.com/sponsors/topologicalhurt)
+[![Stars](https://img.shields.io/github/stars/topologicalhurt/Thesis?style=social)](https://github.com/topologicalhurt/Thesis)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/topologicalhurt/Thesis/ruff.yml?branch=main)](https://github.com/topologicalhurt/Thesis/actions)
+
 # LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
 
 <img width="738" alt="image" src="https://github.com/user-attachments/assets/5120e3a0-d098-4a57-b702-7936305145d4"/>
