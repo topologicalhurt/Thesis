@@ -9,6 +9,7 @@ import itertools
 import os
 import argparse as ap
 import regex as re
+
 from pathlib import Path
 
 from RTL.Scripts.argparse_helpers import str2bool, str2path

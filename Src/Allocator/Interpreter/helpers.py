@@ -4,10 +4,10 @@ Common helper / utility functions
 
 
 import itertools
-import numpy as np
 import xxhash
 import importlib
 import regex as re
+import numpy as np
 
 from collections.abc import Callable, Iterable, Hashable, Sequence
 

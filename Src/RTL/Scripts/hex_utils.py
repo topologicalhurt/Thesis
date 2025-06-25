@@ -11,9 +11,9 @@ import os
 import sys
 import itertools
 import datetime as dt
-from typing import assert_never
 import numpy as np
 
+from typing import assert_never
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
