@@ -1,19 +1,53 @@
 # Project structure
 
-Everything under ```Src``` is designed to be structured in a way that is as modular (in terms of documentation, at-least) as possible. Every folder under ```Src/RTL``` should have a ```README.md``` describing what each component does and how it is a part of the overall system architecture. Diagrams are great too!
+Everything under ```Src``` is designed to be structured in a way that is as modular (_in terms of documentation, at-least_) as possible. Every folder under ```Src/RTL``` should have a ```README.md``` describing what each component does and how it is a part of the overall system architecture. Diagrams are great too!
 
 > [!TIP]
-> Imagine you've no idea what this project does. You should be able to naively navigate to any of the folders describing the system architecture \& say "**oh** so *that's* what this does." That's the principle at least.
+> Imagine you've no idea what this project does. It's your first time reading through all the documentation and you're overwhelmed with no idea of where to start. This is one of the central dilemnas facing open source or monolithic projects. The philosophy of this project is that any potential developer should be able to naively navigate to any one of the folders describing the system architecture, look at the README.md contained in that subdirectory (_Note: as mentioned above, it is a requirement that every system component in the RTL is described in a README.md with a link to the wiki_) and have an idea of where to start afterwards.
 
-# Syntax
+Every one of these README.md's should have:
+
+- [x] A link to the wiki
+
+- [x] A link to the corresponding testbench README.md section for the component (_Note: this is also a strong requirement_)
+
+- [x] A link to the corresponding research documentation under ```Docs``` (if applicable)
+
+- [x] A table with the TODO's, in the following format:
+
+| TODO item | TODO description | Requires knowledge of (co-requisite with) | File name | Entry modules |
+|-----------|------------------|-------------------------------------------|-----------|---------------|
+|           |                  |                                           |           |               |
+|           |                  |                                           |           |               |
+
+- [x] A description of what each 'hardware' component is supposed to achieve in the overarching (overall) system design. Should be a paragraph at the top of the file.
+
+- [x] A list of potential bugs & unintended behaviour.
+
+- [x] A paragraph at the bottom with anything noteworthy.
+
+- [ ] _Optional, but recommended_: A conclusion & abstract
+
+# Must-do's
+
+> [!WARNING]
+> These are non-negotiables that will result in your pull request being rejected if they are not followed
 
 ## Python
 
 ### Be careful about introducing core dependencies into Allocator/Interpreter
 
-Modules outside of the Allocator can depend upon the allocator but **NOT** vice versa. I.e. allocator must be completely seperate from ```Scripts``` other python modules Etc.
-Additionally, all dependencies / libraries introduced into Allocator have to be reviewed while this is not necessarily the case for elsewhere. All dependencies will have to
-play well with cpython, in addition to being performant & secure.
+Modules outside of the Allocator can depend upon the allocator but **NOT** vice versa. I.e. allocator must comply with:
+A. Being completely abstracted away from (_that is, not reliant upon whatsoever_)```Scripts```, ```Docs``` or any other local python modules in this project.
+B. All dependencies / libraries introduced into Allocator have to be reviewed. This is not necessarily the case for elsewhere.
+C. All dependencies must 'play well' with cpython, in addition to being performant & secure.
+
+# Syntax & tips
+
+> [!TIP]
+> These are **strongly held** but not strictly necessary syntax requirements. 99+% of the time they should be followed, but it is feasible that breaking one might be required. These will be reviewed on a case by case basis. Not following them will almost always result in a pull request being rejected.
+
+## Python
 
 ### Style guideline
 
@@ -61,6 +95,10 @@ Now module a will dynamically retrieve what it needs from module b without getti
 
 Don't use tuples or dictionaries to pass or return complex data types. Encapsulate the data in a dataclass
 (*see: https://docs.python.org/3/library/dataclasses.html*) and place it under the respective ```dataclasses.py```.
+
+### Enums
+
+Enums, like Dataclasses, should be stored underneath ```dataclasses.py```. Any time you would use a simple state or a tuple (implement via. the ```ExtendedTuple``` class) use an Enum instead.
 
 ___
 ## System Verilog / Verilog
