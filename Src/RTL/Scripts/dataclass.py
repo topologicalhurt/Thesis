@@ -1,18 +1,39 @@
-import importlib
 import numpy as np
 
-from enum import Enum
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+from Allocator.Interpreter.dataclass import BITFIELD, FILTERTYPE, ExtendedEnum
 
 
-class ByteOrder(Enum):
-    LITTLE=0
-    BIG=1
-    NATIVE=2
+@dataclass(frozen=True)
+class KaiserParameters:
+    """# Summary
+
+    Dataclass storing Kaiser window parameters BEFORE it is designed
+    """
+    beta: np.float32
+    window_length: np.int16
+    transition_width_rad: np.float64
+    transition_width_norm: np.float64
+    transition_width_hz: np.int32 | None
+    sample_rate: np.int32
+    estimated_attenuation: np.float32
 
 
-dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
-BitField = dataclasses.BitField
-ExtendedEnum = dataclasses.ExtendedEnum
+@dataclass(frozen=True)
+class KaiserSchematic:
+    """# Summary
+
+    Dataclass storing the Kaiser window AFTER it is designed
+    """
+    coeffs: np.ndarray[np.floating]
+    cutoff_norm: float | Sequence[np.floating]
+    filter_type: FILTERTYPE
+    measured_stopband_attenuation: np.float32
+    target_stopband_attenuation: np.float32
+    frequency_response: Sequence[np.ndarray[np.floating], np.ndarray[np.floating]]
+    parameters: KaiserParameters
 
 
 class TRIGLUTDEFS(ExtendedEnum):
@@ -43,7 +64,7 @@ class TRIGLUTFNDEFS(ExtendedEnum):
     ATAN = np.arctan
 
 
-class TRIGLUTS(BitField):
+class TRIGLUTS(BITFIELD):
     """# Summary
 
     Bitfield corresponding to which trig LUT tables to build

@@ -78,6 +78,57 @@ def str2float_with_atmost_n_floating_digits(val: str, n: int) -> float:
     return float(matched.group(0))
 
 
+def str2num(val: str) -> float | int:
+    if val.find('.'):
+        return str2float(val)
+    return str2int(val)
+
+
+def str2posnum(val: str) -> float | int:
+    if val.find('.'):
+        return str2posfloat(val)
+    return str2posint(val)
+
+
+def str2negnum(val: str) -> float | int:
+    if val.find('.'):
+        return str2negfloat(val)
+    return str2negint(val)
+
+
+def num_in_range(val: float | int, r: range,
+                lower_inclusive: bool = True,
+                upper_inclusive: bool = True) -> float | int:
+    if (lower_inclusive and val < r.start) or (upper_inclusive and val > r.stop) or\
+        (not lower_inclusive and val <= r.start) or (not lower_inclusive and val >= r.stop):
+        lower_symb = '[' if lower_inclusive else '('
+        upper_symb = ']' if upper_inclusive else ')'
+        if isinstance(val, float):
+            raise ap.ArgumentTypeError(f'Expected a float in the range: {lower_symb}{r.start}, {r.stop}{upper_symb}'
+                                        f' but got {val}'
+                                        )
+        if isinstance(val, int):
+            raise ap.ArgumentTypeError(f'Expected an integer in the range: {lower_symb}{r.start}, {r.stop}{upper_symb}'
+                            f' but got {val}'
+                            )
+        assert_never(f'Value should be an integer or float but got {val} instead')
+    return val
+
+
+def str2int_in_range(val: str, r: range,
+                    lower_inclusive: bool = True,
+                    upper_inclusive: bool = True) -> int:
+    val = str2int(val)
+    return num_in_range(val, r, lower_inclusive=lower_inclusive, upper_inclusive=upper_inclusive)
+
+
+def str2float_in_range(val: str, r: range,
+                    lower_inclusive: bool = True,
+                    upper_inclusive: bool = True) -> float:
+    val = str2float(val)
+    return num_in_range(val, r, lower_inclusive=lower_inclusive, upper_inclusive=upper_inclusive)
+
+
 def str2enumval(val: str, target_enum: ExtendedEnum) -> Enum:
     try:
         posint = str2posint(val)
@@ -102,6 +153,7 @@ def str2enumval(val: str, target_enum: ExtendedEnum) -> Enum:
                                     f' {target_enum.fields()} |-> {target_enum.vals()}'
                                     f' (got {val} instead)'
                                     )
+
 
 def eval_arithmetic_str_unsafe(val: str) -> float:
     """ # Summary
