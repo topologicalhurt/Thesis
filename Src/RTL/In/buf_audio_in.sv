@@ -1,3 +1,37 @@
+// ------------------------------------------------------------------------
+// Filename:       buf_audio_in.sv
+//
+// Project:        LLAC, intelligent hardware scheduler targeting common
+// audio signal chains.
+//
+// For more information see the repository:
+// https://github.com/topologicalhurt/Thesis
+//
+// Purpose:        N/A
+//
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//
+// ------------------------------------------------------------------------
+// Copyright (C) 2025, LLAC project LLC
+//
+// This file is a part of the RTL module
+// It is intended to be used as part of the In design where a README.md
+// detailing the design should exist, conforming to the details provided
+// under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0
+// License (see below.)
+//
+// The design is NOT COVERED UNDER ANY WARRANTY.
+//
+// LICENSE:     GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+// As defined by GNU GPL 3.0 https://www.gnu.org/licenses/gpl-3.0.html
+//
+// A copy of this license is included at the root directory. It should've
+// been provided to you
+// Otherwise please consult:
+// https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
+// ------------------------------------------------------------------------
+
+
 `include "buf_audio_in.svh"
 `include "Common/pos_edge_det.sv"
 
@@ -5,6 +39,7 @@
 // (1): build debug wrapper
 // (2): ensure bram is accessed legally
 // (3): make / ensure synthesizable
+// (4): technically this is TDM not I2S so refactor / rename to reflect that
 
 
 module buf_audio_in #(
@@ -53,7 +88,7 @@ module buf_audio_in #(
 
             // Check for word completion every I2S_WIDTH bits
             if (i2s_lrclk != i2s_lrclk_d) begin
-                $display("--> DUT @ %0t [I2S DOMAIN]: LRCLK edge detected. Pulsing sample_ready_i2s.", $time);
+                // $display("--> DUT @ %0t [I2S DOMAIN]: LRCLK edge detected. Pulsing sample_ready_i2s.", $time);
                 sample_latched_i2s <= {shift_reg[I2S_WIDTH-2:0], i2s_data};        // Latch the completed word
                 captured_lrclk_i2s <= i2s_lrclk_d;                                 // Latch current LRCLK for this word
                 sample_ready_i2s   <= 1'b1;
@@ -141,7 +176,7 @@ module buf_audio_in #(
                         (This means the single I2S input is fanned out to NUM_AUDIO_CHANNELS stereo buffers).
                         */
                         if (sample_valid && (captured_lrclk_sys == lr_idx)) begin
-                            $display("--> DUT @ %0t [SYS DOMAIN]: sample_valid PULSE generated!", $time);
+                            // $display("--> DUT @ %0t [SYS DOMAIN]: sample_valid PULSE generated!", $time);
                             circ_buf[ch_pair_idx][lr_idx][write_ptr[ch_pair_idx][lr_idx][PTR_W-1:0]] <=
                             sample_latched_i2s[$bits(sample_latched_i2s)-1 -: AUDIO_WIDTH];
 

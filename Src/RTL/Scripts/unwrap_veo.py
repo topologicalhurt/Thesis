@@ -1,7 +1,32 @@
 #!/usr/bin/env python
 """
-Creates a systemverilog instantiation module representation from
+------------------------------------------------------------------------
+Filename: 	unwrap_veo.py
+
+Project:	LLAC, intelligent hardware scheduler targeting common audio signal chains.
+
+For more information see the repository: https://github.com/topologicalhurt/Thesis
+
+Purpose:	Creates a systemverilog instantiation module representation from
 A Synthesized Vivado IP core
+
+Author: topologicalhurt csin0659@uni.sydney.edu.au
+
+------------------------------------------------------------------------
+Copyright (C) 2025, LLAC project LLC
+
+This file is a part of the SCRIPTS module
+It is intended to be run as a script for use with developer operations, automation / task assistance or as a wrapper for the RTL code.
+
+The design is NOT COVERED UNDER ANY WARRANTY.
+
+LICENSE:     GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+As defined by GNU GPL 3.0 https://www.gnu.org/licenses/gpl-3.0.html
+
+A copy of this license is included at the root directory. It should've been provided to you
+Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
+------------------------------------------------------------------------
+
 """
 
 

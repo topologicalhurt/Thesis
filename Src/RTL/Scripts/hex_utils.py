@@ -1,5 +1,30 @@
 """
-Manage (write to, read from) a generic LUT table in a managed .hex file
+------------------------------------------------------------------------
+Filename: 	hex_utils.py
+
+Project:	LLAC, intelligent hardware scheduler targeting common audio signal chains.
+
+For more information see the repository: https://github.com/topologicalhurt/Thesis
+
+Purpose:	Manage (write to, read from) a generic LUT table in a managed .hex file
+
+Author: topologicalhurt csin0659@uni.sydney.edu.au
+
+------------------------------------------------------------------------
+Copyright (C) 2025, LLAC project LLC
+
+This file is a part of the SCRIPTS module
+It is intended to be run as a script for use with developer operations, automation / task assistance or as a wrapper for the RTL code.
+
+The design is NOT COVERED UNDER ANY WARRANTY.
+
+LICENSE:     GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+As defined by GNU GPL 3.0 https://www.gnu.org/licenses/gpl-3.0.html
+
+A copy of this license is included at the root directory. It should've been provided to you
+Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
+------------------------------------------------------------------------
+
 """
 
 # TODO's
@@ -20,7 +45,7 @@ from pathlib import Path
 
 from Allocator.Interpreter.dataclass import LUT, BYTEORDER
 
-from RTL.Scripts.util_helpers import get_git_author
+from RTL.Scripts.consts import META_INFO
 
 
 class HexLutManager:
@@ -46,7 +71,7 @@ class HexLutManager:
 
     def __init__(self, dir: Path):
         self.dir = dir
-        self._author_info = get_git_author()
+        self._author_info = META_INFO.AUTHOR_CREDENTIALS
         self._fmap = {
                 'fn': 'N/A',
                 'bit_width': 'N/A',
