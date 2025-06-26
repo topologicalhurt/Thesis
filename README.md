@@ -3,9 +3,42 @@
 [![Stars](https://img.shields.io/github/stars/topologicalhurt/Thesis?style=social)](https://github.com/topologicalhurt/Thesis)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/topologicalhurt/Thesis/ruff.yml?branch=main)](https://github.com/topologicalhurt/Thesis/actions)
 
-# LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
+# Nature of this project
 
+This repository is completely covered by the GPL V3.0 license & thus completely open-source. Everything detailed in this ```README.MD``` and the thesis **![whitepaper](docs/whitepaper/thesis.pdf)** is included within the project including:
+
+- Intelligent '_hardware scheduling_' capabilities (see: the **![abstract](#abstract)**)
+  - **Dynamic optimisations** Anything at all related to optimising the fabric, including (but not limited to): resource allocation; clocking; rearranging, compositing, modifying signal chains into equivalent constructs; routing. This includes both the RTL & softcore design.
+  - **Soft-core analysis / algorithms** Anything responsible for managing the fabric & indicating where optimisations are possible, interfacing with vendor software, running scripts, compiling modules _etc..._ Essentially, anything required to be run on a soft-core that the fabric is contingent upon
+- System architecture
+  - **Static architecture** Anything required as part of a barebones description or that could be called bootstrapping the ```whitepaper```. For example, mixing utilities, input demultiplexing, channel routing, kernel management, protocols _etc..._
+  - **Xilinx support** Full coverage for the ![supported](#Requirements) Xilinx architectures.
+- Research & documentation
+  - **Theory** Any & all theory behind this project (what makes it tick) under ```Docs```. Note that this is continuously evolving like the rest of the project & not just a rehashing of the whitepaper.
+
+What is **NOT** included as open-source or as part of this project:
+  - **Presets or functionality for the audio kernels / cores** I.e. think of the dynamically reconfigurable cores (kernels) as an _emulator_ but without a _bios_ supplied.
+    In this case, the '_bios_' is any actual fx or synthesis ability. A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing
+    correctly with the rest of the architecture & implementing primitive operations / hardware calls that make it **possible, convenient & extensible** to leverage actual
+    functionality.
+  - **Some static architecture** I.e. some more advanced mixing, channel routing & CODEC possibilities.
+  - **Inter-product differentiation** Differentiation in the Xilinx product line (like, for example, leveraging URAM on Ultrascale devices to avoid going to DDR)
+  - **Webserver** hosted by the soft-core
+  - **GUI**
+  - **Advanced / \*some\* quality of life functionalities** T.B.D
+  - **Any PCB / design schematics**
+
+> [!IMPORTANT]
+> In other words, if you are looking for a commercially realized version of this project head over to: <placeholder> which is maintained & run as part of a separate commercial endeavour by [@topologicalhurt](https://github.com/topologicalhurt)
+
+# Abstract
+<a id="abstract"></a>
 <img width="738" alt="image" src="https://github.com/user-attachments/assets/5120e3a0-d098-4a57-b702-7936305145d4"/>
+
+> [!NOTE]
+> This README is not a substitute for the whitepaper / thesis included under ```docs```. That is the real 'jumping off' point for the project: it's motivations, it's context, it's design & it's theoretical underpinnings. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
+
+# LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
 
 LLAC started as a research project for low-latency user defined audio cores. It targets the AMD [Xilinx](https://github.com/xilinx) platform, specifically the [PYNQ](https://github.com/Xilinx/PYNQ) platform. The project has the following goals:
 
@@ -16,9 +49,6 @@ LLAC started as a research project for low-latency user defined audio cores. It 
 5. **Allow for extensible IO options**
 6. **Allow for the platform to be user-configurable, with low-barrier to entry** in a way not offered by un-extensible, non-reusable & non-configurable platforms.
 7. **Allow for the design to be as predictive as possible, and as un-reactive as possible**
-
-> [!INFO]
-> This README is not a substitute for the whitepaper / thesis included under ```docs```. That is the real 'jumping off' point for the project: it's motivations, it's context, it's design & it's theoretical underpinnings. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
 
 ## Requirements
 
