@@ -31,38 +31,37 @@
 // https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
 // ------------------------------------------------------------------------
 
-/*  Whilst this design makes legal modification of, & avoids directly copying from:
 
-    Dan Gisselquist, Ph.D
-    Gisselquist Technology, LLC
+module dsd_tb;
 
-    https://zipcpu.com/dsp/2020/07/28/down-sampler.html
-    https://github.com/ZipCPU/dspfilters/blob/629474e69c68343ec04e93e4df69f4738c0971c8/rtl/subfildown.v
+    parameter SYS_CLK_PERIOD = 10;      // I.e. 10 = 100 MHz system clock
 
-    It would still like to give direct credit to his work, without which the implementation
-    of this design would've been significantly complicated.
-*/
+    // Clock generation
+    reg clk;
 
+    // Instantiate the DUT (Device Under Test)
+    dsd #(
+        .AUDIO_WIDTH(24),
+        .FIXED_COEFFS(1'b0)
+    ) dut (
+        .i_clk(clk)
+    );
 
-`include "dsd.svh"
+    // System clock generation
+    initial begin
+        clk = 0;
+        forever #(SYS_CLK_PERIOD/2) clk = ~clk;
+    end
 
+    // Test sequence
+    initial begin
+        $display("Starting DSD testbench");
 
-module dsd #(
-    parameter   AUDIO_WIDTH = 24,
-    localparam	LGN_COEFFS=$clog2(NCOEFFS),
+        // Wait for a few clock cycles
+        repeat (10) @(posedge clk);
 
-    parameter [0:0]	FIXED_COEFFS = 1'b0
-) (
-    input wire i_clk
-);
-	reg	[(COEFF_W-1):0]	    cmem	[0:((1<<LGN_COEFFS)-1)];
-	reg	[(AUDIO_WIDTH-1):0]	dmem	[0:((1<<LGN_COEFFS)-1)];
-
-    generate if (FIXED_COEFFS || INITIAL_COEFFS != 0)
-    begin : LOAD_INITIAL_COEFFS
-
-        initial $readmemh(INITIAL_COEFFS, cmem);
-
-    end endgenerate
+        $display("DSD testbench completed successfully");
+        $finish;
+    end
 
 endmodule

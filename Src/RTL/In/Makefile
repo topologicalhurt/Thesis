@@ -1,10 +1,9 @@
 # Makefile for RTL/In audio processing modules
-# Author: Generated for PYNQ-Z2 DEMO
 
 # Variables
 VERILATOR = verilator
 PYTHON = python3
-SV_FILES = buf_audio_in.sv
+SV_FILES = $(wildcard *.sv)
 SVH_FILES = buf_audio_in.svh
 PY_FILES = i2s_mono_stereo_wrapper.py
 
@@ -21,7 +20,7 @@ check_syntax:
 	@echo "Checking SystemVerilog syntax with Verilator..."
 	@for file in $(SV_FILES); do \
 		echo "Linting $$file..."; \
-		$(VERILATOR) --lint-only -sv -I. -I.. $$file --top-module buf_audio_in || exit 1; \
+		$(VERILATOR) --lint-only -sv -I. -I.. $$file || exit 1; \
 	done
 	@echo "Syntax check completed successfully."
 
@@ -49,11 +48,17 @@ generate_wrapper_force:
 # Additional Verilator targets
 lint_detailed:
 	@echo "Running detailed Verilator lint..."
-	$(VERILATOR) -Wall --lint-only -sv -I. -I.. $(SV_FILES) --top-module buf_audio_in
+	@for file in $(SV_FILES); do \
+		echo "Detailed linting $$file..."; \
+		$(VERILATOR) -Wall --lint-only -sv -I. -I.. $$file || exit 1; \
+	done
 
 compile_check:
 	@echo "Testing compilation with Verilator..."
-	$(VERILATOR) --cc -sv -I. -I.. $(SV_FILES) --top-module buf_audio_in
+	@for file in $(SV_FILES); do \
+		echo "Testing compilation of $$file..."; \
+		$(VERILATOR) --cc -sv -I. -I.. $$file || exit 1; \
+	done
 
 # Clean generated files
 clean:

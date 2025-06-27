@@ -41,10 +41,12 @@ SETUP_CACHE="$PWD/bin/cache"
 
 HOOKS_DIR="$PWD/.github/hooks"
 RTL_SCRIPTS_DIR="$PWD/Src/RTL/Scripts"
-RUN_HOOKS_SCRIPT="$HOOKS_DIR/run_hooks.sh"
+RUN_HOOKS_SCRIPT="$HOOKS_DIR/run_hook.sh"
 PRE_COMMIT_CONFIG_YAML="$PWD/.github/hooks/.pre-commit-config.yaml"
 PRE_COMMIT_DIR="$PWD/.github/hooks/pre_commit"
 PRE_PUSH_SCRIPT="$PWD/.github/hooks/pre-push"
+
+ALLOCATOR_REQUIREMENTS="$PWD/Src/Allocator/requirements.txt"
 
 RAN_LLAC_SETUP_SHELL=$([ "$paramForce" -eq 0 ] && [ -f "$SETUP_CACHE/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
 
@@ -90,7 +92,6 @@ privilegeScriptDir() {
 }
 
 [[ ("$RAN_LLAC_SETUP_SHELL" -eq 0) || ("$pScripts" -eq 1) ]] && {
-  git config --add safe.directory "$PWD"
   git_hook_ptrns=( "*.sh" )
   rtl_script_ptrns=( "*.sh" "*.py" )
   privilegeScriptDir "$HOOKS_DIR" "git_hook_ptrns"
@@ -126,10 +127,23 @@ esac
 
       case "${distro}" in
         Debian* | Ubuntu*)
-          sudo add-apt-repository ppa:deadsnakes/ppa
+          # Update package lists first
+          sudo apt-get update
+
+          # Try to add deadsnakes PPA, but continue if it fails
+          sudo add-apt-repository ppa:deadsnakes/ppa -y || {
+            echo "Warning: Failed to add deadsnakes PPA, continuing with system Python"
+          }
+
+          sudo apt-get update
           sudo apt-get -y -q install gcc help2man perl python3.11 make autoconf g++ flex bison ccache \
           libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlib1g zlib1g-dev \
-          python3.11-venv python3-pip verilator > /dev/null
+          python3.11-venv python3-pip verilator || {
+            echo "Some packages failed to install, trying with available Python version..."
+            sudo apt-get -y -q install gcc help2man perl python3 make autoconf g++ flex bison ccache \
+            libgoogle-perftools-dev mold numactl perl-doc libfl2 libfl-dev zlib1g zlib1g-dev \
+            python3-venv python3-pip verilator
+          }
 
           # Copied from the docker debian install guide
           # https://docs.docker.com/engine/install/debian/
@@ -205,6 +219,7 @@ clone_submodules () {
 
 
 [ "${RAN_LLAC_SETUP_SHELL:-1}" -eq 1 ] || {
+  git config --add safe.directory "$PWD"
   git config --add --bool push.autoSetupRemote true
   git config core.hooksPath .github/hooks
 }
@@ -216,15 +231,25 @@ clone_submodules () {
 [ -d "$VENV_DIR" ] || {
   echo "Virtual environment not found. Creating one..."
   python3 -m venv "$VENV_DIR"
-  pip3 install -e ./Src --quiet
-  pip3 install -u pytest --quiet
+  sudo chown -R $USER:$USER "$VENV_DIR"
 }
 
-. "$VENV_DIR/bin/activate"
+source "$VENV_DIR/bin/activate"
+
+# Make PYTHONDONTWRITEBYTECODE permanent in the virtual environment
+[ ! grep -q "export PYTHONDONTWRITEBYTECODE=1" "$VENV_DIR/bin/activate" ] && {
+  echo "export PYTHONDONTWRITEBYTECODE=1" >> "$VENV_DIR/bin/activate"
+}
+
 export PYTHONDONTWRITEBYTECODE=1
 
 pip3 install --upgrade pip --quiet
-pip3 install -r "$PWD/Src/Allocator/Interpreter/requirements.txt" --quiet
+pip3 install -r "$ALLOCATOR_REQUIREMENTS" --quiet
+
+# Ensure editable install is always up to date
+echo "Installing/updating editable package..."
+pip3 install -e ./Src --quiet
+pip3 install pytest --quiet
 
 pre-commit clean
 

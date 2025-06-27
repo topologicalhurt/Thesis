@@ -42,6 +42,7 @@ from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, INT_STR_NPMAP, F
 from Allocator.Interpreter.helpers import underline_matches
 
 from RTL.Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException
+from RTL.Scripts.consts import META_INFO, SRC_DIR
 
 
 def get_action_from_parser_by_name(parser: ap.ArgumentParser, arg_name: str) -> ap.Action | None:
@@ -290,6 +291,45 @@ def str2path(val: str) -> Path:
     if not os.path.isfile(val) and not os.path.isdir(val):
         raise ap.ArgumentTypeError(f'Given path {val} does not exist')
     return Path(val)
+
+
+def str2path_belongs_in(val: str, ancestor: Path, enforce_exists: bool = True) -> Path:
+    fp: Path = Path(val)
+    if not fp.is_absolute():
+        fp = str2relpath(val, root=ancestor, enforce_exists=enforce_exists)
+    try:
+        fp.relative_to(ancestor)
+    except ValueError:
+        raise ap.ArgumentTypeError(f'Given path {val} must be a subpath of {ancestor}')
+    return fp
+
+
+def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True,
+                excluded: set = {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}) -> Path:
+    # Try direct join from Src if it exists
+    project_root = META_INFO.GIT_ROOT
+    search_root = project_root / root # Default search root is Src directory
+    src_direct_path = search_root / val
+    if src_direct_path.exists():
+        return src_direct_path
+
+    if not enforce_exists:
+        return src_direct_path
+
+    # Search for the file starting from Src directory only
+    filename = os.path.basename(val)
+    matches = []
+    for match in search_root.rglob(filename):
+        # Skip if any parent directory is in excluded set
+        if not any(parent.name in excluded for parent in match.parents):
+            matches.append(match)
+
+    if not matches:
+        raise ap.ArgumentTypeError(f'File {val} not found in {search_root}')
+
+    # Sort by depth (shallowest first) and return the first match
+    shallowest_match = min(matches, key=lambda p: len(p.relative_to(search_root).parts))
+    return shallowest_match
 
 
 def str2freq(val: str | float, granularity: FREQ = FREQ.KHZ) -> int:

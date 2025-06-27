@@ -29,21 +29,27 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import os
+import sys
 import yaml
 import textwrap
+import argparse as ap
+import regex as re
 
 from pathlib import Path
 from collections.abc import Mapping, Sequence
 from fnmatch import fnmatch
 
-from RTL.Scripts.consts import ALLOCATOR_DIR, CURRENT_DIR, META_INFO, RESOURCES_DIR
+from Allocator.Interpreter.helpers import underline_matches
+
+from RTL.Scripts.consts import ALLOCATOR_DIR, CURRENT_DIR, META_INFO, DOCUMENT_META
 from RTL.Scripts.util_helpers import extract_docstring_from_file
+from RTL.Scripts.argparse_helpers import get_action_from_parser_by_name, str2path, str2relpath
 
 
 WHITELISTED = ('*.py', '*.sv', '*.v', '*.ipynb')
 BLACKLISTED = ('RTL.*', '.*', 'obj_dir', 'Ip')
 ROOT = Path(os.path.join(META_INFO.GIT_ROOT, 'Src'))
-OUTPUT_FILE = Path(os.path.join(RESOURCES_DIR, 'document_meta.yaml'))
+DOCUMENT_META = Path(DOCUMENT_META)
 
 HEADER_W = 75
 HEADER = """//{separator}
@@ -67,8 +73,7 @@ HEADER = """//{separator}
 //
 // A copy of this license is included at the root directory. It should've been provided to you
 // Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
-//{separator}
-"""
+//{separator}"""
 
 RTL_PREAMBLE = """// It is intended to be used as part of the {rtl_module} design where a README.md detailing the design should exist, conforming to the details provided
 // under docs/CONTRIBUTING.md. The {rtl_module} module is covered by the GPL 3.0 License (see below.)
@@ -86,6 +91,56 @@ SCRIPT_PREAMBLE = """// It is intended to be run as a script for use with develo
 //
 // The design is NOT COVERED UNDER ANY WARRANTY.
 //"""
+
+
+def main() -> None:
+    global args
+
+    parser = ap.ArgumentParser(description=__doc__.strip())
+
+    parser.add_argument('-f', '-files', type=str2relpath, nargs='*', default=None,
+                    help='A list of files to write the standard file header to. Applied literally (I.e. not recursively).'
+                    ' Prohibitions: -r (see: -r)'
+                )
+
+    parser.add_argument('-r', type=str2path, nargs='?', const=ROOT, default=None,
+                help='When specified, recursively searches for whitelisted files / directories, avoiding blacklisted files / directories.'
+                ' The argument is the root where -r is run from. If no argument is provided, uses the default ROOT.'
+                ' Prohibitions: -f (see: -f)'
+            )
+
+    args = vars(parser.parse_args())
+
+    if args['r'] is not None and args['f'] is not None:
+        err_invoker = get_action_from_parser_by_name(parser, 'r')
+        matches = underline_matches(' '.join(sys.argv[1:]), ('-r', r'(^|\s)(-f|-files)(?=\s|$)'), match_all=True, literal=False)
+        raise ap.ArgumentError(err_invoker,
+                        '-r cannot be supplied alongside -f. I.e.:'
+                        f'\n{matches}'
+                        )
+
+    if args['r'] is None and not args['f']:
+        if not args['f']:
+            err_invoker = get_action_from_parser_by_name(parser, 'f')
+            raise ap.ArgumentError(err_invoker,
+                                   'Must supply one of -r, -f. \nWhen -f is supplied '
+                                   ' it expects at least one valid posix path as an argument.'
+                                   )
+
+        err_invoker = get_action_from_parser_by_name(parser, 'r')
+        raise ap.ArgumentError(err_invoker, 'Must supply one of -r, -f. See: --help')
+
+    if args['r'] is not None:
+        files = scan_files(ROOT, WHITELISTED, BLACKLISTED)
+    else:
+        files = args['f']
+
+    if not files:
+        print('No files were found matching your criteria. Double check the whitelist, blacklist & root directory.')
+        sys.exit(1)
+
+    write_resources_file(files)
+    write_headers_to_files()
 
 
 def should_process_file(fp: Path, whitelisted_patterns: Sequence[str], blacklisted_dirs: Sequence[str]) -> bool:
@@ -148,10 +203,16 @@ def create_file_metadata(fp: Path) -> Mapping[str, str]:
         license_preamble = None
         module = None
 
+    # For Python files, check if there's an existing docstring to use as description
+    existing_docstring = None
+    if ext == '.py':
+        with open(fp, 'r') as f:
+            if not _content_has_header(f.read()):
+                existing_docstring = extract_docstring_from_file(fp)
+
     metadata = {
         'fname': fname,
-        'file_description': 'N/A',
-        'purpose': 'N/A',
+        'file_description': existing_docstring if existing_docstring else 'N/A',
         'author_name': META_INFO.AUTHOR_CREDENTIALS[0],
         'author_email': META_INFO.AUTHOR_CREDENTIALS[1],
         'module': module,
@@ -160,7 +221,7 @@ def create_file_metadata(fp: Path) -> Mapping[str, str]:
         'license_preamble': license_preamble
     }
 
-    # Add inputs/outputs description for Verilog/SystemVerilog files
+    # Add inputs/outputs artefacts for Verilog/SystemVerilog files
     if ext in ['.sv', '.v']:
         metadata['inputs'] = 'N/A'
         metadata['outputs'] = 'N/A'
@@ -168,20 +229,30 @@ def create_file_metadata(fp: Path) -> Mapping[str, str]:
     return metadata
 
 
-def write_resources_file(files: Sequence[Path], output_path: Path) -> Mapping[str, Mapping[str, str]]:
-    """Write file metadata to YAML file."""
-    resources = {}
+def write_resources_file(files: Sequence[Path], output_path: Path = DOCUMENT_META) -> Mapping[str, Mapping[str, str]]:
+    """Write file metadata to YAML file, merging with existing entries."""
 
-    for filepath in files:
-        relative_path = os.path.relpath(filepath, ROOT)
-        resources[relative_path] = create_file_metadata(filepath)
-
-    # Ensure output directory exists
     output_dir = os.path.dirname(output_path)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    # Write file with single quotes
+    existing_resources = {}
+    if output_path.exists():
+        try:
+            with open(output_path, 'r') as f:
+                existing_resources = yaml.safe_load(f) or {}
+        except (yaml.YAMLError, OSError) as e:
+            print(f'Warning: Could not load existing YAML file: {e}')
+            sys.exit(1)
+
+    # Add metadata for new files only (update only)
+    resources = existing_resources.copy()
+    for fp in files:
+        relative_path = Path(fp).relative_to(ROOT)
+        if relative_path not in resources:
+            resources[str(relative_path)] = create_file_metadata(fp)
+            print(f'Added new file to metadata: {relative_path}')
+
     with open(output_path, 'w') as f:
         yaml.dump(resources, f, default_flow_style=False, sort_keys=True,
                   default_style="'", allow_unicode=True)
@@ -191,33 +262,20 @@ def write_resources_file(files: Sequence[Path], output_path: Path) -> Mapping[st
 
 def get_file_header(metadata: Mapping[str, str], file_path: Path) -> str:
     """Generate header string for a file using metadata."""
-    is_python = file_path.suffix == '.py'
-
-    # For Python files, check if there's an existing docstring to use as description
-    if is_python:
-        existing_docstring = extract_docstring_from_file(file_path)
-        if existing_docstring and metadata.get('file_description') == 'N/A':
-            # Create a new metadata dict with the docstring as description
-            updated_metadata = dict(metadata)
-            updated_metadata['file_description'] = existing_docstring
-            metadata = updated_metadata
-
     header = HEADER.format(**metadata)
 
-    if is_python:
-        # For Python files, remove '//' comments and wrap in docstring
+    if file_path.suffix == '.py':
         lines = header.split('\n')
         cleaned_lines = []
 
         for line in lines:
             if line.startswith('//'):
-                # Remove '//' and leading space
                 cleaned_line = line[2:].lstrip()
                 cleaned_lines.append(cleaned_line)
             else:
                 cleaned_lines.append(line)
 
-        # Wrap in triple quotes
+        # Wrap in triple quotes (for docstring)
         content = '\n'.join(cleaned_lines)
         return f'"""\n{content}\n"""'
     else:
@@ -244,57 +302,56 @@ def get_file_header(metadata: Mapping[str, str], file_path: Path) -> str:
         return '\n'.join(wrapped_lines)
 
 
-def write_headers_to_files(yaml_path: Path = OUTPUT_FILE) -> None:
-    """Write headers to all files based on metadata from document_meta.yaml."""
+def _content_has_header(content: str) -> bool:
+    """Determine if content has a script generated header"""
+    # Really jank, but it works
+    return 'GNU GENERAL PUBLIC LICENSE' in content[:1000]
+
+
+def write_headers_to_files(yaml_path: Path = DOCUMENT_META) -> None:
+    """Write headers to all files based on metadata from the yaml_path."""
     try:
         with open(yaml_path, 'r') as f:
             resources = yaml.safe_load(f)
     except FileNotFoundError:
         print(f'Error: {yaml_path} not found. Run main() first to generate metadata.')
-        return
+        sys.exit(1)
     except yaml.YAMLError as e:
         print(f'Error parsing YAML file: {e}')
-        return
+        sys.exit(1)
 
     for relative_path, metadata in resources.items():
         fp = ROOT / relative_path
-
         if not fp.exists():
             print(f'Warning: File {fp} does not exist, skipping.')
             continue
 
-        # Skip files that already have headers
         try:
             with open(fp, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             # Check if file already has a header
-            if 'GNU GENERAL PUBLIC LICENSE' in content[:1000]:
-                print(f'Header already exists in {relative_path}, skipping.')
+            if _content_has_header(content):
                 continue
 
-            # Generate header
             header = get_file_header(metadata, fp)
 
-            # Add appropriate line ending and newlines
             new_content = f'{header}\n\n{content}'
+            if metadata.get('file_description') != 'N/A' and fp.suffix == '.py':
+                docstring_pattern = r'(""".*?"""|\'\'\'.*?\'\'\')'
+                match = re.search(docstring_pattern, content, re.DOTALL)
 
-            # Write back to file
+                # If the docstring exists, replace it
+                if match:
+                    new_content = re.sub(docstring_pattern, header, content, count=1, flags=re.DOTALL)
+
+            # Done! Write out to file
             with open(fp, 'w', encoding='utf-8') as f:
                 f.write(new_content)
-
-            print(f'Added header to {relative_path}')
+                print(f'Added header to {relative_path}')
 
         except (OSError, UnicodeDecodeError) as e:
             print(f'Error processing {fp}: {e}')
-
-
-def main() -> None:
-    files = scan_files(ROOT, WHITELISTED, BLACKLISTED)
-
-    if files:
-        write_resources_file(files, OUTPUT_FILE)
-        write_headers_to_files()
 
 
 if __name__ == '__main__':

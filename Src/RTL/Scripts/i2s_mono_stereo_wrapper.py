@@ -31,6 +31,9 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 """
 
+# TODO'S:
+# (1) Don't run this script! It's horribly out of date with the current RTL/In changes!
+
 
 import argparse as ap
 

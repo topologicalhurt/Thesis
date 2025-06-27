@@ -141,7 +141,9 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
     if not isinstance(to_match, str):
         underlined = []
         for m in to_match:
-            i, txt = underline_match(text, m, prev_i)
+            if (match := underline_match(text, m, prev_i)) is None:
+                continue
+            i, txt = match
             underlined.extend(txt)
             prev_i = i
         return f'{text}\n{"".join(underlined)}'

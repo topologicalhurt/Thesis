@@ -17,7 +17,6 @@
 
     //'
   'module': 'ALLOCATOR'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/consts.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -38,7 +37,6 @@
 
     //'
   'module': 'ALLOCATOR'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/dataclass.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -59,7 +57,6 @@
 
     //'
   'module': 'ALLOCATOR'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/helpers.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -80,7 +77,6 @@
 
     //'
   'module': 'ALLOCATOR'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Allocator/__init__.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -101,7 +97,6 @@
 
     //'
   'module': 'ALLOCATOR'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Allocator/setup.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -122,7 +117,6 @@
 
     //'
   'module': 'ALLOCATOR'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Demo/__init__.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -132,7 +126,6 @@
   'fname': '__init__.py'
   'license_preamble': !!null 'null'
   'module': !!null 'null'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'Demo/llac_audio_passthrough.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -142,7 +135,6 @@
   'fname': 'llac_audio_passthrough.py'
   'license_preamble': !!null 'null'
   'module': !!null 'null'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Common/pos_edge_det.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -164,7 +156,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/In/buf_audio_in.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -186,7 +177,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/In/dsd.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -208,7 +198,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Out/audio_dac_interface.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -230,7 +219,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Out/dfx_audio_ensemble_top.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -252,7 +240,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Out/llac_audio_system_top.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -274,7 +261,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/argparse_helpers.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -291,7 +277,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/consts.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -308,7 +293,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/dataclass.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -325,7 +309,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/decorators.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -342,7 +325,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/exceptions.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -359,7 +341,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/generate_downsample_luts.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -376,7 +357,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/generate_trig_luts.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -393,7 +373,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/hex_utils.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -410,7 +389,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/i2s_mono_stereo_wrapper.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -427,7 +405,22 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Scripts/make_testbench_boilerplate.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'make_testbench_boilerplate.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/tests/trig_lut_recovery_test.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -444,7 +437,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/unwrap_veo.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -461,7 +453,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/util_helpers.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -478,7 +469,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Scripts/write_file_header.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -495,7 +485,6 @@
 
     //'
   'module': 'SCRIPTS'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Comms/axi_dram_interface.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -517,7 +506,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Comms/axi_interrupt_controller.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -539,7 +527,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Comms/bus.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -561,7 +548,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Comms/dfx_controller.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -583,7 +569,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Comms/llac_top_interface.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -605,7 +590,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Cores/passthrough_core.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -627,7 +611,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Math/angle_shift_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -649,7 +632,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Math/cos_poly_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -671,7 +653,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Math/sin_poly_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -693,7 +674,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Math/sincos_poly_q22_dp.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -715,7 +695,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Math/tan_reciprocal_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -737,7 +716,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
   'separator': '------------------------------------------------------------------------'
 'RTL/Verification/In/buf_audio_in_tb.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -759,5 +737,25 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'purpose': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/In/dsd.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dsd.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the In design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
