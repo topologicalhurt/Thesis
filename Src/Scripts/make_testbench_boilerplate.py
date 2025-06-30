@@ -36,9 +36,9 @@ import functools
 import argparse as ap
 
 
-from RTL.Scripts.write_file_header import write_headers_to_files, write_resources_file
-from RTL.Scripts.argparse_helpers import get_action_from_parser_by_name, str2path_belongs_in
-from RTL.Scripts.consts import VERIFICATION_DIR
+from Scripts.write_file_header import write_headers_to_files, write_resources_file
+from Scripts.argparse_helpers import get_action_from_parser_by_name, str2path_belongs_in
+from Scripts.consts import VERIFICATION_DIR
 
 
 def main():

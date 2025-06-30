@@ -150,7 +150,7 @@ ___
 
 ## Wrappers:
 
-Any scripts introduced under ```Src``` must be written in python. Specifically, please target **python 3.11+** (although **python3.10** is the minimum spec) for cross-platform compatability & consistency reasons. The ```Src/RTL/Scripts``` directory is where you should put them. Please strive to make these as portable \& cross-platform friendly as possible. This project strives to catalogue \& maintain verilog wrapper and/or system scripts in a manner where they are as robust \& reflective of the current RTL design as possible.
+Any scripts introduced under ```Src``` must be written in python. Specifically, please target **python 3.11+** (although **python3.10** is the minimum spec) for cross-platform compatability & consistency reasons. The ```Src/Scripts``` directory is where you should put them. Please strive to make these as portable \& cross-platform friendly as possible. This project strives to catalogue \& maintain verilog wrapper and/or system scripts in a manner where they are as robust \& reflective of the current RTL design as possible.
 
 ## Developer:
 

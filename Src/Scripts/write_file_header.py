@@ -41,9 +41,9 @@ from fnmatch import fnmatch
 
 from Allocator.Interpreter.helpers import underline_matches
 
-from RTL.Scripts.consts import ALLOCATOR_DIR, CURRENT_DIR, META_INFO, DOCUMENT_META
-from RTL.Scripts.util_helpers import extract_docstring_from_file
-from RTL.Scripts.argparse_helpers import get_action_from_parser_by_name, str2path, str2relpath
+from Scripts.consts import ALLOCATOR_DIR, CURRENT_DIR, META_INFO, DOCUMENT_META
+from Scripts.util_helpers import extract_docstring_from_file
+from Scripts.argparse_helpers import get_action_from_parser_by_name, str2path, str2relpath
 
 
 WHITELISTED = ('*.py', '*.sv', '*.v', '*.ipynb')

@@ -41,8 +41,8 @@ from enum import Enum
 from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, INT_STR_NPMAP, FLOAT_STR_NPMAP
 from Allocator.Interpreter.helpers import underline_matches
 
-from RTL.Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException
-from RTL.Scripts.consts import META_INFO, SRC_DIR
+from Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException
+from Scripts.consts import META_INFO, SRC_DIR
 
 
 def get_action_from_parser_by_name(parser: ap.ArgumentParser, arg_name: str) -> ap.Action | None:

@@ -39,9 +39,9 @@ import argparse as ap
 
 from Allocator.Interpreter.consts import LOGGER
 
-from RTL.Scripts.consts import MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
+from Scripts.consts import MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
 I2S_DUPLICATE_REGISTER_PATH
-from RTL.Scripts.argparse_helpers import str2bool
+from Scripts.argparse_helpers import str2bool
 
 
 def main() -> None:

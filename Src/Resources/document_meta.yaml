@@ -157,17 +157,18 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/In/buf_audio_in.sv':
+'RTL/Filters/dsd.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
-  'fname': 'buf_audio_in.sv'
+  'fname': 'dsd.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the In design where
-    a README.md detailing the design should exist, conforming to the details provided
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
 
-    // under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
     (see below.)
 
     //
@@ -178,12 +179,12 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/In/dsd.sv':
+'RTL/In/buf_audio_in.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
-  'fname': 'dsd.sv'
+  'fname': 'buf_audio_in.sv'
   'inputs': 'N/A'
   'license_preamble': '// It is intended to be used as part of the In design where
     a README.md detailing the design should exist, conforming to the details provided
@@ -261,230 +262,6 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/argparse_helpers.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'argparse_helpers.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/consts.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'consts.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/dataclass.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'dataclass.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/decorators.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'decorators.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/exceptions.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'exceptions.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/generate_downsample_luts.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'generate_downsample_luts.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/generate_trig_luts.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'generate_trig_luts.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/hex_utils.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'hex_utils.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/i2s_mono_stereo_wrapper.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'i2s_mono_stereo_wrapper.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/make_testbench_boilerplate.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'make_testbench_boilerplate.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/tests/trig_lut_recovery_test.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'trig_lut_recovery_test.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/unwrap_veo.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'unwrap_veo.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/util_helpers.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'util_helpers.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Scripts/write_file_header.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'write_file_header.py'
-  'license_preamble': '// It is intended to be run as a script for use with developer
-    operations, automation / task assistance or as a wrapper for the RTL code.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'SCRIPTS'
   'separator': '------------------------------------------------------------------------'
 'RTL/Static/Comms/axi_dram_interface.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
@@ -758,4 +535,228 @@
     //'
   'module': 'RTL'
   'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/argparse_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'argparse_helpers.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/decorators.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'decorators.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/exceptions.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'exceptions.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/generate_downsample_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_downsample_luts.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/generate_trig_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_trig_luts.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/hex_utils.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hex_utils.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/i2s_mono_stereo_wrapper.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'i2s_mono_stereo_wrapper.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/make_testbench_boilerplate.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'make_testbench_boilerplate.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/tests/trig_lut_recovery_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'trig_lut_recovery_test.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/unwrap_veo.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'unwrap_veo.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/util_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'util_helpers.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/write_file_header.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'write_file_header.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
   'separator': '------------------------------------------------------------------------'

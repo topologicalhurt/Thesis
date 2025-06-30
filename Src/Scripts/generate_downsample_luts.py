@@ -46,10 +46,10 @@ from scipy import signal
 from Allocator.Interpreter.helpers import pad_lists_to_same_length, underline_matches
 from Allocator.Interpreter.dataclass import FLOAT_STR_NPMAP, LUT, BYTEORDER, FILTERTYPE
 
-from RTL.Scripts.argparse_helpers import get_action_from_parser_by_name, str2freq, str2path, str2float_in_range, str2posint, str2bitwidth
-from RTL.Scripts.consts import COMMON_RATES, DOWNSAMPLE_COEFFS_NTAPS, SAMPLE_RATE
-from RTL.Scripts.hex_utils import DownSamplerLutManager
-from RTL.Scripts.dataclass import KaiserParameters, KaiserSchematic
+from Scripts.argparse_helpers import get_action_from_parser_by_name, str2freq, str2path, str2float_in_range, str2posint, str2bitwidth
+from Scripts.consts import COMMON_RATES, DOWNSAMPLE_COEFFS_NTAPS, SAMPLE_RATE
+from Scripts.hex_utils import DownSamplerLutManager
+from Scripts.dataclass import KaiserParameters, KaiserSchematic
 
 
 def main() -> None:

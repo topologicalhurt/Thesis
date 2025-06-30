@@ -30,8 +30,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import os
 import datetime as dt
 
-from RTL.Scripts.util_helpers import get_repo_root, get_git_author
-from RTL.Scripts.dataclass import ProgramMetaInformation
+from Scripts.util_helpers import get_repo_root, get_git_author
+from Scripts.dataclass import ProgramMetaInformation
 
 
 #############
@@ -68,14 +68,16 @@ MONO_STEREO_WRAPPER_PREFIX='[*] MONO_STEREO_WRAPPER [*] {}'
 
 # File paths (relative to script)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-RTL_DIR = os.path.join(os.path.dirname(os.path.dirname(CURRENT_DIR)), 'RTL')
+RTL_DIR = os.path.join(os.path.dirname(CURRENT_DIR), 'RTL')
 SRC_DIR = os.path.dirname(RTL_DIR)
 ALLOCATOR_DIR = os.path.join(SRC_DIR, 'Allocator')
 DEMO_DIR = os.path.join(SRC_DIR, 'Demo')
-RESOURCES_DIR = os.path.join(RTL_DIR, 'Resources')
+RESOURCES_DIR = os.path.join(SRC_DIR, 'Resources')
 VERIFICATION_DIR = os.path.join(RTL_DIR, 'Verification')
 DOCUMENT_META = os.path.join(RESOURCES_DIR, 'document_meta.yaml')
 RTL_IN_DIR = os.path.join(RTL_DIR, 'In')
-RTL_HEX_DIR = os.path.join(RTL_DIR, 'Static', 'Cores', 'Math')
+RTL_TRIG_HEX_DIR = os.path.join(RTL_DIR, 'Static', 'Math')
 I2S_DUPLICATE_REGISTER_HEADER_PATH = os.path.join(RTL_IN_DIR, 'buf_audio_in.svh')
 I2S_DUPLICATE_REGISTER_PATH = os.path.join(RTL_IN_DIR, 'buf_audio_in.sv')
+
+DEFAULT_VEO_LOCATION = os.path.join(RTL_DIR, 'Ip')

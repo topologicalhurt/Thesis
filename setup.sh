@@ -40,7 +40,7 @@ ACT_DIR="/usr/local/bin/"
 SETUP_CACHE="$PWD/bin/cache"
 
 HOOKS_DIR="$PWD/.github/hooks"
-RTL_SCRIPTS_DIR="$PWD/Src/RTL/Scripts"
+RTL_SCRIPTS_DIR="$PWD/Src/Scripts"
 RUN_HOOKS_SCRIPT="$HOOKS_DIR/run_hook.sh"
 PRE_COMMIT_CONFIG_YAML="$PWD/.github/hooks/.pre-commit-config.yaml"
 PRE_COMMIT_DIR="$PWD/.github/hooks/pre_commit"
@@ -231,7 +231,7 @@ clone_submodules () {
 [ -d "$VENV_DIR" ] || {
   echo "Virtual environment not found. Creating one..."
   python3 -m venv "$VENV_DIR"
-  sudo chown -R $USER:$USER "$VENV_DIR"
+  sudo chown -R $USER "$VENV_DIR"
 }
 
 source "$VENV_DIR/bin/activate"

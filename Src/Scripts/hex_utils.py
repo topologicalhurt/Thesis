@@ -45,7 +45,7 @@ from pathlib import Path
 
 from Allocator.Interpreter.dataclass import LUT, BYTEORDER
 
-from RTL.Scripts.consts import META_INFO
+from Scripts.consts import META_INFO
 
 
 class HexLutManager:
@@ -195,7 +195,7 @@ class HexLutManager:
         # Use numpy.frombuffer to interpret the raw bytes as a numpy array.
         # The dtype is set to be big-endian ('>') by default to match the input format.
         target_order = HexLutManager._get_byte_order_symbol_from_target(target_order=target_order)
-        return np.frombuffer(packed_bytes, dtype=np.dtype(dtype).newBYTEORDER(target_order))[0]
+        return np.frombuffer(packed_bytes, dtype=np.dtype(dtype).newbyteorder(target_order))[0]
 
     @staticmethod
     def int_to_hex(i: int | np.integer, target_order: BYTEORDER = BYTEORDER.BIG) -> str:

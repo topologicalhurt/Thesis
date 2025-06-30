@@ -46,13 +46,13 @@ import regex as re
 from collections.abc import Sequence, Callable
 from typing import assert_never
 
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, ExtendedEnum, FLOAT_STR_NPMAP
+from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, FLOAT_STR_NPMAP, BYTEORDER, ExtendedEnum
 from Allocator.Interpreter.helpers import pairwise, underline_matches
 
-from RTL.Scripts.decorators import warning
-from RTL.Scripts.argparse_helpers import str2bitwidth, str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
-from RTL.Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC, BYTEORDER
-from RTL.Scripts.hex_utils import TrigLutManager
+from Scripts.decorators import warning
+from Scripts.argparse_helpers import str2bitwidth, str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
+from Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
+from Scripts.hex_utils import TrigLutManager
 
 
 @warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')

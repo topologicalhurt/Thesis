@@ -5,7 +5,7 @@ VERILATOR = verilator
 PYTHON = python3
 SV_FILES = $(wildcard *.sv)
 SVH_FILES = buf_audio_in.svh
-PY_FILES = i2s_mono_stereo_wrapper.py
+PY_FILES = ../../Scripts/i2s_mono_stereo_wrapper.py
 
 # Default parameters
 STEREO ?= true

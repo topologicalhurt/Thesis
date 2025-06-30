@@ -37,7 +37,8 @@ import regex as re
 
 from pathlib import Path
 
-from RTL.Scripts.argparse_helpers import str2bool, str2path
+from Scripts.argparse_helpers import str2bool, str2path
+from Scripts.consts import CURRENT_DIR, DEFAULT_VEO_LOCATION
 
 
 def veo(v) -> Path:
@@ -53,10 +54,6 @@ def out(v) -> tuple[bool, Path]:
             raise ap.ArgumentTypeError('The output file must match one of: .v, .sv')
         return False, Path(v)
     return True, Path(v)
-
-
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_VEO_LOCATION = os.path.join(CURRENT_DIR, 'RTL.ip_user_files', 'ip')
 
 
 def main() -> None:

@@ -39,12 +39,12 @@ import numpy as np
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from Allocator.Interpreter.dataclass import BYTEORDER
+from Allocator.Interpreter.dataclass import BYTEORDER, FLOAT_STR_NPMAP
 
-from RTL.Scripts.consts import RTL_HEX_DIR
-from RTL.Scripts.dataclass import FLOAT_STR_NPMAP, TRIGLUTDEFS, TRIGLUTFNDEFS
-from RTL.Scripts.generate_trig_luts import assess_lut_accuracy
-from RTL.Scripts.hex_utils import HexLutManager
+from Scripts.consts import RTL_TRIG_HEX_DIR
+from Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS
+from Scripts.generate_trig_luts import assess_lut_accuracy
+from Scripts.hex_utils import TrigLutManager
 
 
 class ReconstructFn:
@@ -92,11 +92,11 @@ class ReconstructArcSin(ReconstructFn):
 
 @pytest.fixture
 def hex_manager():
-    return HexLutManager(RTL_HEX_DIR)
+    return TrigLutManager(RTL_TRIG_HEX_DIR)
 
 
 @pytest.fixture
-def high_opt_lowp_wout_cos_domains(hex_manager: HexLutManager):
+def high_opt_lowp_wout_cos_domains(hex_manager: TrigLutManager):
     # Read in all files with (function_name)_32_high_lowp name
     domains = {m : f'{fn.__name__.lower()}_32_high_lowp.hex'
                 for (_, m), fn in zip(TRIGLUTDEFS.__members__.items(), TRIGLUTFNDEFS.values())}
