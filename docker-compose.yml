@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  thesis-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: thesis-development
+    volumes:
+      # Mount the source code for development
+      - .:/workspace
+      # Preserve Python virtual environment
+      - thesis-venv:/workspace/.venv
+      # Preserve git configuration
+      - thesis-git:/workspace/.git
+      # Preserve build cache
+      - thesis-cache:/workspace/bin/cache
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+      - "5000:5000"
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+volumes:
+  thesis-venv:
+    driver: local
+  thesis-git:
+    driver: local
+  thesis-cache:
+    driver: local
