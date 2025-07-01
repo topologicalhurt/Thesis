@@ -157,19 +157,41 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Filters/dsd.sv':
+'RTL/Filters/avg_iir/avg_iir.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'avg_iir.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the avg_iir design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The avg_iir module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/downsampler/dsd.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'dsd.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Filters design
+  'license_preamble': '// It is intended to be used as part of the downsampler design
     where a README.md detailing the design should exist, conforming to the details
     provided
 
-    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
-    (see below.)
+    // under docs/CONTRIBUTING.md. The downsampler module is covered by the GPL 3.0
+    License (see below.)
 
     //
 
@@ -494,6 +516,28 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/avg_iir.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'avg_iir.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
 'RTL/Verification/In/buf_audio_in_tb.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
@@ -515,12 +559,12 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Verification/In/dsd.sv':
+'RTL/Verification/In/dsd_tb.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
-  'fname': 'dsd.sv'
+  'fname': 'dsd_tb.sv'
   'inputs': 'N/A'
   'license_preamble': '// It is intended to be used as part of the In design where
     a README.md detailing the design should exist, conforming to the details provided
