@@ -14,6 +14,85 @@ readonly PRE_COMMIT_CONFIG_YAML="${PWD}/.github/hooks/.pre-commit-config.yaml"
 readonly PRE_COMMIT_DIR="${PWD}/.github/hooks/pre_commit"
 readonly PRE_PUSH_SCRIPT="${PWD}/.github/hooks/pre-push"
 
+# ANSI color codes
+readonly RED='\033[0;31m'
+readonly ORANGE='\033[0;33m'
+readonly YELLOW='\033[1;33m'
+readonly GREEN='\033[0;32m'
+readonly CYAN='\033[0;36m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly MAGENTA='\033[1;35m'
+readonly RESET='\033[0m'
+
+print_logo() {
+    echo -e "${RED}          _____      ${ORANGE}       _____      ${YELLOW}      _____       ${GREEN}              _____           ${RESET}"
+    echo -e "${ORANGE}         /\\    \\     ${YELLOW}      /\\    \\     ${GREEN}     /\\    \\      ${CYAN}             /\\    \\          ${RESET}"
+    echo -e "${YELLOW}        /::\\____\\    ${GREEN}     /::\\____\\    ${CYAN}    /::\\    \\     ${BLUE}            /::\\    \\         ${RESET}"
+    echo -e "${GREEN}       /:::/    /    ${CYAN}    /:::/    /    ${BLUE}   /::::\\    \\    ${PURPLE}           /::::\\    \\        ${RESET}"
+    echo -e "${CYAN}      /:::/    /     ${BLUE}   /:::/    /     ${PURPLE}  /::::::\\    \\   ${MAGENTA}          /::::::\\    \\       ${RESET}"
+    echo -e "${BLUE}     /:::/    /      ${PURPLE}  /:::/    /      ${MAGENTA} /:::/\\:::\\    \\  ${RED}         /:::/\\:::\\    \\      ${RESET}"
+    echo -e "${PURPLE}    /:::/    /       ${MAGENTA} /:::/    /       ${RED}/:::/__\\:::\\    \\ ${ORANGE}        /:::/  \\:::\\    \\     ${RESET}"
+    echo -e "${MAGENTA}   /:::/    /        ${RED}/:::/    /       ${ORANGE}/::::\\   \\:::\\    \\ ${YELLOW}      /:::/    \\:::\\    \\    ${RESET}"
+    echo -e "${RED}  /:::/    /        ${ORANGE}/:::/    /       ${YELLOW}/::::::\\   \\:::\\    ${GREEN}\\     /:::/    / \\:::\\    \\   ${RESET}"
+    echo -e "${ORANGE} /:::/    /        ${YELLOW}/:::/    /       ${GREEN}/:::/\\:::\\   \\:::\\   ${CYAN} \\   /:::/    /   \\:::\\    \\  ${RESET}"
+    echo -e "${YELLOW}/:::/____/        ${GREEN}/:::/____/       ${CYAN}/:::/  \\:::\\   \\:::\\__${BLUE}__\\ /:::/____/     \\:::\\____\\ ${RESET}"
+    echo -e "${GREEN}\\:::\\    \\        ${CYAN}\\:::\\    \\       ${BLUE}\\::/    \\:::\\  /:::/  ${PURPLE}  / \\:::\\    \\      \\::/    / ${RESET}"
+    echo -e "${CYAN} \\:::\\    \\       ${BLUE} \\:::\\    \\      ${PURPLE} \\/____/ \\:::\\/:::/   ${MAGENTA} /   \\:::\\    \\      \\/____/  ${RESET}"
+    echo -e "${BLUE}  \\:::\\    \\      ${PURPLE}  \\:::\\    \\       ${MAGENTA}        \\::::::/    ${RED}/     \\:::\\    \\              ${RESET}"
+    echo -e "${PURPLE}   \\:::\\    \\     ${MAGENTA}   \\:::\\    \\      ${RED}         \\::::/    /${ORANGE}       \\:::\\    \\             ${RESET}"
+    echo -e "${MAGENTA}    \\:::\\    \\    ${RED}    \\:::\\    \\     ${ORANGE}         /:::/    / ${YELLOW}        \\:::\\    \\            ${RESET}"
+    echo -e "${RED}     \\:::\\    \\   ${ORANGE}     \\:::\\    \\    ${YELLOW}        /:::/    /  ${GREEN}         \\:::\\    \\           ${RESET}"
+    echo -e "${ORANGE}      \\:::\\    \\  ${YELLOW}      \\:::\\    \\   ${GREEN}       /:::/    /   ${CYAN}          \\:::\\    \\          ${RESET}"
+    echo -e "${YELLOW}       \\:::\\____\\ ${GREEN}       \\:::\\____\\  ${CYAN}      /:::/    /     ${BLUE}          \\:::\\____\\         ${RESET}"
+    echo -e "${GREEN}        \\::/    / ${CYAN}        \\::/    /  ${BLUE}      \\::/    /      ${PURPLE}           \\::/    /         ${RESET}"
+    echo -e "${CYAN}         \\/____/  ${BLUE}         \\/____/   ${PURPLE}       \\/____/       ${MAGENTA}            \\/____/          ${RESET}"
+}
+
+print_license() {
+    echo """
+    LLAC  Copyright (C) 2025  topologicalhurt csin0659@uni.sydney.edu.au
+    This program comes with ABSOLUTELY NO WARRANTY; for details type --help license_warranty
+    This is free software, and you are welcome to redistribute it
+    under certain conditions; type --help license_conditions for details.
+    """
+
+    echo """    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    """
+}
+
+ProgressBar() {
+    # Arguments: current, total
+    local current=${1}
+    local total=${2}
+    if [[ ${total} -eq 0 ]]; then
+        total=1
+    fi
+    local progress_percent=$(( (current * 100) / total ))
+
+    local bar_width=40
+    local num_done=$(( (progress_percent * bar_width) / 100 ))
+    local num_left=$(( bar_width - num_done ))
+
+    local done_str
+    done_str=$(printf "%${num_done}s" "")
+    local left_str
+    left_str=$(printf "%${num_left}s" "")
+
+    printf "\rProgress : [${done_str// /#}${left_str// /-}] ${progress_percent}%%"
+}
+
+print_logo
+print_license
+
 help_function() {
     cat <<EOF
 Usage: $0 [options]
@@ -39,7 +118,13 @@ while [[ $# -gt 0 ]]; do
         --help) help_function;;
         *) help_function;;
     esac
+
 done
+
+readonly TOTAL_STEPS=10
+_progress=0
+
+ProgressBar 0 ${TOTAL_STEPS}
 
 readonly RAN_LLAC_SETUP_SHELL=$([ "${PARAM_FORCE}" -eq 0 ] && [ -f "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
 
@@ -47,18 +132,17 @@ command_exists nix || {
     echo "Nix not found. Installing Nix..."
     curl -L https://nixos.org/nix/install | sh
 
-    # Source the Nix profile script, trying common locations
     if [ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
-        # shellcheck source=/dev/null
         . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
     elif [ -f "${HOME}/.nix-profile/etc/profile.d/nix.sh" ]; then
-        # shellcheck source=/dev/null
         . "${HOME}/.nix-profile/etc/profile.d/nix.sh"
     else
         echo "Warning: Could not find the Nix profile script to source."
         echo "You may need to manually add Nix to your shell's environment."
     fi
 }
+
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
 
 readonly NIX_CONFIG_DIR="${HOME}/.config/nix"
 readonly NIX_CONFIG_FILE="${NIX_CONFIG_DIR}/nix.conf"
@@ -67,8 +151,12 @@ grep -q "experimental-features = nix-command flakes" "${NIX_CONFIG_FILE}" 2>/dev
     echo "experimental-features = nix-command flakes" >> "${NIX_CONFIG_FILE}"
 }
 
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+
 echo "Installing dependencies with Nix..."
 nix develop --command true
+
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
 
 readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
 
@@ -84,6 +172,8 @@ git rev-parse --git-dir > /dev/null 2>&1 || {
     echo "Repository cloned. Re-executing setup script..."
     exec "./setup.sh" "$@"
 }
+
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
 
 privilege_script_dir() {
     local target_dir="$1"
@@ -113,6 +203,8 @@ privilege_script_dir() {
     sudo chmod 644 "${PRE_COMMIT_CONFIG_YAML}"
 }
 
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+
 get_os() {
     case "$(uname -s)" in
         Linux*) echo "Linux";;
@@ -135,9 +227,10 @@ get_os() {
     esac
 }
 
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+
 clone_submodules() {
-    git config -f .gitmodules --get-regexp '^submodule\..*\.url$' |
-    while read -r key url; do
+    git config -f .gitmodules --get-regexp '^submodule\..*\.url' | while read -r key url; do
         path="$(git config -f .gitmodules "${key/.url/.path}")"
         echo "Cloning ${url} -> ${path}"
         git clone --recurse-submodules --depth 1 "${url}" "${path}"
@@ -161,11 +254,15 @@ clone_submodules() {
     }
 }
 
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+
 (( RAN_LLAC_SETUP_SHELL == 0 )) && {
     git config --add safe.directory "${PWD}"
     git config --add --bool push.autoSetupRemote true
     git config core.hooksPath .github/hooks
 }
+
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
 
 [ ! -d "${VENV_DIR}" ] && {
     echo "Virtual environment not found. Creating one..."
@@ -187,10 +284,14 @@ pre-commit clean
     ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${PWD}/.pre-commit-config.yaml" 2>/dev/null
 }
 
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+
 (( RAN_LLAC_SETUP_SHELL == 0 )) && {
     mkdir -p "${SETUP_CACHE}"
     touch "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE"
 }
+
+((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
 
 deactivate
 echo "Setup complete"

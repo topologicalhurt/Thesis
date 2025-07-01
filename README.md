@@ -3,6 +3,13 @@
 [![Stars](https://img.shields.io/github/stars/topologicalhurt/Thesis?style=social)](https://github.com/topologicalhurt/Thesis)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/topologicalhurt/Thesis/ruff.yml?branch=main)](https://github.com/topologicalhurt/Thesis/actions)
 
+<div align="center">
+
+<a id="abstract"></a>
+<img width="738" alt="image" src="https://github.com/user-attachments/assets/"/>
+
+</div>
+
 # Nature of this project
 
 This repository is completely covered by the GPL V3.0 license & thus completely open-source. Everything detailed in this ```README.MD``` and the thesis **![whitepaper](docs/whitepaper/thesis.pdf)** is included within the project including:
@@ -57,7 +64,11 @@ LLAC started as a research project for low-latency user defined audio cores. It 
 - verilator
 - appropriate Xilinx FPGA vendor software (E.g. Vivado)
 
-The ```setup.sh``` script is designed as a 'one-shot' method to install all needed dependencies, with full-support for the docker.
+The ```setup.sh``` script is designed as a 'one-shot' method to install all needed dependencies, with full-support for the docker & NIX os.
+
+## Using the docker
+
+Run the docker with ```docker compose up```
 
 ## FPGA based system architecture overview
 
