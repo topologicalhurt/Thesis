@@ -57,14 +57,21 @@ LLAC started as a research project for low-latency user defined audio cores. It 
 6. **Allow for the platform to be user-configurable, with low-barrier to entry** in a way not offered by un-extensible, non-reusable & non-configurable platforms.
 7. **Allow for the design to be as predictive as possible, and as un-reactive as possible**
 
-## Requirements
-
-- python3.10+
-- docker
-- verilator
-- appropriate Xilinx FPGA vendor software (E.g. Vivado)
+## Install
 
 The ```setup.sh``` script is designed as a 'one-shot' method to install all needed dependencies, with full-support for the docker & NIX os.
+
+The supported & easiest install method is to simply run:
+
+```shell
+curl -L https://raw.githubusercontent.com/topologicalhurt/Thesis/main/setup.sh | bash
+```
+
+## Install requirements
+
+- Linux / Darwin / FreeBSD
+- Python3+
+- appropriate Xilinx FPGA vendor software (E.g. Vivado)
 
 ## Using the docker
 
