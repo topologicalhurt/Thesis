@@ -5,7 +5,7 @@
 
 <div align="center">
 
-<a id="abstract"></a>
+<a id="logo"></a>
 <img width="738" alt="image" src="https://github.com/topologicalhurt/Thesis/blob/main/docs/imgs/logo.png?raw=true"/>
 
 </div>
