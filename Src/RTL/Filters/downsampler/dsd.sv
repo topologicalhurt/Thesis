@@ -48,15 +48,14 @@
 
 
 module dsd #(
-    parameter   AUDIO_WIDTH = 24,
-    localparam	LGN_COEFFS=$clog2(NCOEFFS),
-
-    parameter [0:0]	FIXED_COEFFS = 1'b0
+    parameter   IN_WIDTH = `AUDIO_IN,
+    parameter bit FIXED_COEFFS = 1'b0
+    localparam	LGN_COEFFS = $clog2(`NCOEFFS),
 ) (
     input wire i_clk
 );
 	reg	[(COEFF_W-1):0]	    cmem	[0:((1<<LGN_COEFFS)-1)];
-	reg	[(AUDIO_WIDTH-1):0]	dmem	[0:((1<<LGN_COEFFS)-1)];
+	reg	[(IN_WIDTH-1):0]	dmem	[0:((1<<LGN_COEFFS)-1)];
 
     generate if (FIXED_COEFFS || INITIAL_COEFFS != 0)
     begin : LOAD_INITIAL_COEFFS

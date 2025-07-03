@@ -31,3 +31,22 @@
 // Otherwise please consult:
 // https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
 // ------------------------------------------------------------------------
+
+/* Useful readings:
+
+    http://dx.doi.org/10.1063/1.1138645
+    https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7746188
+    https://zipcpu.com/dsp/2017/08/19/simple-filter.html
+
+*/
+
+
+`include "avg_iir.svh"
+
+
+module avg_iir #(
+) (
+    input wire i_clk
+);
+
+endmodule

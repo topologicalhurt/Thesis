@@ -145,6 +145,31 @@ https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md
 
 **A word on SV vs Verilog**: System verilog is preferred. If you see some verilog it was more than likely externally introduced.
 
+#### Use .svh files
+
+This project adapts the convention of .svh files (I.e. via inclusions) for parameter definitions & macro definitions. The rule is, if it is a global or module-level constant then it should be contained in a .svh file with the ```ALL_CAPS``` snaked naming scheme, then referenced explicitly in the parameter section of the module. I.e.:
+
+```verilog
+`DEFINE A = 1
+`DEFINE B = 2
+```
+
+```verilog
+
+module foo #(
+    parameter integer a = `A,
+    parameter integer b = `B
+) (
+    ...
+);
+```
+
+This *(a)* makes it easy for script wrappers to change the parameters & *(b)* makes it easy to source conflicting parameter values.
+
+#### Use active high resets
+
+Active high resets are the preference. This is because an idle high line is technically consuming more power, & for the simple reason that having a single type of reset is more logically consistent & readable.
+
 ___
 # Scripts / Misc.
 

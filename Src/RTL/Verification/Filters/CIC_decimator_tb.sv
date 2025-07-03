@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------------
-// Filename:       dsd.sv
+// Filename:       CIC_decimator_tb.sv
 //
 // Project:        LLAC, intelligent hardware scheduler targeting common
 // audio signal chains.
@@ -15,9 +15,10 @@
 // Copyright (C) 2025, LLAC project LLC
 //
 // This file is a part of the RTL module
-// It is intended to be used as part of the In design where a README.md
-// detailing the design should exist, conforming to the details provided
-// under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0
+// It is intended to be used as part of the Filters design where a
+// README.md detailing the design should exist, conforming to the details
+// provided
+// under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0
 // License (see below.)
 //
 // The design is NOT COVERED UNDER ANY WARRANTY.
@@ -32,7 +33,7 @@
 // ------------------------------------------------------------------------
 
 
-module dsd_tb;
+module CIC_decimator_tb;
 
     parameter SYS_CLK_PERIOD = 10;      // I.e. 10 = 100 MHz system clock
 
@@ -40,9 +41,7 @@ module dsd_tb;
     reg clk;
 
     // Instantiate the DUT (Device Under Test)
-    dsd #(
-        .IN_WIDTH(24),
-        .FIXED_COEFFS(1'b0)
+    CIC_decimator #(
     ) dut (
         .i_clk(clk)
     );
@@ -55,12 +54,11 @@ module dsd_tb;
 
     // Test sequence
     initial begin
-        $display("Starting DSD testbench");
+        $display("Starting CIC_DECIMATOR testbench");
 
-        // Wait for a few clock cycles
-        repeat (10) @(posedge clk);
+        // DO TESTING HERE
 
-        $display("DSD testbench completed successfully");
+        $display("CIC_DECIMATOR testbench completed successfully");
         $finish;
     end
 
