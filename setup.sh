@@ -5,7 +5,8 @@ PARAM_FORCE=0
 INSTALL_DEV_TOOLS=0
 PRIVILEGE_SCRIPTS=0
 
-readonly PWD="$(pwd)"
+PWD="$(pwd)"
+
 readonly VENV_DIR="${PWD}/.venv"
 readonly SETUP_CACHE="${PWD}/bin/cache"
 readonly HOOKS_DIR="${PWD}/.github/hooks"
@@ -13,6 +14,9 @@ readonly RTL_SCRIPTS_DIR="${PWD}/Src/Scripts"
 readonly PRE_COMMIT_CONFIG_YAML="${PWD}/.github/hooks/.pre-commit-config.yaml"
 readonly PRE_COMMIT_DIR="${PWD}/.github/hooks/pre_commit"
 readonly PRE_PUSH_SCRIPT="${PWD}/.github/hooks/pre-push"
+
+readonly RAN_LLAC_SETUP_SHELL=$([ "${PARAM_FORCE}" -eq 0 ] && [ -f "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
+readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
 
 # ANSI color codes
 readonly RED='\033[0;31m'
@@ -26,27 +30,66 @@ readonly MAGENTA='\033[1;35m'
 readonly RESET='\033[0m'
 
 print_logo() {
-    echo -e "${RED}          _____      ${ORANGE}       _____      ${YELLOW}      _____       ${GREEN}              _____           ${RESET}"
-    echo -e "${ORANGE}         /\\    \\     ${YELLOW}      /\\    \\     ${GREEN}     /\\    \\      ${CYAN}             /\\    \\          ${RESET}"
-    echo -e "${YELLOW}        /::\\____\\    ${GREEN}     /::\\____\\    ${CYAN}    /::\\    \\     ${BLUE}            /::\\    \\         ${RESET}"
-    echo -e "${GREEN}       /:::/    /    ${CYAN}    /:::/    /    ${BLUE}   /::::\\    \\    ${PURPLE}           /::::\\    \\        ${RESET}"
-    echo -e "${CYAN}      /:::/    /     ${BLUE}   /:::/    /     ${PURPLE}  /::::::\\    \\   ${MAGENTA}          /::::::\\    \\       ${RESET}"
-    echo -e "${BLUE}     /:::/    /      ${PURPLE}  /:::/    /      ${MAGENTA} /:::/\\:::\\    \\  ${RED}         /:::/\\:::\\    \\      ${RESET}"
-    echo -e "${PURPLE}    /:::/    /       ${MAGENTA} /:::/    /       ${RED}/:::/__\\:::\\    \\ ${ORANGE}        /:::/  \\:::\\    \\     ${RESET}"
-    echo -e "${MAGENTA}   /:::/    /        ${RED}/:::/    /       ${ORANGE}/::::\\   \\:::\\    \\ ${YELLOW}      /:::/    \\:::\\    \\    ${RESET}"
-    echo -e "${RED}  /:::/    /        ${ORANGE}/:::/    /       ${YELLOW}/::::::\\   \\:::\\    ${GREEN}\\     /:::/    / \\:::\\    \\   ${RESET}"
-    echo -e "${ORANGE} /:::/    /        ${YELLOW}/:::/    /       ${GREEN}/:::/\\:::\\   \\:::\\   ${CYAN} \\   /:::/    /   \\:::\\    \\  ${RESET}"
-    echo -e "${YELLOW}/:::/____/        ${GREEN}/:::/____/       ${CYAN}/:::/  \\:::\\   \\:::\\__${BLUE}__\\ /:::/____/     \\:::\\____\\ ${RESET}"
-    echo -e "${GREEN}\\:::\\    \\        ${CYAN}\\:::\\    \\       ${BLUE}\\::/    \\:::\\  /:::/  ${PURPLE}  / \\:::\\    \\      \\::/    / ${RESET}"
-    echo -e "${CYAN} \\:::\\    \\       ${BLUE} \\:::\\    \\      ${PURPLE} \\/____/ \\:::\\/:::/   ${MAGENTA} /   \\:::\\    \\      \\/____/  ${RESET}"
-    echo -e "${BLUE}  \\:::\\    \\      ${PURPLE}  \\:::\\    \\       ${MAGENTA}        \\::::::/    ${RED}/     \\:::\\    \\              ${RESET}"
-    echo -e "${PURPLE}   \\:::\\    \\     ${MAGENTA}   \\:::\\    \\      ${RED}         \\::::/    /${ORANGE}       \\:::\\    \\             ${RESET}"
-    echo -e "${MAGENTA}    \\:::\\    \\    ${RED}    \\:::\\    \\     ${ORANGE}         /:::/    / ${YELLOW}        \\:::\\    \\            ${RESET}"
-    echo -e "${RED}     \\:::\\    \\   ${ORANGE}     \\:::\\    \\    ${YELLOW}        /:::/    /  ${GREEN}         \\:::\\    \\           ${RESET}"
-    echo -e "${ORANGE}      \\:::\\    \\  ${YELLOW}      \\:::\\    \\   ${GREEN}       /:::/    /   ${CYAN}          \\:::\\    \\          ${RESET}"
-    echo -e "${YELLOW}       \\:::\\____\\ ${GREEN}       \\:::\\____\\  ${CYAN}      /:::/    /     ${BLUE}          \\:::\\____\\         ${RESET}"
-    echo -e "${GREEN}        \\::/    / ${CYAN}        \\::/    /  ${BLUE}      \\::/    /      ${PURPLE}           \\::/    /         ${RESET}"
-    echo -e "${CYAN}         \\/____/  ${BLUE}         \\/____/   ${PURPLE}       \\/____/       ${MAGENTA}            \\/____/          ${RESET}"
+    art=$(cat <<'EOF'
+ *--------------------------------------------------------------------------------------------------------------*
+ |                                                                                                              |
+ |                               ██▓     ██▓     ▄▄▄       ▄████▄                                               |
+ |                              ▓██▒    ▓██▒    ▒████▄    ▒██▀ ▀█                                               |
+ |                              ▒██░    ▒██░    ▒██  ▀█▄  ▒▓█    ▄                                              |
+ |                              ▒██░    ▒██░    ░██▄▄▄▄██ ▒▓▓▄ ▄██▒                                             |
+ |                              ░██████▒░██████▒ ▓█   ▓██▒▒ ▓███▀ ░                                             |
+ |                              ░ ▒░▓  ░░ ▒░▓  ░ ▒▒   ▓▒█░░ ░▒ ▒  ░                                             |
+ |                              ░ ░ ▒  ░░ ░ ▒  ░  ▒   ▒▒ ░  ░  ▒                                                |
+ |                                $ $     $ $     $   ▒   $                                                     |
+ |                                  $  $    $  $      $  $░ $                                                   |
+ |                                                        $                                                     |
+ |                                                                                                              |
+ |   ▒▓███████▓▒░  ░▒▓███████▓▒░   ░▒▓██████▓▒░        ░▒▓█▓████░▒▓███████▓▒░    ░▒▓██████▓▒░   ▒▓████████▓▒░   |
+ |     ░▒▓█▓   ▒▓█▓▒░ ░▒▓█▓▒  ▓█▓▒░ ░▒▓█▓▒ ░▒▓█▓▒░       ░▒▓█▓▒░  ▒▓█▓▒░        ░▒▓█▓▒  ▒▓█▓▒░    ░▒▓█▓▒░       |
+ |     ░▒▓█▓   ▒▓█▓▒░ ░▒▓█▓▒  ▒▓█▓▒░ ░▒▓█▓▒░░▒▓█▓▒░       ░▒▓█▓▒ ░▒▓█▓▒░          ░▒▓█▓          ░▒▓█▓▒░        |
+ |       ░▒▓███████▓▒░░▒▓███████▓▒░░▒▓█▓▒  ░▒▓█▓▒░         ▒▓█▓▒░  ░▒▓██████▓  ░ ▓█▓▒░            ░▒▓█▓▒░       |
+ |     ░▒▓█▓▒░        ░▒▓█▓▒  ▒▓█▓▒░ ░▒▓█▓▒░ ▒▓█▓▒░   █▓▒  ▒▓█▓▒░ ░▒▓█▓▒░        ░▒▓█▓▒░            ░▒▓█▓▒░     |
+ |     ░▒▓█▓▒░        ░▒▓█▓▒  ▒▓█▓▒░ ░▒▓█▓▒  ▒▓█▓▒░  ▓█▓▒  ▒▓█▓▒░ ░▒▓█▓▒░        ░▒▓█▓▒  ▒▓█▓▒░    ░▒▓█▓▒░      |
+ |   ░   ▒▓█▓▒░        ░▒▓█▓▒  ▒▓█▓▒░  ░▒▓██████▓▒░     ▒▓██████▓▒░░▒▓████████▓▒░  ░▒▓██████▓▒░     ░▒▓█▓▒░     |
+ |                                                                                                              |
+ *______________________________________________________________________________________________________________*
+EOF
+)
+
+    colors=(40 40 40 40 40 42 42 40 40 42 42)
+    num_colors=${#colors[@]}
+    num_rows=$(echo "$art" | wc -l)
+    num_rows=$(($num_rows - 1))
+    row=0
+    last_char=0
+
+    echo "$art" | while IFS= read -r line; do
+      col=0
+      while [ $col -lt ${#line} ]; do
+        char="${line:$col:1}"
+
+        # Table border
+        if [[ "$char" == "*" ]]; then
+          printf "\033[0;1m%s" "$char"
+          col=$((col + 1))
+          continue
+        elif [[ "$char" == " "|| $row == $num_rows || $row == 0 || "$char" == '|' || "$char" == "_" ]]; then
+          printf "\033[40m%s" "$char"
+          col=$((col + 1))
+          continue
+        fi
+
+        # Inside text
+        color_index=$(((row + col) % num_colors))
+        color_code="${colors[$color_index]}"
+        printf "\033[${color_code}m%s" "$char"
+
+        last_char=$char
+        col=$((col + 1))
+      done
+      printf "\033[0m\n"
+      row=$((row + 1))
+    done
 }
 
 print_license() {
@@ -90,6 +133,10 @@ ProgressBar() {
     printf "\rProgress : [${done_str// /#}${left_str// /-}] ${progress_percent}%%"
 }
 
+advance_progress() {
+    let _progress++ || true; ProgressBar ${_progress} ${TOTAL_STEPS}
+}
+
 print_logo
 print_license
 
@@ -123,26 +170,49 @@ done
 
 readonly TOTAL_STEPS=10
 _progress=0
-
 ProgressBar 0 ${TOTAL_STEPS}
 
-readonly RAN_LLAC_SETUP_SHELL=$([ "${PARAM_FORCE}" -eq 0 ] && [ -f "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
+git rev-parse --git-dir > /dev/null 2>&1 || {
+    REPO_NAME=$(basename "${GIT_REPO_URL}" .git)
+    echo "Not a git repository. Cloning '${REPO_NAME}'..."
+    [ -d "${REPO_NAME}" ] && {
+        echo "Error: Directory '${REPO_NAME}' already exists. Aborting."
+        exit 1
+    }
+    git clone "${GIT_REPO_URL}" --depth 1
+    cd "$PWD/$REPO_NAME"
+}
 
-command_exists nix || {
+advance_progress
+
+install_nix() {
     echo "Nix not found. Installing Nix..."
-    curl -L https://nixos.org/nix/install | sh
+    (curl -L https://nixos.org/nix/install | sh) >/dev/null 2>&1
+}
 
+source_nix_profile() {
+    set +u
     if [ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
-        . "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+        source "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
     elif [ -f "${HOME}/.nix-profile/etc/profile.d/nix.sh" ]; then
-        . "${HOME}/.nix-profile/etc/profile.d/nix.sh"
+        source "${HOME}/.nix-profile/etc/profile.d/nix.sh"
     else
         echo "Warning: Could not find the Nix profile script to source."
         echo "You may need to manually add Nix to your shell's environment."
+        return 1
     fi
+    set -u
+    echo "Successfully sourced nix profile"
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+source_nix_profile >/dev/null 2>&1 || true
+
+command_exists nix || {
+    (install_nix) || true
+    source_nix_profile || exit 1
+}
+
+advance_progress
 
 readonly NIX_CONFIG_DIR="${HOME}/.config/nix"
 readonly NIX_CONFIG_FILE="${NIX_CONFIG_DIR}/nix.conf"
@@ -151,29 +221,12 @@ grep -q "experimental-features = nix-command flakes" "${NIX_CONFIG_FILE}" 2>/dev
     echo "experimental-features = nix-command flakes" >> "${NIX_CONFIG_FILE}"
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 echo "Installing dependencies with Nix..."
 nix develop --command true
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
-
-readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
-
-git rev-parse --git-dir > /dev/null 2>&1 || {
-    readonly REPO_NAME=$(basename "${GIT_REPO_URL}" .git)
-    echo "Not a git repository. Cloning '${REPO_NAME}'..."
-    [ -d "${REPO_NAME}" ] && {
-        echo "Error: Directory '${REPO_NAME}' already exists. Aborting."
-        exit 1
-    }
-    git clone "${GIT_REPO_URL}" --depth 1
-    cd "${REPO_NAME}"
-    echo "Repository cloned. Re-executing setup script..."
-    exec "./setup.sh" "$@"
-}
-
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 privilege_script_dir() {
     local target_dir="$1"
@@ -194,7 +247,7 @@ privilege_script_dir() {
     done < <(find "${target_dir}" -type f \( "${find_args[@]}" \) -print0)
 }
 
-(( RAN_LLAC_SETUP_SHELL == 0 || PRIVILEGE_SCRIPTS == 1 )) && {
+[[ RAN_LLAC_SETUP_SHELL == 0 || PRIVILEGE_SCRIPTS == 1 ]] && {
     privilege_script_dir "${HOOKS_DIR}" "*.sh"
     privilege_script_dir "${RTL_SCRIPTS_DIR}" "*.sh" "*.py"
     sudo chmod 755 "${HOOKS_DIR}/run_hook.sh"
@@ -203,7 +256,7 @@ privilege_script_dir() {
     sudo chmod 644 "${PRE_COMMIT_CONFIG_YAML}"
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 get_os() {
     case "$(uname -s)" in
@@ -227,7 +280,7 @@ get_os() {
     esac
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 clone_submodules() {
     git config -f .gitmodules --get-regexp '^submodule\..*\.url' | while read -r key url; do
@@ -254,7 +307,7 @@ clone_submodules() {
     }
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 (( RAN_LLAC_SETUP_SHELL == 0 )) && {
     git config --add safe.directory "${PWD}"
@@ -262,7 +315,7 @@ clone_submodules() {
     git config core.hooksPath .github/hooks
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 [ ! -d "${VENV_DIR}" ] && {
     echo "Virtual environment not found. Creating one..."
@@ -284,14 +337,14 @@ pre-commit clean
     ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${PWD}/.pre-commit-config.yaml" 2>/dev/null
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 (( RAN_LLAC_SETUP_SHELL == 0 )) && {
     mkdir -p "${SETUP_CACHE}"
     touch "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE"
 }
 
-((_progress++)); ProgressBar ${_progress} ${TOTAL_STEPS}
+advance_progress
 
 deactivate
 echo "Setup complete"

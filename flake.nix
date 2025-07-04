@@ -85,6 +85,7 @@
             act
             docker
             docker-compose
+            pre-commit
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # macOS specific packages
             darwin.apple_sdk.frameworks.CoreServices

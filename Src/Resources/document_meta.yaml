@@ -179,6 +179,28 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
+'RTL/Filters/downsampler/CIC_decimator.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'CIC_decimator.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the downsampler design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The downsampler module is covered by the GPL 3.0
+    License (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
 'RTL/Filters/downsampler/dsd.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
@@ -192,6 +214,50 @@
 
     // under docs/CONTRIBUTING.md. The downsampler module is covered by the GPL 3.0
     License (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/highpass/hp.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hp.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the highpass design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The highpass module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/lowpass/lp.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'lp.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the lowpass design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The lowpass module is covered by the GPL 3.0 License
+    (see below.)
 
     //
 
@@ -516,12 +582,100 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Verification/Filters/avg_iir.sv':
+'RTL/Verification/Filters/CIC_decimator_tb.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
-  'fname': 'avg_iir.sv'
+  'fname': 'CIC_decimator_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/avg_iir_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'avg_iir_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/dsd_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dsd_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/hp_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hp_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/lp_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'lp_tb.sv'
   'inputs': 'N/A'
   'license_preamble': '// It is intended to be used as part of the Filters design
     where a README.md detailing the design should exist, conforming to the details
@@ -544,27 +698,6 @@
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'buf_audio_in_tb.sv'
-  'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the In design where
-    a README.md detailing the design should exist, conforming to the details provided
-
-    // under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0 License
-    (see below.)
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'RTL'
-  'outputs': 'N/A'
-  'separator': '------------------------------------------------------------------------'
-'RTL/Verification/In/dsd_tb.sv':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'dsd_tb.sv'
   'inputs': 'N/A'
   'license_preamble': '// It is intended to be used as part of the In design where
     a README.md detailing the design should exist, conforming to the details provided
