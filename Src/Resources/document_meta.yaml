@@ -540,6 +540,27 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/sinc_euler_q22.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'sinc_euler_q22.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Math design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
 'RTL/Static/Math/sincos_poly_q22_dp.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
