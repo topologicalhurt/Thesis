@@ -34,6 +34,7 @@
 
 `include "Src/RTL/Static/Cores/consts.svh"
 
+
 module cos_poly_q22 (
     input  logic [23:0] theta_in,  // 24-bit input angle, Q2.22 format (0 to 2π)
     output logic [23:0] cos_out    // 24-bit output cosine, Q1.23 format (signed)

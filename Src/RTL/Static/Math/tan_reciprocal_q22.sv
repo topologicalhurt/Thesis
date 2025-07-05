@@ -34,6 +34,7 @@
 
 `include "Src/RTL/Static/Cores/sincos_poly_q22_dp.sv"
 
+
 module tan_reciprocal_q22
 (
     input  logic         clk2x,      // 2× clock, phase‑aligned
