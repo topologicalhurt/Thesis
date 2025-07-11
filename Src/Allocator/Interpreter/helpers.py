@@ -29,6 +29,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import itertools
+from typing import Any
 import xxhash
 import importlib
 import regex as re
@@ -64,6 +65,7 @@ def machine_has_extended_float_support() -> bool:
 
 dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
 ExtendedEnum = dataclasses.ExtendedEnum
+BITFIELD = dataclasses.BITFIELD
 
 
 def fast_stable_hash(data: Hashable) -> int:
@@ -136,7 +138,7 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
             underlined.extend(txt)
             prev_i = i
 
-        return f'{text}\n{"".join(underlined)}'
+        return f'{text}\n{''.join(underlined)}'
 
     if not isinstance(to_match, str):
         underlined = []
@@ -146,14 +148,15 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
             i, txt = match
             underlined.extend(txt)
             prev_i = i
-        return f'{text}\n{"".join(underlined)}'
+        return f'{text}\n{''.join(underlined)}'
 
     _, txt = underline_match(text, to_match, start_index, end_index)
     underlined.extend(txt)
-    return f'{text}\n{"".join(underlined)}'
+    return f'{text}\n{''.join(underlined)}'
 
 
-def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
+def pad_lists_to_same_length(list1: list, list2: list, value: Any = None,
+                             repeat_last: bool = False) -> tuple[list, list]:
     """# Summary
 
     Pad the shorter list by extending it with its last element to match the longer list's length.
@@ -161,6 +164,8 @@ def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
     ## Args:
         list1: First list
         list2: Second list
+        value: Value to repeat
+        repeat_last: When set to true value is disregarded and the last element is extended
 
     ## Returns:
         tuple[list, list]: A tuple of (padded_list1, padded_list2) where both lists have the same length
@@ -176,12 +181,58 @@ def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
     # Determine which list is shorter and pad it
     if len1 < len2:
         # Pad list1 to match list2's length
-        padded_list1 = list1 + list(itertools.repeat(list1[-1], len2 - len1))
+        if repeat_last:
+            padded_list1 = list1 + list(itertools.repeat(list1[-1], len2 - len1))
+        else:
+            padded_list1 = list1 + [value] * (len2 - len1)
         return padded_list1, list2
     else:
         # Pad list2 to match list1's length
-        padded_list2 = list2 + list(itertools.repeat(list2[-1], len1 - len2))
+        if repeat_last:
+            padded_list2 = list2 + list(itertools.repeat(list2[-1], len1 - len2))
+        else:
+            padded_list2 = list2 + [value] * (len1 - len2)
         return list1, padded_list2
+
+
+def bools2bitstr(*args: bool, in_first_msb = True, offset: Iterable[int] | int = 0,
+                 count: bool = True) -> int:
+    result = 0
+    j = 0
+    offset_is_iterable = isinstance(offset, Iterable)
+    if in_first_msb:
+        args = reversed(args)
+    for i, a in enumerate(args):
+        leftshift = 0
+        if offset_is_iterable:
+            leftshift = offset[j]
+            j += 1
+        if count:
+            leftshift += i
+        result |= int(a) << leftshift
+    return result
+
+
+def reverse_bits(n: int) -> int:
+    result = 0
+    for _ in range(n.bit_length()):
+        result <<= 1
+        result |= n & 1
+        n >>= 1
+    return result
+
+
+def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None) -> BITFIELD:
+    offset = e.get_members_from_mask(mask)
+    return BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=False,
+                    **{m.name : 1 for m in offset})
+
+
+def bitstr_from_enum_mask(*args: bool, e: ExtendedEnum, mask: Iterable[str] | None) -> int:
+    offset = e.get_members_from_mask(mask)
+    if not args:
+        args = [True] * len(offset)
+    return bools2bitstr(*args, offset=[m.value for m in offset], count=False, in_first_msb=False)
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

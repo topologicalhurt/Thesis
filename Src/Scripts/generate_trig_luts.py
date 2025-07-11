@@ -47,11 +47,11 @@ from collections.abc import Sequence, Callable
 from typing import assert_never
 
 from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, FLOAT_STR_NPMAP, BYTEORDER, ExtendedEnum
-from Allocator.Interpreter.helpers import pairwise, underline_matches
+from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches
 
 from Scripts.decorators import warning
-from Scripts.argparse_helpers import str2bitwidth, str2enumval, bools2bitstr, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
-from Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGPREC
+from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
+from Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
 from Scripts.hex_utils import TrigLutManager
 
 
@@ -103,6 +103,8 @@ def main() -> None:
 
     Entry-point into lut generator. Run this script with the -h option for help.
     """
+    global args
+
     parser = ap.ArgumentParser(description=__doc__.strip())
 
     parser.add_argument('dir', type=str2path,
@@ -171,13 +173,17 @@ def main() -> None:
                         ' prohibitions: -auto (see: -auto)'
                         )
 
-    parser.add_argument('-tan-k', type=kthresh, default=0.05,
+    parser.add_argument('-tan-k', type=kthresh, const=0.05, default=None, nargs='?',
                         help='A floating point threshold value which determines the error tolerance for tan'
                         )
 
-    parser.add_argument('-atan-k', type=kthresh, default=0.1,
+    parser.add_argument('-atan-k', type=kthresh, const=0.1, default=None, nargs='?',
                         help='A floating point threshold value which determines the error tolerance for atan'
                         )
+
+    parser.add_argument('-sinc-k', type=kthresh, const=0.1, default=None, nargs='?',
+                    help='A floating point threshold value which determines the error tolerance for sinc'
+                    )
 
     parser.add_argument('--auto-off', action='store_true', default=False,
                         help='Turns auto mode off if specified'
@@ -185,6 +191,10 @@ def main() -> None:
 
     parser.add_argument('--all', action='store_true', default=False,
                         help='Will generate cosine, arccos (in addition to sin, arcsin) if specified'
+                        )
+
+    parser.add_argument('--nw', action='store_true', default=False,
+                        help='Will not write anything out into a .hex file if specified'
                         )
 
     parser.add_argument('--sin', action='store_true', default=False,
@@ -211,6 +221,15 @@ def main() -> None:
                         help='Creates an atan (arctan) LUT'
                         )
 
+    parser.add_argument('--sinc', action='store_true', default=False,
+                    help='Creates a sinc LUT'
+                    ' Note: the opt mode works differently here: '
+                    ' Lowest optimisation level: store sinc up to err threshold (I.e. zero crossing up to attenuation target)'
+                    ' Medium optimisation level: store a half-symmetry LUT (I.e. mirror about origin)'
+                    ' High optimisation level (reccomended): approximate using lobe & envelope'
+                    ' (TODO) Highest optimisation level: Chebyshev polynomial approximation'
+                    )
+
     args = vars(parser.parse_args())
 
     bw_int, args['bw'] = args['bw'] # Store the actual integer value of the bit_width in bw_int and the type in args['bw']
@@ -236,7 +255,24 @@ def main() -> None:
             # Don't generate both acos & asin / cos & sin lut's unless explicitly specified
             trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value)
     else:
-        trig_opts = bools2bitstr(*trig_args.values())
+        trig_opts = bitstr_from_enum_mask(*trig_args.values(), e=TRIGLUTDEFS, mask=None)
+
+    k_mask = TRIGMUSTHAVEKSET.fields()
+    k_mask_bitfield = bitfield_from_enum_mask(TRIGLUTDEFS, mask=k_mask)
+    k_mask_bitfield = k_mask_bitfield.get_bit_str() & trig_opts               # This selects the k values that need to be supplied from trig_opts
+
+    k_thresholds = [args['tan_k'], args['atan_k'], args['sinc_k']]
+    k_thresholds = [k is not None for k in k_thresholds]
+    k_opts = bitstr_from_enum_mask(*k_thresholds, e=TRIGLUTDEFS, mask=k_mask) # These are the k values that need to be specified
+
+    if k_mask_bitfield ^ k_opts:
+        err_invoker = get_action_from_parser_by_name(parser, 'k')
+        to_underline = [v.lower() for v in k_mask]
+        raise ap.ArgumentError(err_invoker,
+                                'k must be individually supplied for:'
+                                f'\n{underline_matches(' '.join(sys.argv[1:]), to_underline, match_all=True)}'
+                                '\nif LUT is to be generated.'
+                              )
 
     if not args['table_mode'] or args['table_mode'] in TRIGFOLD:
         # If table_mode parameter is provided but with no arg represent all functions as highest optimisation by default
@@ -311,7 +347,7 @@ def main() -> None:
         err_msg = ' '.join(sys.argv[1:])
         raise ap.ArgumentError(err_invoker,
                                'Supplied -auto and --auto-off simultaneously. A contradiction. Use one or the other. I.e.:'
-                               f'\n{underline_matches(err_msg, ("-auto-off", "-auto"), match_all=True)}'
+                               f'\n{underline_matches(err_msg, ('-auto-off', '-auto'), match_all=True)}'
                               )
 
     if args['auto_off']:
@@ -347,8 +383,8 @@ def main() -> None:
     def _calculate_scale_factor(table_mode: TRIGFOLD, table_prec: TRIGPREC):
         return max(table_mode.value * (TRIGPREC.HIGHP.value - table_prec.value), 1)
 
-    phis = {}
-    xs = {}
+    phis = {}   # Mapping from fn: domain for theta -> x functions
+    xs = {}     # Mapping from fn: domain for x -> theta functions
     if trig_opts & (TRIG_LUTS.SIN.value | TRIG_LUTS.COS.value):
         """
         sin(-x) = -sin(x)
@@ -389,7 +425,7 @@ def main() -> None:
         tan(x) = 1 / tan(0.5 * pi - x)
         I.e. if pi/4 <= x < pi/2
         let u = 0.5 * pi - x => u |-> (0, pi/4]
-        => we can recover the interval x \in [pi/4, pi/2) by:
+        => we can recover the interval x in [pi/4, pi/2) by:
         1 / tan(0.5 * pi - u)
 
         => x |-> [0, pi/4]
@@ -532,6 +568,36 @@ def main() -> None:
 
         xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, sz, dtype=args['bw'])
 
+    if trig_opts & TRIG_LUTS.SINC.value:
+        """The envelope of the sinc function is 1 / (pi * x).
+        We want to find the point x where the function has attenuated to at least k.
+        1 / (pi * x) = k  => x = 1 / (pi * k)
+        """
+        x_max = 1 / (np.pi * k)
+
+        sz = N_TABLE_ENTRIES // _calculate_scale_factor(
+            args['table_mode'][TRIGLUTDEFS.SINC], args['hp'][TRIGLUTDEFS.SINC])
+
+        match args['table_mode'][TRIGLUTDEFS.SINC]:
+            case TRIGFOLD.LOW:
+                # Full table, store for x in [-x_max, x_max]
+                start = -x_max
+                stop = x_max
+            case TRIGFOLD.MED:
+                # Half-symmetry, store for x >= 0
+                start = 0
+                stop = x_max
+            case TRIGFOLD.HIGH:
+                start = 0
+                stop = 100 # TODO: determine from -sinc-k
+            case TRIGFOLD.MAX:
+                raise NotImplementedError('There is currently no support for SINC max opt mode')
+            case _:
+                assert_never(args['table_mode'][TRIGLUTDEFS.SINC])
+
+        xs[TRIGLUTDEFS.SINC] = np.linspace(start, stop, sz, dtype=args['bw'])
+
+
     luts_to_w = []
     cmd_line_args = ' '.join(sys.argv[2:])
     for m, bit_v in zip(TRIGLUTDEFS.get_members(), TRIG_LUTS.__members__.values()):
@@ -552,12 +618,14 @@ def main() -> None:
                 case TRIGLUTDEFS.ATAN:
                     domain = xs
                     k = args['atan_k']
+                case TRIGLUTDEFS.SINC:
+                    domain = xs
                 case _:
                     assert_never(m)
 
             # Lut is nothing more than the given function evaluated over the proper domain
-            # Effort was in 'folding' the domain, determining periodicity, error, etc.
-            fn = TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value
+            # The real effort was in 'folding' the domain, determining periodicity, error within threshold, etc.
+            fn = _get_fn_from_optmode(m)
             lut = fn(domain[m])
 
             acc_report = assess_lut_accuracy(fn, lut, domain[m],
@@ -588,12 +656,65 @@ def main() -> None:
             )
 
     # Done! Write to .hex file
-    hexManager = TrigLutManager(args['dir'])
-    for lut in luts_to_w:
-        fn = (f'{lut.fn.__name__}_{lut.bit_width}'
-              f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'
-              )
-        hexManager.write_lut_to_hex(fn, lut, ow=True, target_order=BYTEORDER.BIG)
+    if not args['nw']:
+        hexManager = TrigLutManager(args['dir'])
+        for lut in luts_to_w:
+            fn = (f'{lut.fn.__name__}_{lut.bit_width}'
+                f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'
+                )
+            hexManager.write_lut_to_hex(fn, lut, ow=True, target_order=BYTEORDER.BIG)
+
+
+def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
+    opt_mode = args['table_mode'][TRIGLUTDEFS.SINC]
+
+    # Special cases: return a different function based on the opt mode
+    match m:
+        case TRIGLUTDEFS.SINC:
+            if opt_mode == TRIGFOLD.HIGH:
+                return generate_compact_sinc
+        case _:
+            pass
+
+    return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value # Default behaviour: return the function itself
+
+
+def generate_compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
+    x = np.asarray(x)
+    result = np.zeros_like(x, dtype=float) # Handle x = 0 case explicitly
+    x_nz = x[x != 0]
+
+    if x_nz.size > 0:
+        lobe_index = x_nz % 2.0
+        lobe_number = np.floor(x_nz / 2.0).astype(int)
+
+        envelope = 1.0 / (np.pi * np.abs(x_nz))
+        sign = (-1) ** lobe_number
+        canonical_values = _canonical_sinc_lobe_lookup(lobe_index)
+        result[x != 0] = sign * envelope * canonical_values
+
+    result[x == 0] = 1.0 # Handle x = 0 case (sinc(0) = 1)
+    return result
+
+
+def _canonical_sinc_lobe_lookup(lobe_index: int) -> np.ndarray[np.floating]:
+    """# Summary
+
+    Vectorized canonical lobe lookup function.
+
+    Args:
+        lobe_index: numpy array of values in [0, 2) representing position within canonical lobe
+
+    Returns:
+        numpy array of canonical lobe values
+    """
+    # Convert lobe_index from [0, 2) to [0, π) for sinc calculation
+    t = lobe_index * np.pi / 2.0
+
+    # Handle the sinc(0) case to avoid division by zero
+    result = np.where(t == 0, 1.0, np.sinc(t))
+
+    return result
 
 
 def assess_lut_accuracy(fn: Callable[..., float],

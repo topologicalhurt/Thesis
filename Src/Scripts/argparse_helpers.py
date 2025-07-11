@@ -374,12 +374,3 @@ def str2bitwidth(v: str | int, is_int: bool = False) -> tuple[int, float]:
                                     f' of {[v for v in type_mapping.values() if isinstance(v, int)]} but got {v} instead'
                                     )
     return type_mapping.get_member_via_name_from_value(v).value
-
-
-def bools2bitstr(*args: bool, in_first_msb = True) -> int:
-    result = 0
-    if in_first_msb:
-        args = reversed(args)
-    for i, a in enumerate(args):
-        result |= int(a) << i
-    return result

@@ -90,6 +90,7 @@ class TRIGLUTDEFS(ExtendedEnum):
     ASIN = 3
     ACOS = 4
     ATAN = 5
+    SINC = 6
     _SINUSOIDS = (SIN, COS)
     _ARC_SINUSOIDS = (ASIN, ACOS)
 
@@ -105,6 +106,17 @@ class TRIGLUTFNDEFS(ExtendedEnum):
     ASIN = np.arcsin
     ACOS = np.arccos
     ATAN = np.arctan
+    SINC = np.sinc
+
+
+class TRIGMUSTHAVEKSET(ExtendedEnum):
+    """# Summary
+
+    Enum storing the trig names for which k must be set
+    """
+    TAN = 0
+    ATAN = 1
+    SINC = 2
 
 
 class TRIGLUTS(BITFIELD):
@@ -123,8 +135,6 @@ class TABLEMODE(ExtendedEnum):
     OR a function having an entire domain that can be reconstructed from a
     subset of it's domain (E.g. arctan)
     """
-    def __str__(self) -> str:
-        return f'1/{2**self.value}' if self.value != 1 else '1'
 
 
 class TRIGFOLD(TABLEMODE):
@@ -142,10 +152,13 @@ class TRIGFOLD(TABLEMODE):
     = 1 (medium mode - half table / half period)
 
     = 2 (high mode - quarter table / quarter period)
+
+    = 3 (max mode - polynomial reconstruction if supported)
     """
     LOW = 0
     MED = 1
     HIGH = 2
+    MAX = 3
 
 
 class TRIGPREC(ExtendedEnum):

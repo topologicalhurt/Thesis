@@ -60,13 +60,14 @@
         # packages.default = llacPackage;
 
         # Development shell
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell rec {
           buildInputs = with pkgs; [
             pythonEnv
 
             # Build tools
             stdenv.cc.cc.lib
-            pkgs.gcc
+            zlib
+            zlib-ng
             gcc
             gnumake
             pkg-config
@@ -98,8 +99,14 @@
             sudo
           ];
 
+          # Specify dependencies that need to be on LD_LIBRARY_PATH
+          ldLibPath = with pkgs; [
+            zlib
+          ];
+
           shellHook = ''
             export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
 
             export PYTHONDONTWRITEBYTECODE=1
             export PYTHONUNBUFFERED=1
