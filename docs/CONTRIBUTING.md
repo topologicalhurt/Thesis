@@ -96,6 +96,53 @@ from consts import ...
 from helpers import ...
 ```
 
+### Comments
+
+Ensure comments $\geq$ 3 lines long are contained in a docstring
+
+```python3
+# This is perfectly legal
+# Nothing to worry about here
+```
+
+```python3
+"""A 3 line comment
+Should always be
+Contained in a docstring
+"""
+```
+
+Comments that are on the same line are preferred, but if they are overly long put them above the line being commented.
+
+```python3
+line_can_be_commented = 'foo' # This is a line that can be commented
+```
+
+```python3
+# This is a very strange variable. No idea why this is here?
+extremely_long_variable_name_that_makes_the_inline_comment_hard_to_read = 123456789
+```
+
+Don't comment on self-explanitory variables & be concise.
+
+**Don't do**:
+```python3
+pi = 3.14159 ... # This is the variable pi it is very important it is used in lot's of surprising applications despite it mainly being understood as a geometric construct etc...
+```
+
+**DO**:
+```python3
+pi = 3.14159 ...
+```
+
+### Shebangs
+
+Ensure all files intended to be run as scripts have a shebang:
+
+```python3
+#!/usr/bin/env python
+```
+
 ### Dealing with circular imports
 
 In general circular imports *should be avoided* but, rarely, it might make sense to not refactor definitions into another file. E.G. the misc. utility file ```helpers``` might need to call upon a common type definitions file E.G. ```dataclasses``` which itself depends upon helpers.
@@ -132,9 +179,61 @@ Don't use tuples or dictionaries to pass or return complex data types. Encapsula
 
 Enums, like Dataclasses, should be stored underneath ```dataclasses.py```. Any time you would use a simple state or a tuple (implement via. the ```ExtendedTuple``` class) use an Enum instead.
 
-## Match vs elif statements
+### Match vs elif statements
 
 **Are** allowed & encouraged **except** for under the allocator module as this violates cython requirements. For unreachable cases the preference is to use typings ```assert_never```.
+
+### Use bitmasks where possible for project-wide options, & arguments Etc.
+
+Bitmasks are used to represent options for inter-compatability between python & the planned rust backend. Also, for if any of these options ever need to be read on fabric or used in a transmission protocol Etc. It's basically a portable way of using program options all over the place.
+
+Consider this example:
+
+```python3
+class PROGRAMOPTS(ExtendedEnum):
+    DOTHING1 = 0
+    DOTHING2 = 1
+    DOTHING3 = 2
+    Etc ...
+    DOTHING10 = 9
+```
+
+```python3
+# Select the bitmask 0b101010101010 (DOTHING1 is MSB)
+valid_dothings = bitfield_from_enum_mask(PROGRAMOPTS, mask=['DOTHING1', 'DOTHING3', 'DOTHING5', 'DOTHING7', 'DOTHING9'])
+
+args = {'DOTHING3': 1, 'DOTHING7': 1} # Pretend this is input supplied by the user as options to the program
+user_select = bitstr_from_enum_mask(*args.values(), e=PROGRAMOPTS, mask=None) # 0b0010001000
+
+things_to_run = user_select & valid_dothings # 0b0010001000
+```
+
+Say an illegal argument was supplied:
+
+```python3
+must_be_set = bitfield_from_enum_mask(PROGRAMOPTS, mask=['DOTHING1', 'DOTHING3'])
+
+# Same as before but with illegal arg I.e. args = {'DOTHING1': 1} (should have also supplied DOTHING3)
+if user_select ^ must_be_set:
+    raise IllegalArgumentException('The option DOTHING1 & DOTHING3 both have to be set')
+```
+
+### Double vs single quoted strings
+
+**Don't do**
+```python3
+foo = "bar"
+```
+
+**DO**
+```python3
+foo = 'bar'
+```
+
+However, use them in nested strings:
+```python3
+foo = f'bar["baz"]'
+```
 
 ___
 ## System Verilog / Verilog
