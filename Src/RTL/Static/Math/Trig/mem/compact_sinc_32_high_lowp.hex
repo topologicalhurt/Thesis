@@ -1,0 +1,148 @@
+// Coefficient memory for compact_sinc
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Endianness.:              big
+//   Table mode:               high
+//   Table size:               0.512kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 1/4
+//   Measured avg. accuracy:   1.7160975973595782e-09
+//   Min accuracy:             0.0
+//   Max accuracy:             5.572183781055173e-08//
+
+// Each line contains a value (coeff.) corresponding to the function compact_sinc.
+// This file was automatically generated with the command: --sinc -sinc-k 0.000000001 --auto-off
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-07-13 00:45:31.408412
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//
+//
+0000803f
+209fd7b2
+7e5d88b3
+6bbf0f32
+7e5d0833
+4d7facb1
+fed1b5b2
+90d89b32
+7e5d8832
+526d72b2
+302f5ab2
+72594632
+fed13532
+88d527b2
+90d81b32
+cb741132
+7e5d0832
+ff570032
+526df231
+f0aae531
+302fda31
+6bcbcf31
+7259c631
+bbb9bd31
+fed1b531
+278cae31
+88d5a731
+369ea131
+90d89b31
+d2789631
+cb749131
+9bc38c31
+7e5d8831
+a23b8431
+ff578031
+805a7931
+526d7231
+fddf6b31
+f0aa6531
+60c75f31
+302f5a31
+dedc5431
+6bcb4f31
+51f64a31
+72594631
+0ff14131
+bbb93d31
+55b03931
+fed13531
+131c3231
+278c2e31
+fe1f2b31
+88d52731
+dcaa2431
+369e2131
+f5ad1e31
+90d81b31
+a01c1931
+d2781631
+edeb1331
+cb741131
+5a120f31
+9bc30c31
+9d870a31
+7e5d0831
+6d440631
+a23b0431
+62420231
+ff570031
+a5f7fc30
+805af930
+6dd7f530
+526df230
+2b1bef30
+fddfeb30
+dfbae830
+f0aae530
+5dafe230
+60c7df30
+37f2dc30
+302fda30
+9e7dd730
+dedcd430
+544cd230
+6bcbcf30
+9859cd30
+51f6ca30
+18a1c830
+7259c630
+ea1ec430
+0ff1c130
+76cfbf30
+bbb9bd30
+79afbb30
+55b0b930
+f2bbb730
+fed1b530
+22f2b330
+131cb230
+824fb030
+278cae30
+bcd1ac30
+fe1fab30
+ac76a930
+88d5a730
+563ca630
+dcaaa430
+e320a330
+369ea130
+a222a030
+f5ad9e30
+fe3f9d30
+90d89b30
+7f779a30
+a01c9930
+c8c79730
+d2789630
+952f9530
+edeb9330
+b5ad9230
+cb749130
+0d419030
+5a128f30
+94e88d30
+9bc38c30
+52a38b30
+9d878a30
+5f708930

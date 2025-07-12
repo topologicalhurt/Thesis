@@ -172,15 +172,15 @@ def main() -> None:
                         ' prohibitions: -auto (see: -auto)'
                         )
 
-    parser.add_argument('-tan-k', type=kthresh, const=0.05, default=None, nargs='?',
+    parser.add_argument('-tan-k', type=kthresh, const=0.01, default=None, nargs='?',
                         help='A floating point threshold value which determines the error tolerance for tan'
                         )
 
-    parser.add_argument('-atan-k', type=kthresh, const=0.1, default=None, nargs='?',
+    parser.add_argument('-atan-k', type=kthresh, const=0.01, default=None, nargs='?',
                         help='A floating point threshold value which determines the error tolerance for atan'
                         )
 
-    parser.add_argument('-sinc-k', type=kthresh, const=0.1, default=None, nargs='?',
+    parser.add_argument('-sinc-k', type=kthresh, const=0.01, default=None, nargs='?',
                     help='A floating point threshold value which determines the error tolerance for sinc'
                     )
 
@@ -270,25 +270,23 @@ def main() -> None:
                                 '\nif LUT is to be generated.'
                               )
 
-    table_mode_length = len(args['table_mode'])
     table_mode_default = get_action_from_parser_by_name(parser, 'table_mode').default
     if not args['table_mode'] or args['table_mode'] in TRIGFOLD:
-        """If table_mode parameter is provided but with no arg represent all functions as highest optimisation by default
-        If table_mode parameter wasn't provided at all it fallsback to the singular default value
-        args['table_mode'] in TRIGFOLD triggers on default (no parameter provided),
-        args['table_mode'] is [] I.e. empty if specified without argument
-        Finally, if args['table_mode'] is a list that isn't a singleton set the arg to the default first
         """
-        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS.fields()}
-    elif table_mode_length == 1:
+        If table_mode parameter wasn't provided, or specified but w/o arg, it should fallsback to the singular default value
+        args['table_mode'] in TRIGFOLD triggers on default (no parameter provided).
+        args['table_mode'] is [] I.e. empty if specified without argument.
+        """
+        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS.get_members()}
+    elif len(args['table_mode']) == 1:
         # If args['table_mode'] is a singleton set that as the global instead of the default value
         table_mode_default = args['table_mode'][0]
-        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS.fields()}
+        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS.get_members()}
     else:
         # If args['table_mode'] isn't a singleton, set all values to default then update only the arguments specified
         # (An ordered list corresponding to order of TRIGLUTDEFS)
         default_table_mode = {k: table_mode_default for k in TRIGLUTDEFS.fields()}
-        table_mode_order = {k : v for k, v in zip(TRIGLUTDEFS.fields(), args['table_mode'])}
+        table_mode_order = {k : v for k, v in zip(TRIGLUTDEFS.get_members(), args['table_mode'])}
         default_table_mode.update(**table_mode_order)
         args['table_mode'] = default_table_mode
 
@@ -588,7 +586,6 @@ def main() -> None:
         k = args['sinc_k']
         x_max = 1 / (np.pi * k)
 
-        print(args['table_mode'])
         sz = N_TABLE_ENTRIES // _calculate_scale_factor(
             args['table_mode'][TRIGLUTDEFS.SINC], args['hp'][TRIGLUTDEFS.SINC])
 
@@ -636,7 +633,7 @@ def main() -> None:
 
             # Lut is nothing more than the given function evaluated over the proper domain
             # The real effort was in 'folding' the domain, determining periodicity, error within threshold, etc.
-            fn = _get_fn_from_optmode(m)
+            _, fn = _get_fn_from_optmode(m)
             lut = fn(domain[m])
 
             acc_report = assess_lut_accuracy(fn, lut, domain[m],
@@ -686,23 +683,21 @@ def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np
                 return compact_sinc # Store canonical lobe only, use envelope estimation method after zero crossing
         case _:
             pass
-
     return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value # Default behaviour: return the function itself
 
 
 def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
     x = np.asarray(x)
-    result = np.zeros_like(x, dtype=float) # Handle x = 0 case explicitly
+    result = np.zeros_like(x, dtype=args['bw']) # Handle x = 0 case explicitly
     x_nz = x[x != 0]
 
-    if x_nz.size > 0:
-        lobe_index = x_nz % 2.0
-        lobe_number = np.floor(x_nz / 2.0).astype(int)
+    lobe_index = x_nz % 2.0
+    lobe_number = (x_nz // 2).astype(int)
 
-        envelope = 1.0 / (np.pi * np.abs(x_nz))
-        sign = (-1) ** lobe_number
-        canonical_values = _canonical_sinc_lobe_lookup(lobe_index)
-        result[x != 0] = sign * envelope * canonical_values
+    envelope = 1.0 / (np.pi * np.abs(x_nz))
+    sign = (-1) ** lobe_number
+    canonical_values = _canonical_sinc_lobe_lookup(lobe_index)
+    result[x != 0] = sign * envelope * canonical_values
 
     result[x == 0] = 1.0 # Handle x = 0 case (sinc(0) = 1)
     return result

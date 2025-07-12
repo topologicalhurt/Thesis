@@ -93,6 +93,7 @@ class TRIGLUTDEFS(ExtendedEnum):
     SINC = 6
     _SINUSOIDS = (SIN, COS)
     _ARC_SINUSOIDS = (ASIN, ACOS)
+    _AUX = (SINC,)
 
 
 class TRIGLUTFNDEFS(ExtendedEnum):
@@ -100,13 +101,13 @@ class TRIGLUTFNDEFS(ExtendedEnum):
 
     Enum storing the trig names & their corresponding functions
     """
-    SIN = np.sin
-    COS = np.cos
-    TAN = np.tan
-    ASIN = np.arcsin
-    ACOS = np.arccos
-    ATAN = np.arctan
-    SINC = np.sinc
+    SIN = 0, np.sin
+    COS = 1, np.cos
+    TAN = 2, np.tan
+    ASIN = 3, np.arcsin
+    ACOS = 4, np.arccos
+    ATAN = 5, np.arctan
+    SINC = 6, np.sinc
 
 
 class TRIGMUSTHAVEKSET(ExtendedEnum):

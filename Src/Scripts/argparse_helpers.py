@@ -246,8 +246,6 @@ def eval_arithmetic_str_unsafe(val: str) -> float:
             valid_counts = v < 5
         elif k in ('+', '-'):
             valid_counts = v < 20
-        else:
-            assert_never(k)
 
         if not valid_counts:
             raise ap.ArgumentTypeError(f'Count, {v}, of operation {k} is too large.'
