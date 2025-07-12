@@ -63,6 +63,29 @@ def machine_has_extended_float_support() -> bool:
         return False
 
 
+def bools2bitstr(*args: bool, in_first_msb: bool = True, offset: Iterable[int] | int = 0,
+                 count: bool = True) -> int:
+    offset_is_iterable = isinstance(offset, Iterable)
+    args_length = len(args) - 1
+
+    result = 0
+    i = 0 # Index counting # of args if count is set
+    j = 0 # Index counting into offset if offset is an iterable
+    for a in args:
+
+        if offset_is_iterable:
+            leftshift = find_left_shift_from_iterable_offset(offset, j, i, in_first_msb=in_first_msb)
+            j += 1
+        else:
+            leftshift = find_left_shift_from_integer_offset(offset, args_length, i, in_first_msb=in_first_msb)
+
+        if count:
+            i += 1
+
+        result |= int(a) << leftshift
+    return result
+
+
 dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
 ExtendedEnum = dataclasses.ExtendedEnum
 BITFIELD = dataclasses.BITFIELD
@@ -195,22 +218,30 @@ def pad_lists_to_same_length(list1: list, list2: list, value: Any = None,
         return list1, padded_list2
 
 
-def bools2bitstr(*args: bool, in_first_msb = True, offset: Iterable[int] | int = 0,
-                 count: bool = True) -> int:
-    result = 0
-    j = 0
-    offset_is_iterable = isinstance(offset, Iterable)
+def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
+                                         in_first_msb : bool = True) -> int:
+    bitfield_length = max(offset)
+    leftshift = offset[offset_index]
+
+    if count:
+        leftshift += count
+
     if in_first_msb:
-        args = reversed(args)
-    for i, a in enumerate(args):
-        leftshift = 0
-        if offset_is_iterable:
-            leftshift = offset[j]
-            j += 1
-        if count:
-            leftshift += i
-        result |= int(a) << leftshift
-    return result
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
+def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
+                                        in_first_msb: bool = True) -> int:
+    leftshift = offset
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
 
 
 def reverse_bits(n: int) -> int:
@@ -222,17 +253,20 @@ def reverse_bits(n: int) -> int:
     return result
 
 
-def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None) -> BITFIELD:
+def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
+                            in_first_msb: bool = True) -> BITFIELD:
     offset = e.get_members_from_mask(mask)
-    return BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=False,
+    return BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=in_first_msb,
                     **{m.name : 1 for m in offset})
 
 
-def bitstr_from_enum_mask(*args: bool, e: ExtendedEnum, mask: Iterable[str] | None) -> int:
+def bitstr_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
+                          in_first_msb: bool = True, *args: bool) -> int:
     offset = e.get_members_from_mask(mask)
     if not args:
         args = [True] * len(offset)
-    return bools2bitstr(*args, offset=[m.value for m in offset], count=False, in_first_msb=False)
+    return bools2bitstr(*args, offset=[m.value for m in offset], count=False,
+                         in_first_msb=in_first_msb)
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

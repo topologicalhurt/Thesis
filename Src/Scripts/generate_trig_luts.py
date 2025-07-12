@@ -38,7 +38,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import collections
 import sys
 import functools
-import itertools
 import argparse as ap
 import numpy as np
 import regex as re
@@ -132,7 +131,7 @@ def main() -> None:
     table_mode_enum_description = ''.join(TRIGFOLD.__doc__.strip().splitlines())
     table_mode_enum_description = re.sub(r'\s{2,}', ' ', table_mode_enum_description)
     table_mode_enum_description = table_mode_enum_description.removeprefix('# Summary Enum corresponding to ')
-    parser.add_argument('-table_mode', type=functools.partial(str2enumval, target_enum=TRIGFOLD),
+    parser.add_argument('-table-mode', type=functools.partial(str2enumval, target_enum=TRIGFOLD),
                         nargs='*', default=TRIGFOLD.HIGH,
                         help='Over which period all LUT\'s will be built'
                         ' (highest optimisation mode used if none specified, applies to all values if none provided)'
@@ -232,15 +231,11 @@ def main() -> None:
 
     args = vars(parser.parse_args())
 
-    bw_int, args['bw'] = args['bw'] # Store the actual integer value of the bit_width in bw_int and the type in args['bw']
+    TRIG_LUTS = TRIGLUTS(**{k : 1 for k in TRIGLUTDEFS.fields()}) # BitField for which trig luts get built
+    # NON_FLAGS = get_non_flags(parser)
 
-    NON_FLAGS = [action.option_strings for action in parser._actions]
-    NON_FLAGS = [opt.removeprefix('-').replace('-', '_') for opt in
-                 itertools.chain.from_iterable(NON_FLAGS)
-                 if not opt.startswith('--')] # Excl. non flags
-    NON_FLAGS.extend(('auto_off', 'all')) # Excl. flags manually
-    NON_FLAGS.extend([action.dest for action in parser._get_positional_actions()]) # Excl. positionals
-    TRIG_LUTS = TRIGLUTS(**{k : 1 for k in TRIGLUTDEFS.fields()})
+    bw_int, args['bw'] = args['bw'] # Store the actual integer value of the bit_width in bw_int and the type in args['bw']
+    trig_args = {k : v for k, v in args.items() if k in TRIGLUTDEFS} # Luts to generate I.e. {'sin': True, 'cos': False ...}
 
     # Calculate the table size based on the entry size
     bw_int_bytes = bw_int // 8
@@ -248,24 +243,25 @@ def main() -> None:
         raise ap.ArgumentTypeError('bram must hold at least one value of the provided size')
     N_TABLE_ENTRIES = args['bram'] // bw_int_bytes
 
-    trig_args = {k : v for k, v in args.items() if k not in NON_FLAGS}
+    # Don't generate these lut's by default unless explicitly specified
+    trig_to_exclude_by_default = TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value
     if sum(trig_args.values()) == 0:
         trig_opts = (1 << len(trig_args)) - 1
         if not args['all']:
-            # Don't generate both acos & asin / cos & sin lut's unless explicitly specified
-            trig_opts ^= (TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value)
+            trig_opts ^= trig_to_exclude_by_default
     else:
-        trig_opts = bitstr_from_enum_mask(*trig_args.values(), e=TRIGLUTDEFS, mask=None)
+        trig_opts = bitstr_from_enum_mask(TRIGLUTDEFS, None, True, *trig_args.values())
 
     k_mask = TRIGMUSTHAVEKSET.fields()
     k_mask_bitfield = bitfield_from_enum_mask(TRIGLUTDEFS, mask=k_mask)
-    k_mask_bitfield = k_mask_bitfield.get_bit_str() & trig_opts               # This selects the k values that need to be supplied from trig_opts
+    k_mask_bitfield = k_mask_bitfield.get_bit_str() & trig_opts                 # This selects the k values that need to be supplied from trig_opts
 
-    k_thresholds = [args['tan_k'], args['atan_k'], args['sinc_k']]
+    k_thresholds = [args[f'{field.lower()}_k'] for field in k_mask]
     k_thresholds = [k is not None for k in k_thresholds]
-    k_opts = bitstr_from_enum_mask(*k_thresholds, e=TRIGLUTDEFS, mask=k_mask) # These are the k values that need to be specified
+    k_select = bitstr_from_enum_mask(TRIGLUTDEFS, k_mask, True, *k_thresholds)  # These are the k values that need to be specified
 
-    if k_mask_bitfield ^ k_opts:
+    # Ensure that all k values are manually supplied for args specified in TRIGMUSTHAVEKSET
+    if k_mask_bitfield ^ k_select:
         err_invoker = get_action_from_parser_by_name(parser, 'k')
         to_underline = [v.lower() for v in k_mask]
         raise ap.ArgumentError(err_invoker,
@@ -274,11 +270,27 @@ def main() -> None:
                                 '\nif LUT is to be generated.'
                               )
 
+    table_mode_length = len(args['table_mode'])
+    table_mode_default = get_action_from_parser_by_name(parser, 'table_mode').default
     if not args['table_mode'] or args['table_mode'] in TRIGFOLD:
-        # If table_mode parameter is provided but with no arg represent all functions as highest optimisation by default
-        # If table_mode parameter wasn't provided at all it fallsback to the singular default value
-        table_mode_default = get_action_from_parser_by_name(parser, 'table_mode').default
-        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS}
+        """If table_mode parameter is provided but with no arg represent all functions as highest optimisation by default
+        If table_mode parameter wasn't provided at all it fallsback to the singular default value
+        args['table_mode'] in TRIGFOLD triggers on default (no parameter provided),
+        args['table_mode'] is [] I.e. empty if specified without argument
+        Finally, if args['table_mode'] is a list that isn't a singleton set the arg to the default first
+        """
+        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS.fields()}
+    elif table_mode_length == 1:
+        # If args['table_mode'] is a singleton set that as the global instead of the default value
+        table_mode_default = args['table_mode'][0]
+        args['table_mode'] = {k: table_mode_default for k in TRIGLUTDEFS.fields()}
+    else:
+        # If args['table_mode'] isn't a singleton, set all values to default then update only the arguments specified
+        # (An ordered list corresponding to order of TRIGLUTDEFS)
+        default_table_mode = {k: table_mode_default for k in TRIGLUTDEFS.fields()}
+        table_mode_order = {k : v for k, v in zip(TRIGLUTDEFS.fields(), args['table_mode'])}
+        default_table_mode.update(**table_mode_order)
+        args['table_mode'] = default_table_mode
 
     if args['hp'] and isinstance(args['hp'], Sequence) and len(args['hp']) == 1 and args['hp'][0] in TRIGPREC:
         # If hp is provided as just a precision mode use that precision mode on all functions
@@ -573,8 +585,10 @@ def main() -> None:
         We want to find the point x where the function has attenuated to at least k.
         1 / (pi * x) = k  => x = 1 / (pi * k)
         """
+        k = args['sinc_k']
         x_max = 1 / (np.pi * k)
 
+        print(args['table_mode'])
         sz = N_TABLE_ENTRIES // _calculate_scale_factor(
             args['table_mode'][TRIGLUTDEFS.SINC], args['hp'][TRIGLUTDEFS.SINC])
 
@@ -583,13 +597,10 @@ def main() -> None:
                 # Full table, store for x in [-x_max, x_max]
                 start = -x_max
                 stop = x_max
-            case TRIGFOLD.MED:
+            case TRIGFOLD.MED | TRIGFOLD.HIGH:
                 # Half-symmetry, store for x >= 0
                 start = 0
                 stop = x_max
-            case TRIGFOLD.HIGH:
-                start = 0
-                stop = 100 # TODO: determine from -sinc-k
             case TRIGFOLD.MAX:
                 raise NotImplementedError('There is currently no support for SINC max opt mode')
             case _:
@@ -666,20 +677,20 @@ def main() -> None:
 
 
 def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
-    opt_mode = args['table_mode'][TRIGLUTDEFS.SINC]
+    opt_mode = args['table_mode'][m]
 
     # Special cases: return a different function based on the opt mode
     match m:
         case TRIGLUTDEFS.SINC:
             if opt_mode == TRIGFOLD.HIGH:
-                return generate_compact_sinc
+                return compact_sinc # Store canonical lobe only, use envelope estimation method after zero crossing
         case _:
             pass
 
     return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value # Default behaviour: return the function itself
 
 
-def generate_compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
+def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
     x = np.asarray(x)
     result = np.zeros_like(x, dtype=float) # Handle x = 0 case explicitly
     x_nz = x[x != 0]

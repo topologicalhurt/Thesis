@@ -203,7 +203,7 @@ class PROGRAMOPTS(ExtendedEnum):
 valid_dothings = bitfield_from_enum_mask(PROGRAMOPTS, mask=['DOTHING1', 'DOTHING3', 'DOTHING5', 'DOTHING7', 'DOTHING9'])
 
 args = {'DOTHING3': 1, 'DOTHING7': 1} # Pretend this is input supplied by the user as options to the program
-user_select = bitstr_from_enum_mask(*args.values(), e=PROGRAMOPTS, mask=None) # 0b0010001000
+user_select = bitstr_from_enum_mask(PROGRAMOPTS, None, True, *args.values()) # 0b0010001000
 
 things_to_run = user_select & valid_dothings # 0b0010001000
 ```

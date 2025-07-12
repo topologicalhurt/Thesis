@@ -30,12 +30,14 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import os
 import math
 import collections
+import itertools
 import argparse as ap
 import numpy as np
 import regex as re
 
+from collections.abc import Mapping
 from pathlib import Path
-from typing import assert_never
+from typing import Any, assert_never
 from enum import Enum
 
 from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, INT_STR_NPMAP, FLOAT_STR_NPMAP
@@ -173,11 +175,11 @@ def str2enumval(val: str, target_enum: ExtendedEnum) -> Enum:
             raise ap.ArgumentTypeError('val must be one of the provided field names:'
                                         f' {target_enum.fields()} (got {val} instead)'
                                         )
-        return target_enum.get_member_via_val_from_name(val)
+        return target_enum.get_member_via_value_from_name(val)
 
     try:
         # Indicates we got an integer (I.e. val |-> field)
-        return target_enum.get_member_via_name_from_val(posint)
+        return target_enum.get_member_via_name_from_value(posint)
     except ValueError:
         raise ap.ArgumentTypeError(f'val must be in the provided range of the enum {target_enum.__name__}:'
                                     f' {target_enum.fields()} |-> {target_enum.vals()}'
@@ -374,3 +376,12 @@ def str2bitwidth(v: str | int, is_int: bool = False) -> tuple[int, float]:
                                     f' of {[v for v in type_mapping.values() if isinstance(v, int)]} but got {v} instead'
                                     )
     return type_mapping.get_member_via_name_from_value(v).value
+
+
+def get_non_flags(parser: ap.ArgumentParser) -> Mapping[str, Any]:
+    non_flags = [action.option_strings for action in parser._actions]
+    non_flags = [opt.removeprefix('-').replace('-', '_') for opt in
+                 itertools.chain.from_iterable(non_flags)
+                 if not opt.startswith('--')]   # Excl. non flags
+    non_flags.extend([action.dest for action in parser._get_positional_actions()]) # Excl. positionals
+    return non_flags

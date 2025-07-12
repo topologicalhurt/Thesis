@@ -204,11 +204,12 @@ class _BitFieldEnumMeta(EnumMeta):
                     )
 
         kwargs_items = kwargs.items()
-        kwargs_len = len(kwargs_items) - 1
-
         offset_is_iterable = isinstance(offset, Iterable)
+        args_length = len(kwargs) - 1
+
+        i = 0 # Index counting # of args if count is set
         j = 0 # Index counting into offset if offset is an iterable
-        for i, (member_name, initial_value) in enumerate(kwargs_items):
+        for member_name, initial_value in kwargs_items:
             if not isinstance(initial_value, int):
                 raise TypeError(
                     f'Value for enum member "{member_name}" must be an integer '
@@ -221,15 +222,14 @@ class _BitFieldEnumMeta(EnumMeta):
                     f'conflicts with an item ("{clsdict[member_name]}") already defined in the class body.'
                 )
 
-            leftshift = 0
             if offset_is_iterable:
-                leftshift = offset[j]
+                leftshift = find_left_shift_from_iterable_offset(offset, j, i, in_first_msb=in_first_msb)
                 j += 1
-            if count:
-                leftshift += i
+            else:
+                leftshift = find_left_shift_from_integer_offset(offset, args_length, i, in_first_msb=in_first_msb)
 
-            if in_first_msb:
-                leftshift += kwargs_len - i
+            if count:
+                i += 1
 
             final_value = initial_value << leftshift
             clsdict[member_name] = final_value
@@ -318,6 +318,8 @@ helpers = importlib.import_module('.helpers', package='Allocator.Interpreter')
 combined_fast_stable_hash = helpers.combined_fast_stable_hash
 machine_has_extended_float_support = helpers.machine_has_extended_float_support
 machine_has_quad_float_support = helpers.machine_has_quad_float_support
+find_left_shift_from_iterable_offset = helpers.find_left_shift_from_iterable_offset
+find_left_shift_from_integer_offset = helpers.find_left_shift_from_integer_offset
 
 
 class BYTEORDER(Enum):
