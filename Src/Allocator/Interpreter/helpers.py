@@ -35,7 +35,7 @@ import importlib
 import regex as re
 import numpy as np
 
-from collections.abc import Callable, Iterable, Hashable, Sequence
+from collections.abc import Callable, Iterable, Hashable, Mapping, Sequence
 
 
 def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
@@ -63,6 +63,32 @@ def machine_has_extended_float_support() -> bool:
         return False
 
 
+def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
+                                         in_first_msb : bool = True) -> int:
+    bitfield_length = max(offset)
+    leftshift = offset[offset_index]
+
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
+def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
+                                        in_first_msb: bool = True) -> int:
+    leftshift = offset
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
 def bools2bitstr(*args: bool, in_first_msb: bool = True, offset: Iterable[int] | int = 0,
                  count: bool = True) -> int:
     offset_is_iterable = isinstance(offset, Iterable)
@@ -86,18 +112,43 @@ def bools2bitstr(*args: bool, in_first_msb: bool = True, offset: Iterable[int] |
     return result
 
 
-dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
-ExtendedEnum = dataclasses.ExtendedEnum
-BITFIELD = dataclasses.BITFIELD
-
-
-def fast_stable_hash(data: Hashable) -> int:
-    return xxhash.xxh64(data).intdigest()
-
-
 def pairwise(t: Iterable) -> zip:
     it = iter(t)
     return zip(it,it)
+
+
+def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterable[Any]:
+    """# Summary
+
+    Sorts an iterable `to_sort` based on the integer values in a `mask` mapping.
+    Items in `to_sort` that are present in the `mask` are sorted first, according to the mask's values.
+    Items not in the `mask` are sorted after all masked items, maintaining their natural relative order.
+    If two items have the same rank in the mask, their natural order is used as a tie-breaker.
+
+    ## Args:
+        to_sort (Iterable[Any]): The iterable to be sorted. Can contain duplicates.
+        mask (Mapping[Any, int]): A mapping from values in `to_sort` to integer sort keys.
+
+    ## Returns:
+        Iterable[Any]: A new list containing the items from `to_sort` sorted according to the rules.
+
+    ## Examples:
+        >>> X = ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+        >>> mask = {"a": 0, "d": 0, "h": 0, "b": 1, "c": 1, "e": 1, "i": 1, "f": 2, "g": 2}
+        >>> sort_relative_to(X, mask)
+        ['a', 'd', 'h', 'b', 'c', 'e', 'i', 'f', 'g']
+
+        >>> X = ["a", "b", "c", "d", "e", "f"]
+        >>> mask = {"a": 1, "c": 0}
+        >>> sort_relative_to(X, mask)
+        ['c', 'a', 'b', 'd', 'e', 'f']
+
+        >>> X = ["a", "a", "a", "b", "c"]
+        >>> mask = {'a': 0, 'c': 1, 'b': 2}
+        >>> sort_relative_to(X, mask)
+        ['a', 'a', 'a', 'c', 'b']
+    """
+    return sorted(to_sort, key=lambda item: (mask.get(item, float('inf')), item))
 
 
 def underline_match(text: str, to_match: str,
@@ -155,27 +206,55 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
             to_match = '|'.join(re.escape(m) if literal else m for m in to_match)
 
         for m in re.finditer(to_match, text, pos=start_index, endpos=end_index):
-            if m is None:
-                return None
-            i, txt = underline_match(text, m.group(0), prev_i)
+            if (match := underline_match(text, m.group(0), prev_i)) is None:
+                continue
+            i, txt = match
             underlined.extend(txt)
             prev_i = i
 
-        return f'{text}\n{''.join(underlined)}'
-
-    if not isinstance(to_match, str):
-        underlined = []
+    elif not isinstance(to_match, str):
         for m in to_match:
             if (match := underline_match(text, m, prev_i)) is None:
                 continue
             i, txt = match
             underlined.extend(txt)
             prev_i = i
-        return f'{text}\n{''.join(underlined)}'
+    else:
+        if (match := underline_match(text, to_match, start_index, end_index)) is None:
+            # TODO: fix so match greedily first, then replace start_index with where match fails
+            underlined.append(' ' * start_index)
+            underlined.append('^')
+        else:
+            _, txt = match
+            underlined.extend(txt)
 
-    _, txt = underline_match(text, to_match, start_index, end_index)
-    underlined.extend(txt)
     return f'{text}\n{''.join(underlined)}'
+
+
+def underline_first_non_captured_group(groups: re.Pattern[str], string: str) -> str | Sequence[str]:
+    """# Summary
+
+    Returns the first group that couldn't be captured in the list of groups,
+    all of the matched groups O.T.W
+    """
+    groups = re.findall(r'\([^()]+\)[+?*]?', groups)                                    # First of all, extract the groups into a list
+    matches = []
+    j = 0                                                                               # Tracks last matches' end position
+    for i, group in enumerate(groups):
+        if not (match := re.match(r''.join(groups[:i+1]), string)):
+            return f'\n{underline_matches(string, group, start_index=j, literal=False)}'
+        matches.append(match.group(i+1))
+        j = match.end()
+    return matches
+
+
+dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
+ExtendedEnum = dataclasses.ExtendedEnum
+BITFIELD = dataclasses.BITFIELD
+
+
+def fast_stable_hash(data: Hashable) -> int:
+    return xxhash.xxh64(data).intdigest()
 
 
 def pad_lists_to_same_length(list1: list, list2: list, value: Any = None,
@@ -216,32 +295,6 @@ def pad_lists_to_same_length(list1: list, list2: list, value: Any = None,
         else:
             padded_list2 = list2 + [value] * (len1 - len2)
         return list1, padded_list2
-
-
-def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
-                                         in_first_msb : bool = True) -> int:
-    bitfield_length = max(offset)
-    leftshift = offset[offset_index]
-
-    if count:
-        leftshift += count
-
-    if in_first_msb:
-        leftshift = bitfield_length - leftshift
-
-    return leftshift
-
-
-def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
-                                        in_first_msb: bool = True) -> int:
-    leftshift = offset
-    if count:
-        leftshift += count
-
-    if in_first_msb:
-        leftshift = bitfield_length - leftshift
-
-    return leftshift
 
 
 def reverse_bits(n: int) -> int:

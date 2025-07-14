@@ -64,6 +64,10 @@
           buildInputs = with pkgs; [
             pythonEnv
 
+            (python313Packages.matplotlib.override {
+              enableQt = true;
+            })
+
             # Build tools
             stdenv.cc.cc.lib
             zlib
@@ -77,6 +81,16 @@
             m4
             bison
             flex
+
+            # Graphics (tested: all of these should be optional)
+            glib
+            libGL
+            fontconfig
+            wayland
+            libxkbcommon
+            freetype
+            dbus
+            libsForQt5.wrapQtAppsHook
 
             # System dependencies
             git
@@ -102,6 +116,8 @@
           # Specify dependencies that need to be on LD_LIBRARY_PATH
           ldLibPath = with pkgs; [
             zlib
+            libGL
+            glib.out
           ];
 
           shellHook = ''

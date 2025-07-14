@@ -31,8 +31,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 from __future__ import absolute_import
 
 import importlib
-import itertools
 import numpy as np
+import regex as re
 
 from dataclasses import dataclass
 from enum import Enum, EnumMeta, _EnumDict
@@ -64,6 +64,28 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
     Base class providing extended (common utility functions) feature set to Enum
     """
 
+    @staticmethod
+    def unpack(value: Any) -> Sequence:
+        """# Summary
+
+        Recursively flattens nested lists or tuples, treating strings as atomic.
+        """
+        if isinstance(value, (list, tuple)):
+            return [item for sublist in value for item in ExtendedEnum.unpack(sublist)]
+        return [value]
+
+    @staticmethod
+    def unpack_nth(value: Any, idx: int) -> Sequence:
+        """# Summary
+
+        Unpacks the value @ the 'nth' position / index from the tuple, returning the unpacked
+        tuple if the index exceeds the number of elements in the tuple
+        """
+        if isinstance(value, (list, tuple)):
+            return [item[idx] if len(item) > idx else item
+                    for item in value]
+        return [value]
+
     @classmethod
     def fields(cls) -> Iterable:
         """# Summary
@@ -73,17 +95,22 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
         return [c.name.upper() for c in cls if not c.name.startswith('_')]
 
     @classmethod
-    def values(cls) -> Iterable:
+    def values(cls) -> Sequence:
         """# Summary
 
-        Returns the values via iterator
+        Returns the flattened values of all enum members.
         """
-        vals = [c.value for c in cls]
-        nested_vals = [v for v in vals if isinstance(v, Sequence)]
-        unnested_vals = [v for v in vals if not isinstance(v, Sequence)]
-        flat_vals = itertools.chain.from_iterable(nested_vals) # Values may be tuples, return reduced list
-        unnested_vals.extend(list(flat_vals))
-        return unnested_vals
+        return [item for member in cls if not member.name.startswith('_')
+                 for item in cls.unpack(member.value)]
+
+    @classmethod
+    def values_from_indx(cls, idx: int) -> Sequence:
+        """# Summary
+
+        Returns the 'nth / idx-th column' of the enum
+        """
+        return [item for member in cls if not member.name.startswith('_')
+                 for item in cls.unpack_nth(member.value, idx)]
 
     @classmethod
     def get_members(cls) -> Iterable:
@@ -91,12 +118,24 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
 
         Returns the enum member fields via iterator
         """
-        fields = cls.fields()
-        members = []
-        for k, v in cls.__members__.items(): # safe from mix-in's as intersection applies to cls.fields() (already filtered)
-            if k in fields:
-                members.append(v)
-        return members
+        return [v for k, v in cls.__members__.items() if k in cls.fields()]
+
+    @classmethod
+    def get_members_from_pattern(cls, pattern: str | re.Pattern[str]) -> list[tuple] | dict:
+        """# Summary
+
+        Returns the members matching a regex pattern.
+
+        Args:
+            pattern: The regex pattern to match against enum member names.
+
+        Returns:
+            A list of tuples or a dictionary with the first group from each match.
+        """
+        matches = [match.group(0) for field in cls.fields() if (match := re.match(pattern, field)) is not None]
+        if not all([hasattr(cls, match) for match in matches]):
+            raise AttributeError(f'Unexpected: one or more of the matches didn\'t exist as an attribute for {cls}')
+        return [cls.get_member_via_value_from_name(match) for match in matches]
 
     @classmethod
     def get_members_from_mask(cls, mask: Iterable | None) -> Iterable:
@@ -320,6 +359,10 @@ machine_has_extended_float_support = helpers.machine_has_extended_float_support
 machine_has_quad_float_support = helpers.machine_has_quad_float_support
 find_left_shift_from_iterable_offset = helpers.find_left_shift_from_iterable_offset
 find_left_shift_from_integer_offset = helpers.find_left_shift_from_integer_offset
+pairwise = helpers.pairwise
+underline_matches = helpers.underline_matches
+sort_relative_to = helpers.sort_relative_to
+underline_first_non_captured_group = helpers.underline_first_non_captured_group
 
 
 class BYTEORDER(Enum):
@@ -398,6 +441,53 @@ class FREQ(Enum):
     GHZ=MHZ*1000
 
 
+class XILINX_GENERATION(Enum):
+    GEN7 = 7
+
+
+class XILINX_PACKAGE_CLASSES(ExtendedEnum):
+    QUALITY = 'Q', 'XQ'
+    AUTOMOTIVE = 'A', 'XA'
+    COMMERCIAL = 'C', 'XC'
+    AEROSPACE = 'R', 'XQR'
+
+
+class XILINX_FAMILY_CLASSES(ExtendedEnum):
+    SPARTAN = 'S'
+    ARTIX = 'A'
+    KINTEX = 'K'
+    VIRTEX = 'V'
+    ZYNQ = 'Z'
+
+
+class XILINX_SPEED_GRADES(ExtendedEnum):
+    SLOW = -1
+    MED = -2
+    MAX = -3
+    LOW_P = '-L2'
+
+
+class XILINX_SUPPORTED_FAMILIES(Enum):
+    GEN7 = XILINX_FAMILY_CLASSES.get_members_from_mask(['ARTIX', 'KINTEX', 'VIRTEX', 'ZYNQ'])   # Support all except spartan
+
+
+class XILINX_SUPPORTED_PACKAGES(Enum):
+    GEN7 = XILINX_PACKAGE_CLASSES.get_members_from_mask(['QUALITY', 'COMMERCIAL'])              # Support QML, Auto, Commercial
+
+
+class XILINX_SUPPORTED_SPEED_GRADES(Enum):
+    GEN7 = XILINX_SPEED_GRADES.get_members_from_mask(['MED', 'MAX'])                            # Support -2, -3 speed grades
+
+
+class XILINX_SUPPORTED_LUT_SIZES(Enum):
+    GEN7 = 50
+
+
+class XILINX_BRAM_SIZES(Enum):
+    GEN7_STANDARD = 36
+    GEN7_DUALPORT = 18
+
+
 @dataclass(frozen=True)
 class LUT_ACC_REPORT:
     """# Summary
@@ -431,3 +521,96 @@ class LUT:
     fn: Callable[..., np.floating]
     acc_report: LUT_ACC_REPORT
     cmd: str | None # Command used to create LUT
+
+
+@dataclass(frozen=True)
+class XILINX_NAME_SCHEME_STRUCTURE:
+    """# Summary
+
+    Dataclass used for for the xilinx name scheme structure
+    I.e. https://www.vemeko.com/blog/67169.html
+    """
+    product_package_class: XILINX_PACKAGE_CLASSES
+    product_family_class: XILINX_FAMILY_CLASSES
+    product_speed_grade: XILINX_SPEED_GRADES
+    product_lut_count: XILINX_SUPPORTED_LUT_SIZES
+    product_generation: XILINX_GENERATION
+
+    @staticmethod
+    def _build_valid_regex_for_supported_generation(e: Enum, generation: XILINX_GENERATION, idx: int | None = None) -> str:
+        # Standard for e, the target Enum, is to have declared a variable with GEN<version> scheme
+        # I.e. GEN7. Get that attribute.
+        if not hasattr(e, generation.name):
+            raise AttributeError(f'The target enum {e} has no generation field corresponding to {generation.name}')
+        target_support = getattr(e, generation.name).value
+
+        values = [member.value for member in target_support]
+        if idx:
+            values = ExtendedEnum.unpack_nth(values, idx)
+        else:
+            values = ExtendedEnum.unpack(values)
+
+        # Put single characters in regex character sets I.e. [...] and strings should be joined I.e. separated with '|'
+        single_values = [str_v for v in values if (len(str_v := str(v))) == 1]
+        multi_values =  [str_v for v in values if (len(str_v := str(v))) > 1]
+        return (f'[{''.join(single_values)}]' if single_values else '') + '|'.join(multi_values)
+
+    def get_regex_for_generation(self, generation: XILINX_GENERATION) -> str:
+        if generation == XILINX_GENERATION.GEN7:
+            package_regex = XILINX_NAME_SCHEME_STRUCTURE._build_valid_regex_for_supported_generation(self.product_package_class,
+                                                                                                    XILINX_GENERATION.GEN7, idx=1)
+            family_regex = XILINX_NAME_SCHEME_STRUCTURE._build_valid_regex_for_supported_generation(self.product_family_class,
+                                                                                                    XILINX_GENERATION.GEN7)
+            speed_grade_regex = XILINX_NAME_SCHEME_STRUCTURE._build_valid_regex_for_supported_generation(self.product_speed_grade,
+                                                                                                    XILINX_GENERATION.GEN7)
+            return (rf'({package_regex})({generation.value})({family_regex})'
+                    rf'(\d+)({speed_grade_regex})?'
+                    )
+        raise NotImplementedError(f'There is no support for the generation {generation.value} line of devices')
+
+
+class _XILINX_NAME_SCHEME_META(ExtendedEnum):
+    @classmethod
+    def _get_product_meta_for_generation(cls, generation: XILINX_GENERATION) -> Sequence[str]:
+        # Get all members with GEN<version> as prefix, ensuring they are sorted relative to ['package', 'family', 'speed_grade']
+        groups = cls.get_members_from_pattern(rf'({generation.name})_(\w|\d|_)+')
+        group_names = sort_relative_to([group.name for group in groups],
+                                   {f'{generation.name}_PACKAGES': 0,
+                                    f'{generation.name}_FAMILIES': 1,
+                                    f'{generation.name}_SPEED_GRADES': 2,
+                                    f'{generation.name}_LUT_COUNT': 3
+                                   }
+                                 )
+        return [getattr(cls.get_member_via_value_from_name(name).value, generation.name) for name in group_names]
+
+    @classmethod
+    def get_regex_for_generation(cls, generation: XILINX_GENERATION) -> str:
+        # Get the regex representation of the naming scheme based on the generation support
+        groups = cls._get_product_meta_for_generation(generation)
+        structure = XILINX_NAME_SCHEME_STRUCTURE(*groups, product_generation=generation)
+        return structure.get_regex_for_generation(generation)
+
+    @classmethod
+    def validate_regex_for_generation(cls, string: str, generation: XILINX_GENERATION) -> Sequence[str]:
+        # Build regex string from the gathered groups
+        groups_regex = cls.get_regex_for_generation(generation)
+        matches = underline_first_non_captured_group(groups_regex, string)
+        if isinstance(matches, str):
+            raise ValueError('Invalid XILINX product name:'
+                             f'\n{matches}'
+                             )
+
+        min_lut_sz = getattr(XILINX_SUPPORTED_LUT_SIZES, generation.name)
+        if int(matches[3]) < min_lut_sz.value:
+            raise ValueError(f'Invalid XILINX product name (must provide a lut size >= {min_lut_sz.value}):'
+                             f'\n{underline_matches(string, matches[3])}'
+                             )
+
+        return matches
+
+
+class XILINX_NAME_SCHEME(_XILINX_NAME_SCHEME_META):
+    GEN7_PACKAGES = XILINX_SUPPORTED_PACKAGES
+    GEN7_FAMILIES = XILINX_SUPPORTED_FAMILIES
+    GEN7_SPEED_GRADES = XILINX_SUPPORTED_SPEED_GRADES
+    GEN7_LUT_COUNT = XILINX_SUPPORTED_LUT_SIZES
