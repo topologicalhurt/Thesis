@@ -40,7 +40,8 @@ from pathlib import Path
 from typing import Any, assert_never
 from enum import Enum
 
-from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, INT_STR_NPMAP, FLOAT_STR_NPMAP
+from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP
+from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ
 from Allocator.Interpreter.helpers import underline_matches
 
 from Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException

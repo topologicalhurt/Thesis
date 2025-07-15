@@ -34,7 +34,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import BITFIELD, FILTERTYPE, ExtendedEnum
+from Allocator.Interpreter.bitfield import BITFIELD
+from Allocator.Interpreter.dataclass import FILTERTYPE, ExtendedEnum
 
 
 @dataclass(frozen=True)
@@ -176,3 +177,25 @@ class TRIGPREC(ExtendedEnum):
     LOWP = 0
     MEDP = 1
     HIGHP = 2
+
+
+class TRIG_TAN_OPTS(ExtendedEnum):
+    """# Summary
+
+    Enum that stores any tan options
+    """
+
+
+class TRIG_ATAN_OPTS(ExtendedEnum):
+    """# Summary
+
+    Enum that stores any atan options
+    """
+
+
+class TRIG_SINC_OPTS(ExtendedEnum):
+    """# Summary
+
+    Enum that stores any sinc options
+    """
+    SAMPLES_IN_MAIN_LOBE = 256

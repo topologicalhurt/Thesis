@@ -43,8 +43,9 @@ from collections.abc import Sequence
 from typing import assert_never
 from scipy import signal
 
+from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP
 from Allocator.Interpreter.helpers import pad_lists_to_same_length, underline_matches
-from Allocator.Interpreter.dataclass import FLOAT_STR_NPMAP, LUT, BYTEORDER, FILTERTYPE
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, FILTERTYPE
 
 from Scripts.argparse_helpers import get_action_from_parser_by_name, str2freq, str2path, str2float_in_range, str2posint, str2bitwidth
 from Scripts.consts import COMMON_RATES, DOWNSAMPLE_COEFFS_NTAPS, SAMPLE_RATE
@@ -124,7 +125,7 @@ def main() -> None:
         err_invoker = get_action_from_parser_by_name(parser, 'common')
         raise ap.ArgumentError(err_invoker,
                                '--common cannot be supplied alongside -fout. I.e.:'
-                               f'\n{underline_matches(" ".join(sys.argv[1:]), ("--common", "-fout"))}'
+                               f'\n{underline_matches(' '.join(sys.argv[1:]), ('--common', '-fout'))}'
                                )
 
     if args['common']:
@@ -138,7 +139,7 @@ def main() -> None:
         err_invoker = get_action_from_parser_by_name(parser, 'fin')
         raise ap.ArgumentError(err_invoker,
                                'the length of -fin should always be <= the length of -fout'
-                               f' I.e. don\'t know how to match {args["fin"]} |-> {args["fout"]}'
+                               f' I.e. don\'t know how to match {args['fin']} |-> {args['fout']}'
         )
 
     # Since args['fin'] <= args['fout'] this will always pad args['fin'] using it's last element to extend to the same size
@@ -372,9 +373,9 @@ def compare_stopband_attenuations(attenuations: Sequence[int] = [40, 60, 80, 100
     """Compare different stopband attenuation requirements."""
 
     print('Kaiser Window Parameters for Different Stopband Attenuations:'
-          f'\n{"=" * 70}'
+          f'\n{'=' * 70}'
           f"\n{'Attenuation (dB)':<15} {'Beta':<8} {'Window Length':<15} {'Main Lobe Width'}"
-          f'\n{"-" * 70}'
+          f'\n{'-' * 70}'
           )
 
     for atten in attenuations:

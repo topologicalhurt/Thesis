@@ -18,6 +18,26 @@
     //'
   'module': 'ALLOCATOR'
   'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/bitfield.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'bitfield.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/consts.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
@@ -58,12 +78,52 @@
     //'
   'module': 'ALLOCATOR'
   'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/extendedenum.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'extendedenum.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/helpers.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'helpers.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/nptypes.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'nptypes.py'
   'license_preamble': '// It is intended to be used as part of the allocator design
     which is responsible for the soft-core, or offboard, management of the on-fabric
     components.
@@ -477,17 +537,17 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Static/Math/angle_shift_q22.sv':
+'RTL/Static/Math/Trig/angle_shift_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'angle_shift_q22.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Math design where
+  'license_preamble': '// It is intended to be used as part of the Trig design where
     a README.md detailing the design should exist, conforming to the details provided
 
-    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
     (see below.)
 
     //
@@ -498,17 +558,17 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Static/Math/cos_poly_q22.sv':
+'RTL/Static/Math/Trig/cos_poly_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'cos_poly_q22.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Math design where
+  'license_preamble': '// It is intended to be used as part of the Trig design where
     a README.md detailing the design should exist, conforming to the details provided
 
-    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
     (see below.)
 
     //
@@ -519,17 +579,17 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Static/Math/sin_poly_q22.sv':
+'RTL/Static/Math/Trig/sin_poly_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'sin_poly_q22.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Math design where
+  'license_preamble': '// It is intended to be used as part of the Trig design where
     a README.md detailing the design should exist, conforming to the details provided
 
-    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
     (see below.)
 
     //
@@ -540,17 +600,17 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Static/Math/sinc_euler_q22.sv':
+'RTL/Static/Math/Trig/sinc_euler_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'sinc_euler_q22.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Math design where
+  'license_preamble': '// It is intended to be used as part of the Trig design where
     a README.md detailing the design should exist, conforming to the details provided
 
-    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
     (see below.)
 
     //
@@ -561,17 +621,17 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Static/Math/sincos_poly_q22_dp.sv':
+'RTL/Static/Math/Trig/sincos_poly_q22_dp.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'sincos_poly_q22_dp.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Math design where
+  'license_preamble': '// It is intended to be used as part of the Trig design where
     a README.md detailing the design should exist, conforming to the details provided
 
-    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
     (see below.)
 
     //
@@ -582,17 +642,17 @@
   'module': 'RTL'
   'outputs': 'N/A'
   'separator': '------------------------------------------------------------------------'
-'RTL/Static/Math/tan_reciprocal_q22.sv':
+'RTL/Static/Math/Trig/tan_reciprocal_q22.sv':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'tan_reciprocal_q22.sv'
   'inputs': 'N/A'
-  'license_preamble': '// It is intended to be used as part of the Math design where
+  'license_preamble': '// It is intended to be used as part of the Trig design where
     a README.md detailing the design should exist, conforming to the details provided
 
-    // under docs/CONTRIBUTING.md. The Math module is covered by the GPL 3.0 License
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
     (see below.)
 
     //

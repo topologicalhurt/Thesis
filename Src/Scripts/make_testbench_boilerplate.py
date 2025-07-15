@@ -35,7 +35,6 @@ import os
 import functools
 import argparse as ap
 
-
 from Scripts.write_file_header import write_headers_to_files, write_resources_file
 from Scripts.argparse_helpers import get_action_from_parser_by_name, str2path_belongs_in
 from Scripts.consts import VERIFICATION_DIR
@@ -53,7 +52,7 @@ def main():
     if os.path.exists(args['dir']):
         err_invoker = get_action_from_parser_by_name(parser, 'dir')
         raise ap.ArgumentError(err_invoker,
-                               f'The dir argument must not already exist. Check: {args["dir"]} doesn\'t exist already'
+                               f'The dir argument must not already exist. Check: {args['dir']} doesn\'t exist already'
                                )
 
     if args['dir'].suffix != '.sv':

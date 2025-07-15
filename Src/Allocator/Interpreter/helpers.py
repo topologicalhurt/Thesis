@@ -28,14 +28,17 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
-import itertools
-from typing import Any
-import xxhash
 import importlib
+import itertools
+import xxhash
 import regex as re
 import numpy as np
 
+from typing import Any
+
 from collections.abc import Callable, Iterable, Hashable, Mapping, Sequence
+
+from Allocator.Interpreter.extendedenum import ExtendedEnum
 
 
 def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
@@ -63,58 +66,27 @@ def machine_has_extended_float_support() -> bool:
         return False
 
 
-def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
-                                         in_first_msb : bool = True) -> int:
-    bitfield_length = max(offset)
-    leftshift = offset[offset_index]
+def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
+    """# Summary
 
-    if count:
-        leftshift += count
+    Get the largest avaliable bit-size for a numpy dtype
+    """
+    # Filter np.sctypeDict to find all concrete types that are subclasses of `kind`.
+    candidate_types = []
+    for type_class in set(np.sctypeDict.values()):
+        if isinstance(type_class, type) and issubclass(type_class, kind):
+            try:
+                # Check if it's a concrete type by trying to instantiate its dtype.
+                # Abstract types will raise a TypeError.
+                if np.dtype(type_class).itemsize:
+                    candidate_types.append(type_class)
+            except TypeError:
+                continue
 
-    if in_first_msb:
-        leftshift = bitfield_length - leftshift
+    if not candidate_types:
+        raise ValueError(f'Could not find any concrete numpy dtypes for kind {kind}')
 
-    return leftshift
-
-
-def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
-                                        in_first_msb: bool = True) -> int:
-    leftshift = offset
-    if count:
-        leftshift += count
-
-    if in_first_msb:
-        leftshift = bitfield_length - leftshift
-
-    return leftshift
-
-
-def bools2bitstr(*args: bool, in_first_msb: bool = True, offset: Iterable[int] | int = 0,
-                 count: bool = True) -> int:
-    offset_is_iterable = isinstance(offset, Iterable)
-    args_length = len(args) - 1
-
-    result = 0
-    i = 0 # Index counting # of args if count is set
-    j = 0 # Index counting into offset if offset is an iterable
-    for a in args:
-
-        if offset_is_iterable:
-            leftshift = find_left_shift_from_iterable_offset(offset, j, i, in_first_msb=in_first_msb)
-            j += 1
-        else:
-            leftshift = find_left_shift_from_integer_offset(offset, args_length, i, in_first_msb=in_first_msb)
-
-        if count:
-            i += 1
-
-        result |= int(a) << leftshift
-    return result
-
-
-def pairwise(t: Iterable) -> zip:
-    it = iter(t)
-    return zip(it,it)
+    return max(candidate_types, key=lambda x: np.dtype(x).itemsize)
 
 
 def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterable[Any]:
@@ -248,9 +220,62 @@ def underline_first_non_captured_group(groups: re.Pattern[str], string: str) -> 
     return matches
 
 
-dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
-ExtendedEnum = dataclasses.ExtendedEnum
-BITFIELD = dataclasses.BITFIELD
+nptypes = importlib.import_module('.nptypes', 'Allocator.Interpreter')
+
+
+def bools2bitstr(*args: bool, in_first_msb: bool = True,
+                 offset: Iterable[np.uint] | np.uint = 0,
+                 count: bool = True) -> np.uint:
+    offset_is_iterable = isinstance(offset, Iterable)
+    args_length = len(args) - 1
+
+    result = 0
+    i = 0 # Index counting # of args if count is set
+    j = 0 # Index counting into offset if offset is an iterable
+    for a in args:
+
+        if offset_is_iterable:
+            leftshift = find_left_shift_from_iterable_offset(offset, j, i, in_first_msb=in_first_msb)
+            j += 1
+        else:
+            leftshift = find_left_shift_from_integer_offset(offset, args_length, i, in_first_msb=in_first_msb)
+
+        if count:
+            i += 1
+
+        result |= nptypes.STANDARD_NP_DTYPES.LARGEST_UINT.value(a) << leftshift
+    return result
+
+
+def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
+                                         in_first_msb : bool = True) -> int:
+    bitfield_length = max(offset)
+    leftshift = offset[offset_index]
+
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
+def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
+                                        in_first_msb: bool = True) -> int:
+    leftshift = offset
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
+def pairwise(t: Iterable) -> zip:
+    it = iter(t)
+    return zip(it,it)
 
 
 def fast_stable_hash(data: Hashable) -> int:
@@ -297,7 +322,7 @@ def pad_lists_to_same_length(list1: list, list2: list, value: Any = None,
         return list1, padded_list2
 
 
-def reverse_bits(n: int) -> int:
+def reverse_bits(n: np.uint) -> int:
     result = 0
     for _ in range(n.bit_length()):
         result <<= 1
@@ -306,10 +331,13 @@ def reverse_bits(n: int) -> int:
     return result
 
 
+bitfield = importlib.import_module('.bitfield', 'Allocator.Interpreter')
+
+
 def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
-                            in_first_msb: bool = True) -> BITFIELD:
+                            in_first_msb: bool = True) -> bitfield.BITFIELD: # type: ignore
     offset = e.get_members_from_mask(mask)
-    return BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=in_first_msb,
+    return bitfield.BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=in_first_msb,
                     **{m.name : 1 for m in offset})
 
 

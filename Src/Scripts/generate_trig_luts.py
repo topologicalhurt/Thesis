@@ -31,8 +31,12 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 # TODO's:
-# (1) Fix atan so it can generate a quarter table LUT as well
-# (2) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (1) More descriptive argparse error messages (E.G. what to do instead, remove bin unless in verbose mode etc.)
+# (2) Fix atan so it can generate a quarter table LUT as well
+# (3) Implement chebyshev polynomial for max opt mode
+# (4) Fix BUG where k threshold isn't properly computed (ln: 682)
+# (5) Ensure bram is correctly enforced (it isn't on sinc)
+# () Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
 
 
 import collections
@@ -45,12 +49,14 @@ import regex as re
 from collections.abc import Sequence, Callable
 from typing import assert_never
 
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, FLOAT_STR_NPMAP, BYTEORDER, ExtendedEnum
+from Allocator.Interpreter.extendedenum import ExtendedEnum
+from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP
+from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, BYTEORDER
 from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches
 
 from Scripts.decorators import warning
 from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
-from Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
+from Scripts.dataclass import TRIG_SINC_OPTS, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
 from Scripts.hex_utils import TrigLutManager
 
 
@@ -244,7 +250,7 @@ def main() -> None:
     N_TABLE_ENTRIES = args['bram'] // bw_int_bytes
 
     # Don't generate these lut's by default unless explicitly specified
-    trig_to_exclude_by_default = TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value
+    trig_to_exclude_by_default = TRIG_LUTS.COS.value | TRIG_LUTS.ACOS.value | TRIG_LUTS.SINC.value
     if sum(trig_args.values()) == 0:
         trig_opts = (1 << len(trig_args)) - 1
         if not args['all']:
@@ -252,23 +258,52 @@ def main() -> None:
     else:
         trig_opts = bitstr_from_enum_mask(TRIGLUTDEFS, None, True, *trig_args.values())
 
-    k_mask = TRIGMUSTHAVEKSET.fields()
+    k_mask = [field.lower() for field in TRIGMUSTHAVEKSET.fields()]
     k_mask_bitfield = bitfield_from_enum_mask(TRIGLUTDEFS, mask=k_mask)
-    k_mask_bitfield = k_mask_bitfield.get_bit_str() & trig_opts                 # This selects the k values that need to be supplied from trig_opts
 
-    k_thresholds = [args[f'{field.lower()}_k'] for field in k_mask]
-    k_thresholds = [k is not None for k in k_thresholds]
-    k_select = bitstr_from_enum_mask(TRIGLUTDEFS, k_mask, True, *k_thresholds)  # These are the k values that need to be specified
+    # This selects the <function> values that *need* to be supplied from trig_opts
+    k_mask_bitfield = k_mask_bitfield.get_bit_str() & trig_opts
 
-    # Ensure that all k values are manually supplied for args specified in TRIGMUSTHAVEKSET
-    if k_mask_bitfield ^ k_select:
+    # This selects the <function> values that *were* selected by the command line
+    k_fns = [args[field] for field in k_mask]
+    k_fn_select = bitstr_from_enum_mask(TRIGLUTDEFS, k_mask, True, *k_fns)
+
+    k_values = [args[f'{field}_k'] for field in k_mask]
+    k_values = [k is not None for k in k_values]
+
+    # This selects the k values that *were* selected by the command line
+    k_values_select = bitstr_from_enum_mask(TRIGLUTDEFS, k_mask, True, *k_values)
+
+    no_k_no_vals = (k_values_select == k_fn_select == 0) # Occurs IFF. no <functions> AND no k supplied
+
+    # Case I: Ensure that there are as many k values as trig values, if supplied
+    # Case II: Ensure that all k values are manually supplied for args specified in TRIGMUSTHAVEKSET
+    if  (k_values_select > k_fn_select and k_mask_bitfield ^ k_values_select) or no_k_no_vals:
+        err_invoker = get_action_from_parser_by_name(parser, 'k')
+
+        # Ensure that the error is only displayed for when there is a mismatch between k values and their respective <function> flags
+        # I.e. avoid when no arguments supplied
+        if no_k_no_vals:
+            raise ap.ArgumentError(err_invoker,
+                                   f'The default behaviour is to generate according to: {bin(trig_opts)}.'
+                                   ' which occurs when no trig & no threshold values are supplied'
+                                   f' Ensure k is explicitly declared for each value in {TRIGMUSTHAVEKSET.fields()}'
+                                   )
+
+        raise ap.ArgumentError(err_invoker,
+                        'A k / threshold value was provided but the corresponding trig function was not explicitly declared:'
+                        f'\n{underline_matches(' '.join(sys.argv[1:]), r'-\w+-k', match_all=True, literal=False)}'
+                        '\nif LUT is to be generated.'
+                    )
+
+    elif k_mask_bitfield ^ k_values_select:
         err_invoker = get_action_from_parser_by_name(parser, 'k')
         to_underline = [v.lower() for v in k_mask]
         raise ap.ArgumentError(err_invoker,
                                 'k must be individually supplied for:'
                                 f'\n{underline_matches(' '.join(sys.argv[1:]), to_underline, match_all=True)}'
                                 '\nif LUT is to be generated.'
-                              )
+                            )
 
     table_mode_default = get_action_from_parser_by_name(parser, 'table_mode').default
     if not args['table_mode'] or args['table_mode'] in TRIGFOLD:
@@ -583,13 +618,26 @@ def main() -> None:
         We want to find the point x where the function has attenuated to at least k.
         1 / (pi * x) = k  => x = 1 / (pi * k)
         """
+        table_mode = args['table_mode'][TRIGLUTDEFS.SINC]
         k = args['sinc_k']
         x_max = 1 / (np.pi * k)
 
-        sz = N_TABLE_ENTRIES // _calculate_scale_factor(
-            args['table_mode'][TRIGLUTDEFS.SINC], args['hp'][TRIGLUTDEFS.SINC])
+        """
+        Auto-sizing based on k for higher optimization modes
+        Use a heuristic for the number of points in the main lobe [0, 1]
+        And scale the total size based on that.
+        """
+        if table_mode in (TRIGFOLD.MED, TRIGFOLD.HIGH):
+            sz = np.ceil(TRIG_SINC_OPTS.SAMPLES_IN_MAIN_LOBE.value * x_max)
+            sz = 1 << int(np.ceil(np.log2(sz))) if sz > 1 else 1
+        else:
+            # Fallback to BRAM size for low optimization mode
+            sz = N_TABLE_ENTRIES
 
-        match args['table_mode'][TRIGLUTDEFS.SINC]:
+        sz //= _calculate_scale_factor(
+            table_mode, args['hp'][TRIGLUTDEFS.SINC])
+
+        match table_mode:
             case TRIGFOLD.LOW:
                 # Full table, store for x in [-x_max, x_max]
                 start = -x_max
@@ -609,31 +657,18 @@ def main() -> None:
     luts_to_w = []
     cmd_line_args = ' '.join(sys.argv[2:])
     for m, bit_v in zip(TRIGLUTDEFS.get_members(), TRIG_LUTS.__members__.values()):
-        k = args['k']
         if trig_opts & bit_v.value:
             match m:
-                case TRIGLUTDEFS.SIN:
+                case TRIGLUTDEFS.SIN | TRIGLUTDEFS.COS | TRIGLUTDEFS.TAN:
                     domain = phis
-                case TRIGLUTDEFS.COS:
-                    domain = phis
-                case TRIGLUTDEFS.TAN:
-                    domain = phis
-                    k = args['tan_k']
-                case TRIGLUTDEFS.ASIN:
-                    domain = xs
-                case TRIGLUTDEFS.ACOS:
-                    domain = xs
-                case TRIGLUTDEFS.ATAN:
-                    domain = xs
-                    k = args['atan_k']
-                case TRIGLUTDEFS.SINC:
+                case TRIGLUTDEFS.ASIN | TRIGLUTDEFS.ACOS | TRIGLUTDEFS.ATAN | TRIGLUTDEFS.SINC:
                     domain = xs
                 case _:
                     assert_never(m)
 
             # Lut is nothing more than the given function evaluated over the proper domain
             # The real effort was in 'folding' the domain, determining periodicity, error within threshold, etc.
-            _, fn = _get_fn_from_optmode(m)
+            fn = _get_fn_from_optmode(m)
             lut = fn(domain[m])
 
             acc_report = assess_lut_accuracy(fn, lut, domain[m],
@@ -642,12 +677,10 @@ def main() -> None:
                                             )
 
             # If k specified print the err compared to avg acc.
-            if args['k'] and (m in TRIGLUTDEFS._SINUSOIDS.value or m in TRIGLUTDEFS._ARC_SINUSOIDS.value)\
-            or (args['tan_k'] and m == TRIG_LUTS.TAN) or (args['atan_k'] and m == TRIG_LUTS.ATAN):
-                k_avg_err = max(np.average(acc_report.acc_scores) - k, 0)
-                print(f'\tk (threshold): {args[m]}'
-                      f'\n\tErr W.R.T k {k_avg_err}'
-                     )
+            if k_values_select & bit_v.value:
+                pass
+                # k_avg_err = max(np.average(acc_report.acc_scores), 0)
+                # print(f'\n\tErr W.R.T k {k_avg_err}')
 
             # The factor that indicates mix of precision and optimisation
             scale_factor = _calculate_scale_factor(args['table_mode'][m], args['hp'][m])
@@ -683,7 +716,7 @@ def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np
                 return compact_sinc # Store canonical lobe only, use envelope estimation method after zero crossing
         case _:
             pass
-    return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value # Default behaviour: return the function itself
+    return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value[1] # Default behaviour: return the function itself
 
 
 def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
@@ -699,7 +732,6 @@ def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
     canonical_values = _canonical_sinc_lobe_lookup(lobe_index)
     result[x != 0] = sign * envelope * canonical_values
 
-    result[x == 0] = 1.0 # Handle x = 0 case (sinc(0) = 1)
     return result
 
 
