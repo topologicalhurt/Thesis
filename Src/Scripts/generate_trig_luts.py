@@ -54,48 +54,42 @@ from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP
 from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, BYTEORDER
 from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches
 
-from Scripts.decorators import warning
-from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
+from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name, str2float, str2posint
 from Scripts.dataclass import TRIG_SINC_OPTS, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
 from Scripts.hex_utils import TrigLutManager
 from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, log_wrapper
 
 
-@warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
-def bram(v: int | str) -> int:
-    if isinstance(v, str):
-        return int(eval_arithmetic_str_unsafe(v))
-    return v
+def bram(v: str) -> int:
+    return int(eval_arithmetic_str_safe(v))
 
 
 def precmode(v: str) -> ExtendedEnum:
-    if v.upper() in TRIGLUTDEFS.fields():
+    if v in TRIGLUTDEFS:
         return str2enumval(v, TRIGLUTDEFS)
     return str2enumval(v, TRIGPREC)
 
 
-@warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
-def kthresh(v: float | str) -> float:
+def kthresh(v: str) -> np.floating:
     if isinstance(v, str):
         if v.isdigit():
             v = str2float(v)
-        v = float(eval_arithmetic_str_unsafe(v))
+        else:
+            v = eval_arithmetic_str_safe(v)
 
-    v: float
     if v >= 1 or v <= 0:
         raise ap.ArgumentTypeError('Value must be positive float in range (0, 1)'
-                                   f' but got {v} instead'
+                                   f' but got {v:.6f} instead'
                                    )
     return v
 
 
-@warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
-def os_factor(v: int | str) -> int:
+def os_factor(v: str) -> int:
     if isinstance(v, str):
         if v.isdigit():
             v = str2posint(v)
         else:
-            v = int(eval_arithmetic_str_unsafe(v))
+            v = int(eval_arithmetic_str_safe(v))
 
     if not float(np.log2(v)).is_integer():
         raise ap.ArgumentTypeError('Value must be a power of 2'

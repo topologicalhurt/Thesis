@@ -110,6 +110,7 @@ def excepthook(type, value, tback):
     msg += log_wrapper.fill(''.join(traceback.format_exception(type, value, tback, limit=1)))
     msg += '\n' + '=' * LOGGER_LINE_WIDTH
     LOGGER.error(msg)
+    traceback.print_exception(type, value, tback)
 
 
 sys.excepthook = excepthook
