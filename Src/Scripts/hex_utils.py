@@ -32,7 +32,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 # (2) Use the INT NPMAP to convert hex to int rather than improper type coverage solution that exists now
 
 
-import os
 import sys
 import itertools
 import datetime as dt
@@ -274,14 +273,13 @@ class HexLutManager:
         ## Returns:
             str: The absolute path to the file in the managed directory if no errors raised
         """
-        _, ext = os.path.splitext(file_name)
-        if not ext:
-            file_name += '.hex'
-        elif ext != '.hex':
+        file_path = self.dir / file_name
+        if not file_path.suffix:
+            file_path = file_path.with_suffix('.hex')
+        elif file_path.suffix != '.hex':
             raise ValueError('Lut to hex only supports .hex file extensions')
 
-        file_path = Path(os.path.join(self.dir, file_name))
-        if ow is False and os.path.exists(file_path):
+        if ow is False and file_path.exists():
             raise FileExistsError(f'File already exists at location: {file_path}')
 
         return file_path
@@ -340,7 +338,7 @@ class TrigLutManager(HexLutManager):
                 fmap['max_acc'] = acc_report['max_acc']
 
             if fmap['scale_factor'] != 'N/A' and fmap['scale_factor'] != 1:
-                fmap['scale_factor'] = f'1/{fmap["scale_factor"]}'
+                fmap['scale_factor'] = f'1/{fmap['scale_factor']}'
 
             super()._change_format_mapping(fmap)
             return fmap

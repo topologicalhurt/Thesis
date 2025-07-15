@@ -143,6 +143,10 @@ Ensure all files intended to be run as scripts have a shebang:
 #!/usr/bin/env python
 ```
 
+### File paths / file operations
+
+Use ```pathlib``` and avoid ```os.path```.
+
 ### Dealing with circular imports
 
 In general circular imports *should be avoided* but, rarely, it might make sense to not refactor definitions into another file. E.G. the misc. utility file ```helpers``` might need to call upon a common type definitions file E.G. ```dataclasses``` which itself depends upon helpers.

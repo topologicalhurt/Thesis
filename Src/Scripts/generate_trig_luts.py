@@ -36,7 +36,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 # (3) Implement chebyshev polynomial for max opt mode
 # (4) Fix BUG where k threshold isn't properly computed (ln: 682)
 # (5) Ensure bram is correctly enforced (it isn't on sinc)
-# () Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (6) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
 
 
 import collections
@@ -58,6 +58,7 @@ from Scripts.decorators import warning
 from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_str_unsafe, str2path, get_action_from_parser_by_name, str2float, str2posint
 from Scripts.dataclass import TRIG_SINC_OPTS, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
 from Scripts.hex_utils import TrigLutManager
+from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, log_wrapper
 
 
 @warning('Function {f_name} can evaluate potentially unsafe arithmetic expressions. Enable with caution.')
@@ -101,6 +102,35 @@ def os_factor(v: int | str) -> int:
                                 f' but got {v} instead'
                                 )
     return v
+
+
+def newton_raphson_atan_N(k: int, tolerance: float = 1e-7, max_iter: int = 100) -> float | None:
+    N_current = 8 # This value seems stable
+    for _ in range(max_iter):
+        # Define f(N) = ln(N^2 + 1) - 2 * N * k
+        f_N = np.log(N_current**2 + 1) - 2 * N_current * k
+
+        # Define f'(N) = (2N / (N^2 + 1)) - 2k (zero not possible for real N)
+        denominator_f_prime = N_current**2 + 1
+        f_prime_N = (2 * N_current / denominator_f_prime) - 2 * k
+
+        if abs(f_prime_N) < tolerance: # Avoid division by a very small number (or zero)
+            break
+
+        # Newton-Raphson iteration
+        try:
+            N_next = N_current - f_N / f_prime_N
+        except OverflowError | ZeroDivisionError:
+            break
+
+        # Check for convergence
+        if abs(N_next - N_current) < tolerance:
+            return N_next
+
+        # Update N for the next iteration
+        N_current = N_next
+
+    return
 
 
 def main() -> None:
@@ -276,6 +306,16 @@ def main() -> None:
 
     no_k_no_vals = (k_values_select == k_fn_select == 0) # Occurs IFF. no <functions> AND no k supplied
 
+    LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+        'Script was invoked with the following *options*:'
+        f'\n\tCommand: {sys.argv[1:]}'
+        f'\n\t<function> selection: {bin(trig_opts)}, {hex(trig_opts)}'
+        f'\n\t<function> bitfield mask: {bin(k_mask_bitfield)}, {hex(k_mask_bitfield)}'
+        f'\n\t<k-values> selection: {bin(k_values_select)}, {hex(k_values_select)}'
+        f'\nReceving the following values (before parsing):'
+        f'\n{log_wrapper.fill(text=str(args))}'
+    ))
+
     # Case I: Ensure that there are as many k values as trig values, if supplied
     # Case II: Ensure that all k values are manually supplied for args specified in TRIGMUSTHAVEKSET
     if  (k_values_select > k_fn_select and k_mask_bitfield ^ k_values_select) or no_k_no_vals:
@@ -425,6 +465,11 @@ def main() -> None:
                                'k must be supplied if auto mode is turned on'
                                )
 
+    LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+        'Successfully parsed the command line args. Args is the following (after) parsing:'
+        f'\n{log_wrapper.fill(str(args))}'
+    ))
+
     def _calculate_scale_factor(table_mode: TRIGFOLD, table_prec: TRIGPREC):
         return max(table_mode.value * (TRIGPREC.HIGHP.value - table_prec.value), 1)
 
@@ -446,6 +491,11 @@ def main() -> None:
         """
         sinusoids = {k: v for k, v in args['table_mode'].items() if k.value in TRIGLUTDEFS._SINUSOIDS.value}
         for k, table_mode in sinusoids.items():
+
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+                f'Generating {k.name} domain...'
+            ))
+
             sz = N_TABLE_ENTRIES // _calculate_scale_factor(args['table_mode'][k], args['hp'][k])
             match table_mode:
                 case TRIGFOLD.HIGH:
@@ -486,6 +536,11 @@ def main() -> None:
         tan(x) is obviously monotonically increasing on the interval [0, pi/4]
         => max(|sec^2(x)|) = (1/cos(pi/4))^2 = sqrt(2)^2 = 2 => h <= k/2
         """
+
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+                f'Generating {TRIGLUTDEFS.TAN.name} domain...'
+        ))
+
         match args['table_mode'][TRIGLUTDEFS.TAN]:
             case TRIGFOLD.HIGH:
                 k = args['tan_k']
@@ -516,6 +571,11 @@ def main() -> None:
         """
         arc_sinusoids = {k: v for k, v in args['table_mode'].items() if k.value in TRIGLUTDEFS._ARC_SINUSOIDS.value}
         for k, table_mode in arc_sinusoids.items():
+
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+                f'Generating {k.name} domain...'
+            ))
+
             sz = N_TABLE_ENTRIES // _calculate_scale_factor(args['table_mode'][k], args['hp'][k])
             match table_mode:
                 case TRIGFOLD.HIGH:
@@ -551,52 +611,33 @@ def main() -> None:
         so the newton raphson method is used)
         """
 
-        def newton_raphson_N(k: int, tolerance: float = 1e-7, max_iter: int = 100) -> float | None:
-            N_current = 8 # This value seems stable
-            for _ in range(max_iter):
-                # Define f(N) = ln(N^2 + 1) - 2 * N * k
-                f_N = np.log(N_current**2 + 1) - 2 * N_current * k
-
-                # Define f'(N) = (2N / (N^2 + 1)) - 2k (zero not possible for real N)
-                denominator_f_prime = N_current**2 + 1
-                f_prime_N = (2 * N_current / denominator_f_prime) - 2 * k
-
-                if abs(f_prime_N) < tolerance: # Avoid division by a very small number (or zero)
-                    break
-
-                # Newton-Raphson iteration
-                try:
-                    N_next = N_current - f_N / f_prime_N
-                except OverflowError | ZeroDivisionError:
-                    break
-
-                # Check for convergence
-                if abs(N_next - N_current) < tolerance:
-                    return N_next
-
-                # Update N for the next iteration
-                N_current = N_next
-
-            return
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+            f'Generating {TRIGLUTDEFS.ATAN.name} domain...'
+        ))
 
         match args['table_mode'][TRIGLUTDEFS.ATAN]:
             case TRIGFOLD.HIGH:
                 k = args['atan_k']
-                N = newton_raphson_N(k)
+                N = newton_raphson_atan_N(k)
                 if N is not None:
                     err = 0.5 * np.log(N**2 + 1) / N
                 err_threshold = 0.1 * k # I.e. 10% of the threshold value
                 if k > k + err_threshold or k < k - err_threshold:
-                    print('---Building atan LUT---'
+                    msg = ('---Building atan LUT---'
                         f'\n\tError: couldn\'t find an optimal table size N based on precision threshold {k}'
                         ' Try using a bigger value.'
                         f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
                         )
 
-                print('---Building atan LUT---'
+                    LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+                    print(msg)
+
+                msg = ('---Building atan LUT---'
                     f'\n\tFound optimal value for N {N}'
                     f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
                     )
+                LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+                print(msg)
 
                 sz = 1 << int(np.ceil(np.log2(N)))
                 stop = int(np.ceil(N))
@@ -618,6 +659,10 @@ def main() -> None:
         We want to find the point x where the function has attenuated to at least k.
         1 / (pi * x) = k  => x = 1 / (pi * k)
         """
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+            f'Generating {TRIGLUTDEFS.SINC.name} domain...'
+        ))
+
         table_mode = args['table_mode'][TRIGLUTDEFS.SINC]
         k = args['sinc_k']
         x_max = 1 / (np.pi * k)
@@ -666,6 +711,14 @@ def main() -> None:
                 case _:
                     assert_never(m)
 
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+                f'Generating {m.name} LUT...'
+                f'\n\tSize (bytes): {np.size(domain[m])}, Size (kB) {np.size(domain[m]) / 1000:0.3f}'
+                f'\n\tTable mode: {args['table_mode'][m].name}'
+                f'\n\tDomain (first 10 values) {log_wrapper.fill(str(list(domain[m][:10])))}'
+                f'\n\tDomain (last 10 values) {log_wrapper.fill(str(list(domain[m][-10:])))}'
+            ))
+
             # Lut is nothing more than the given function evaluated over the proper domain
             # The real effort was in 'folding' the domain, determining periodicity, error within threshold, etc.
             fn = _get_fn_from_optmode(m)
@@ -677,8 +730,7 @@ def main() -> None:
                                             )
 
             # If k specified print the err compared to avg acc.
-            if k_values_select & bit_v.value:
-                pass
+            # if k_values_select & bit_v.value:
                 # k_avg_err = max(np.average(acc_report.acc_scores), 0)
                 # print(f'\n\tErr W.R.T k {k_avg_err}')
 
@@ -700,10 +752,23 @@ def main() -> None:
     if not args['nw']:
         hexManager = TrigLutManager(args['dir'])
         for lut in luts_to_w:
+
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+                f'Attempting to write out .hex file for {lut.fn.__name__}'
+            ))
+
             fn = (f'{lut.fn.__name__}_{lut.bit_width}'
                 f'_{lut.table_mode.name.lower()}_{lut.lop.name.lower()}'
                 )
             hexManager.write_lut_to_hex(fn, lut, ow=True, target_order=BYTEORDER.BIG)
+
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+                f'.hex file was successfully written for {lut.fn.__name__}'
+            ))
+    else:
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
+            '--nw (no write) option specified. Not writing out any .hex files'
+        ))
 
 
 def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
@@ -713,10 +778,10 @@ def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np
     match m:
         case TRIGLUTDEFS.SINC:
             if opt_mode == TRIGFOLD.HIGH:
+                LOGGER.info('Using compact sinc function for sinc')
                 return compact_sinc # Store canonical lobe only, use envelope estimation method after zero crossing
         case _:
-            pass
-    return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value[1] # Default behaviour: return the function itself
+            return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value[1] # Default behaviour: return the function itself
 
 
 def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
@@ -758,7 +823,7 @@ def _canonical_sinc_lobe_lookup(lobe_index: int) -> np.ndarray[np.floating]:
 def assess_lut_accuracy(fn: Callable[..., float],
                          lut: Sequence[float], axis: Sequence[float],
                          oversample_factor: int, type: float,
-                         test_type: float = np.float32) -> LUT_ACC_REPORT:
+                         test_type: float = np.float32) -> LUT_ACC_REPORT | None:
     """ # Summary
 
     Assesses the lut accuracy against a function, fn, sampled at oversample_factor
@@ -770,12 +835,16 @@ def assess_lut_accuracy(fn: Callable[..., float],
     min_ax_val, max_ax_val = np.min(axis_arr), np.max(axis_arr)
 
     if l_axis == 0:
-        print(f'---Accuracy test results for {fn.__name__}---\n\tAxis is empty. Cannot perform test.')
+        msg = f'---Accuracy test results for {fn.__name__}---\n\tAxis is empty. Cannot perform test.'
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+        print(msg)
         return
 
     if np.size(lut_arr) != l_axis:
-        print(f'---Accuracy test results for {fn.__name__}---\n\tTable size ({np.size(lut_arr)}) '
+        msg = (f'---Accuracy test results for {fn.__name__}---\n\tTable size ({np.size(lut_arr)}) '
               f'does not match axis size ({l_axis}). Cannot perform test')
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+        print(msg)
         return
 
     fn_eval_points: np.ndarray
@@ -792,9 +861,11 @@ def assess_lut_accuracy(fn: Callable[..., float],
     fn_values_at_eval_points = np.asarray(fn(fn_eval_points), dtype=type)
 
     if fn_values_at_eval_points.shape != lut_arr.shape:
-        print(f'---Accuracy test results for {fn.__name__}---\n'
+        msg = (f'---Accuracy test results for {fn.__name__}---\n'
               f'\tShape mismatch between evaluated function values ({fn_values_at_eval_points.shape}) '
               f'and table values ({lut_arr.shape}). Cannot compute scores.')
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+        print(msg)
         return
 
     acc_scores = np.abs(lut_arr - fn_values_at_eval_points)
@@ -803,11 +874,14 @@ def assess_lut_accuracy(fn: Callable[..., float],
                                  max_acc=np.max(acc_scores), acc_scores=acc_scores)
 
     type_sz = np.size(lut_arr) * np.dtype(type).itemsize
-    print(f'---Accuracy test results for {fn.__name__}---'
+
+    msg = (f'---Accuracy test results for {fn.__name__}---'
           f'\n\tLUT size in bytes: {type_sz} ({type_sz / 1000:.3f}kB)'
           f'\n\tOver-sample factor for fn evaluation grid: x{oversample_factor}'
           f'{acc_report}'
-          )
+        )
+    LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+    print(msg)
 
     return acc_report
 

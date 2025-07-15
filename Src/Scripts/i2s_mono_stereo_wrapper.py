@@ -37,10 +37,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 import argparse as ap
 
-from Allocator.Interpreter.consts import LOGGER
-
 from Scripts.consts import MONO_STEREO_WRAPPER_PREFIX, I2S_DUPLICATE_REGISTER_HEADER_PATH,\
-I2S_DUPLICATE_REGISTER_PATH
+I2S_DUPLICATE_REGISTER_PATH, LOGGER
 from Scripts.argparse_helpers import str2bool
 
 
@@ -61,7 +59,7 @@ def main() -> None:
 
     if args['i2sw'] != args['aw'] and not args['f']:
         LOGGER.warn(MONO_STEREO_WRAPPER_PREFIX.format(
-            f'The bit depth for i2s input (I.e. {args["i2sw"]} is != the bit depth of the buffer register {args["aw"]})). '
+            f'The bit depth for i2s input (I.e. {args['i2sw']} is != the bit depth of the buffer register {args['aw']})). '
             'This is highly likely to cause non-functional behaviour or artefacting. Please set the \'f\' '
             'option to true to resolve this conflict.\n'
             f'Assuming the bit-depth of i2s as a control'
@@ -69,7 +67,7 @@ def main() -> None:
         args['aw'] = args['i2sw']
     elif args['i2sw'] != args['aw']:
         LOGGER.warn(MONO_STEREO_WRAPPER_PREFIX.format(
-            f'The bit depth for i2s input (I.e. {args["i2sw"]} is != the bit depth of the buffer register {args["aw"]}.\n'
+            f'The bit depth for i2s input (I.e. {args['i2sw']} is != the bit depth of the buffer register {args['aw']}.\n'
             'Assuming the dev knows what they\'re doing!'
         ))
 

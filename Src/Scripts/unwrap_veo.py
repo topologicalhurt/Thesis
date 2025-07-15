@@ -31,7 +31,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import itertools
-import os
 import argparse as ap
 import regex as re
 
@@ -72,7 +71,7 @@ def main() -> None:
         raise ap.ArgumentTypeError('Must supply the module name')
 
     n_wo_ext = str(args['n']).strip('.veo')
-    veo_location = os.path.join(args['d'], n_wo_ext, args['n'])
+    veo_location = args['d'] / n_wo_ext / args['n']
 
     with open(veo_location, 'r') as f:
         match = re.search(
@@ -85,7 +84,7 @@ def main() -> None:
 
         raw_text = []
 
-        # Extended SysVerilog‑aware port‑comment matcher
+        # Extended SysVerilog
         rx_port = re.compile(r'''
             (?P<dir>input|output|inout)\s+                # direction
             (?P<qual>(?:static|automatic|var|const)\s+)?  # optional qualifiers
@@ -122,8 +121,8 @@ def main() -> None:
             g0 = next(g, None)
             g0 = {k : v.strip() if v is not None else ' ' for k, v in g0.items()}
 
-            packed_vec = f'[{g0["msb"]}:{g0["lsb"]}] ' if g0['msb'] != ' ' else ''
-            params.append(f'{g0["dir"]}{g0["qual"]}{g0["dtype"]}{g0["signed"]}{packed_vec}')
+            packed_vec = f'[{g0['msb']}:{g0['lsb']}] ' if g0['msb'] != ' ' else ''
+            params.append(f'{g0['dir']}{g0['qual']}{g0['dtype']}{g0['signed']}{packed_vec}')
             params.append(', '.join([p['name'] for p in itertools.chain([g0], g)]))
 
             params.append(',')
@@ -138,9 +137,9 @@ def main() -> None:
 
     is_dir, out_f = args['o']
     if is_dir:
-        out_f = os.path.join(out_f, f'{n_wo_ext}{".sv" if args["sv"] else ".v"}')
+        out_f = out_f / f'{n_wo_ext}{'.sv' if args['sv'] else '.v'}'
     else:
-        out_f = os.path.join(CURRENT_DIR, out_f)
+        out_f = CURRENT_DIR / out_f
 
     with open(out_f, 'w+') as f:
         f.write(raw_text)

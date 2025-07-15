@@ -166,7 +166,7 @@ def scan_files(root_dir: Path, whitelisted_patterns: Sequence[str], blacklisted_
     """Scan directory tree and return list of files matching criteria."""
     matched_files = []
 
-    for root, dirs, files in os.walk(root_dir):
+    for root, dirs, files in root_dir.walk():
         # Remove blacklisted directories from dirs to prevent os.walk from entering them
         dirs[:] = [d for d in dirs if not any(fnmatch(d, pattern) for pattern in blacklisted_dirs)]
 

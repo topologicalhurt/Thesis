@@ -31,9 +31,10 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 # TODO:
 # (1) Get portlist and create dud variables for the portlist then wire correctly
 
-import os
 import functools
 import argparse as ap
+
+from pathlib import Path
 
 from Scripts.write_file_header import write_headers_to_files, write_resources_file
 from Scripts.argparse_helpers import get_action_from_parser_by_name, str2path_belongs_in
@@ -49,25 +50,26 @@ def main():
 
     args = vars(parser.parse_args())
 
-    if os.path.exists(args['dir']):
+    dir_path = Path(args['dir'])
+
+    if dir_path.exists():
         err_invoker = get_action_from_parser_by_name(parser, 'dir')
         raise ap.ArgumentError(err_invoker,
                                f'The dir argument must not already exist. Check: {args['dir']} doesn\'t exist already'
                                )
 
-    if args['dir'].suffix != '.sv':
-        args['dir'] = args['dir'].with_suffix('.sv')
+    if dir_path.suffix != '.sv':
+        dir_path = dir_path.with_suffix('.sv')
 
     # First of all, create the file
-    with open(args['dir'], 'w+') as _:
-        pass
+    dir_path.touch()
 
     # Second, add the standard script header info
-    write_resources_file([args['dir']])
+    write_resources_file([dir_path])
     write_headers_to_files()
 
     # Third, write the boilerplate info
-    module_name = args['dir'].stem
+    module_name = dir_path.stem
     if module_name.endswith('_tb'):
         base_module_name = module_name[:-3]  # Remove '_tb'
     else:
@@ -106,7 +108,7 @@ module {module_name};
 
 endmodule'''
 
-    with open(args['dir'], 'a') as f:
+    with open(dir_path, 'a') as f:
         f.write(boilerplate)
 
 

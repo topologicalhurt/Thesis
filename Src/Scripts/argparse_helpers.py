@@ -27,7 +27,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
-import os
 import math
 import collections
 import itertools
@@ -289,9 +288,10 @@ def str2bool(val: str) -> bool:
 
 
 def str2path(val: str) -> Path:
-    if not os.path.isfile(val) and not os.path.isdir(val):
+    path = Path(val)
+    if not path.exists():
         raise ap.ArgumentTypeError(f'Given path {val} does not exist')
-    return Path(val)
+    return path
 
 
 def str2path_belongs_in(val: str, ancestor: Path, enforce_exists: bool = True) -> Path:
@@ -318,7 +318,7 @@ def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True,
         return src_direct_path
 
     # Search for the file starting from Src directory only
-    filename = os.path.basename(val)
+    filename = Path(val).name
     matches = []
     for match in search_root.rglob(filename):
         # Skip if any parent directory is in excluded set
