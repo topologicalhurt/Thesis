@@ -317,19 +317,6 @@ advance_progress
 
 advance_progress
 
-[ ! -d "${VENV_DIR}" ] && {
-    echo "Virtual environment not found. Creating one..."
-    python3 -m venv --system-site-packages "${VENV_DIR}"
-    sudo chown -R "${USER}" "${VENV_DIR}"
-}
-
-# shellcheck source=/dev/null
-source "${VENV_DIR}/bin/activate"
-
-! grep -q "export PYTHONDONTWRITEBYTECODE=1" "${VENV_DIR}/bin/activate" && {
-    echo "export PYTHONDONTWRITEBYTECODE=1" >> "${VENV_DIR}/bin/activate"
-}
-
 pre-commit clean
 
 (( RAN_LLAC_SETUP_SHELL == 0 )) && {

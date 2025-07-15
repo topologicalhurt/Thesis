@@ -1,5 +1,5 @@
 // ------------------------------------------------------------------------
-// Filename:       tan_reciprocal_q22.sv
+// Filename:       cos_poly_q22.sv
 //
 // Project:        LLAC, intelligent hardware scheduler targeting common
 // audio signal chains.
@@ -32,23 +32,24 @@
 // ------------------------------------------------------------------------
 
 
-`include "Src/RTL/Static/Cores/sincos_poly_q22_dp.sv"
+`include "Src/RTL/Static/Cores/consts.svh"
 
-module tan_reciprocal_q22
-(
-    input  logic         clk2x,      // 2× clock, phase‑aligned
-    input  logic [23:0]  theta_in,   // Q2.22
-    output logic [23:0]  tan_out,    // Q1.23
+
+module cos_poly_q22 (
+    input  logic [23:0] theta_in,  // 24-bit input angle, Q2.22 format (0 to 2π)
+    output logic [23:0] cos_out    // 24-bit output cosine, Q1.23 format (signed)
 );
-    logic [23:0] num;
-    logic [23:0] denom;
+    import math::angle_shift_q22;
 
-    sincos_poly_q22_dp sincosU (
-        .clk2x (clk2x),
-        .theta_in (theta_in),
-        .sin_out (num),
-        .cos_out (denom)
+    logic [24:0] add_tmp;      // 1 extra bit for carry
+    logic [23:0] theta_shift;  // wrapped angle for sine core
+
+    always_comb begin
+        theta_shift = angle_shift_q22(theta);
+    end
+
+    sin_poly_q22 sin_core (
+        .theta_in (theta_shift),
+        .sine_out (cos_out)    // cos θ = sin(θ+π/2)
     );
-
-    tan_out <= num / denom; // TODO: replace with xilinx ip divider
 endmodule

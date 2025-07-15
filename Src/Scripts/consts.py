@@ -27,8 +27,14 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
-import os
+import sys
+import traceback
+import logging
+import logging.handlers
 import datetime as dt
+
+from pathlib import Path
+from textwrap import TextWrapper
 
 from Scripts.util_helpers import get_repo_root, get_git_author
 from Scripts.dataclass import ProgramMetaInformation
@@ -63,21 +69,66 @@ META_INFO = ProgramMetaInformation(
     }
 )
 
-# Logging
-MONO_STEREO_WRAPPER_PREFIX='[*] MONO_STEREO_WRAPPER [*] {}'
+###########
+# LOGGING #
+###########
+
+MONO_STEREO_WRAPPER_PREFIX='\n[*] MONO_STEREO_WRAPPER [*] \n{}'
+GENERATE_TRIG_LUTS_PREFIX='\n[*] TRIG_LUT_GENERATOR[*] \n{}'
+GENERATE_DOWNSAMPLE_LUTS_PREFIX='\n[*] DOWNSAMPLE_GENERATOR [*] \n{}'
+UNWRAP_VEO_PREFIX='\n[*] VEO_UNWRAPPER [*] \n{}'
+WRITE_FILE_HEADER_PREFIX='\n[*] HEADER_WRITER [*] \n{}'
+MAKE_TESTBENCH_BOILERPLATE_PREFIX='\n[*] TESTBENCH_BOILERPLATE_MAKER [*] \n{}'
+
+LOGGER = logging.getLogger(__name__)
+LOGGER_LINE_WIDTH = 100
+log_wrapper = TextWrapper(width=LOGGER_LINE_WIDTH)
+
+
+def set_logger_opts():
+    global LOGGER
+
+    # Set circular logger
+    LOGGER.setLevel(logging.INFO)
+    handler = logging.handlers.RotatingFileHandler(
+        filename='info_scripts.log',
+        encoding='utf-8',
+        maxBytes=2 * 1024 * 1024,  # 2 MiB files
+        backupCount=5 # Rotate through 5 files
+    )
+    dt_fmt = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(('\n[{asctime}] [{levelname:<8}] PID {process} @ {threadName}: '
+                                '{message}'), dt_fmt, style='{')
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.INFO)
+    LOGGER.addHandler(handler)
+
+
+def excepthook(type, value, tback):
+    msg = '\n' + '=' * LOGGER_LINE_WIDTH
+    msg += '\nUncaught exception:\n'
+    msg += log_wrapper.fill(''.join(traceback.format_exception(type, value, tback, limit=1)))
+    msg += '\n' + '=' * LOGGER_LINE_WIDTH
+    LOGGER.error(msg)
+    traceback.print_exception(type, value, tback)
+
+
+sys.excepthook = excepthook
+set_logger_opts()
+
 
 # File paths (relative to script)
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-RTL_DIR = os.path.join(os.path.dirname(CURRENT_DIR), 'RTL')
-SRC_DIR = os.path.dirname(RTL_DIR)
-ALLOCATOR_DIR = os.path.join(SRC_DIR, 'Allocator')
-DEMO_DIR = os.path.join(SRC_DIR, 'Demo')
-RESOURCES_DIR = os.path.join(SRC_DIR, 'Resources')
-VERIFICATION_DIR = os.path.join(RTL_DIR, 'Verification')
-DOCUMENT_META = os.path.join(RESOURCES_DIR, 'document_meta.yaml')
-RTL_IN_DIR = os.path.join(RTL_DIR, 'In')
-RTL_TRIG_HEX_DIR = os.path.join(RTL_DIR, 'Static', 'Math')
-I2S_DUPLICATE_REGISTER_HEADER_PATH = os.path.join(RTL_IN_DIR, 'buf_audio_in.svh')
-I2S_DUPLICATE_REGISTER_PATH = os.path.join(RTL_IN_DIR, 'buf_audio_in.sv')
+CURRENT_DIR = Path(__file__).parent.resolve()
+RTL_DIR = (CURRENT_DIR / '../../RTL').resolve()
+SRC_DIR = RTL_DIR.parent
+ALLOCATOR_DIR = SRC_DIR / 'Allocator'
+DEMO_DIR = SRC_DIR / 'Demo'
+RESOURCES_DIR = SRC_DIR / 'Resources'
+VERIFICATION_DIR = RTL_DIR / 'Verification'
+DOCUMENT_META = RESOURCES_DIR / 'document_meta.yaml'
+RTL_IN_DIR = RTL_DIR / 'In'
+RTL_TRIG_HEX_DIR = RTL_DIR / 'Static' / 'Math'
+I2S_DUPLICATE_REGISTER_HEADER_PATH = RTL_IN_DIR / 'buf_audio_in.svh'
+I2S_DUPLICATE_REGISTER_PATH = RTL_IN_DIR / 'buf_audio_in.sv'
 
-DEFAULT_VEO_LOCATION = os.path.join(RTL_DIR, 'Ip')
+DEFAULT_VEO_LOCATION = RTL_DIR / 'Ip'

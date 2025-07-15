@@ -34,7 +34,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import BITFIELD, FILTERTYPE, ExtendedEnum
+from Allocator.Interpreter.bitfield import BITFIELD
+from Allocator.Interpreter.dataclass import FILTERTYPE, ExtendedEnum
 
 
 @dataclass(frozen=True)
@@ -90,8 +91,10 @@ class TRIGLUTDEFS(ExtendedEnum):
     ASIN = 3
     ACOS = 4
     ATAN = 5
+    SINC = 6
     _SINUSOIDS = (SIN, COS)
     _ARC_SINUSOIDS = (ASIN, ACOS)
+    _AUX = (SINC,)
 
 
 class TRIGLUTFNDEFS(ExtendedEnum):
@@ -99,12 +102,23 @@ class TRIGLUTFNDEFS(ExtendedEnum):
 
     Enum storing the trig names & their corresponding functions
     """
-    SIN = np.sin
-    COS = np.cos
-    TAN = np.tan
-    ASIN = np.arcsin
-    ACOS = np.arccos
-    ATAN = np.arctan
+    SIN = 0, np.sin
+    COS = 1, np.cos
+    TAN = 2, np.tan
+    ASIN = 3, np.arcsin
+    ACOS = 4, np.arccos
+    ATAN = 5, np.arctan
+    SINC = 6, np.sinc
+
+
+class TRIGMUSTHAVEKSET(ExtendedEnum):
+    """# Summary
+
+    Enum storing the trig names for which k must be set
+    """
+    TAN = 0
+    ATAN = 1
+    SINC = 2
 
 
 class TRIGLUTS(BITFIELD):
@@ -123,8 +137,6 @@ class TABLEMODE(ExtendedEnum):
     OR a function having an entire domain that can be reconstructed from a
     subset of it's domain (E.g. arctan)
     """
-    def __str__(self) -> str:
-        return f'1/{2**self.value}' if self.value != 1 else '1'
 
 
 class TRIGFOLD(TABLEMODE):
@@ -142,10 +154,13 @@ class TRIGFOLD(TABLEMODE):
     = 1 (medium mode - half table / half period)
 
     = 2 (high mode - quarter table / quarter period)
+
+    = 3 (max mode - polynomial reconstruction if supported)
     """
     LOW = 0
     MED = 1
     HIGH = 2
+    MAX = 3
 
 
 class TRIGPREC(ExtendedEnum):
@@ -162,3 +177,25 @@ class TRIGPREC(ExtendedEnum):
     LOWP = 0
     MEDP = 1
     HIGHP = 2
+
+
+class TRIG_TAN_OPTS(ExtendedEnum):
+    """# Summary
+
+    Enum that stores any tan options
+    """
+
+
+class TRIG_ATAN_OPTS(ExtendedEnum):
+    """# Summary
+
+    Enum that stores any atan options
+    """
+
+
+class TRIG_SINC_OPTS(ExtendedEnum):
+    """# Summary
+
+    Enum that stores any sinc options
+    """
+    SAMPLES_IN_MAIN_LOBE = 256

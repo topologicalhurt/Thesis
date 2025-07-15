@@ -1,16 +1,5 @@
 #!/bin/bash
-
-BLACKLISTED=('pre_commit')
-
-for excl in "${BLACKLISTED[@]}"; do
-    dependencies=$(pip show $excl | grep "^Requires" | sed 's/^Requires: //' | tr ',' ' ')
-    for dep in $dependencies; do
-    BLACKLISTED+=("$dep")
-    done
-done
-
-cd ../../../ || exit 1
-PWD=`pwd`
+set -euo pipefail
 
 # Function to process requirements for a specific directory
 process_requirements() {
@@ -21,61 +10,75 @@ process_requirements() {
 
     # Create cache file path based on directory
     local cache_file="$PWD/.github/hooks/pre_commit/.cache_$(basename "$dir_path").json"
+    touch "$requirements_path" # Ensure the requirements file exists
 
-    # Track if any new packages were installed
-    local new_packages_installed=false
+    # Find all python files and process them
+    find "$dir_path" -name "*.py" -type f | while read -r py_file; do
+        # Get the list of modules to install from the python script
+        local modules_to_install
+        modules_to_install=$(python3 "$PWD/.github/hooks/pre_commit/get_imports.py" "$py_file" "$cache_file")
 
-    # Track if any new packages were installed
-    local new_packages_installed=false
+        # Parse the python list string into a bash array
+        local parsed_modules
+        parsed_modules=$(echo "$modules_to_install" | sed -e "s/^\[//" -e "s/\]$//" -e "s/'//g" -e "s/\"//g" | tr -d '[:space:]' | tr ',' ' ')
 
-    # Create a temporary virtual environment
-    temp_venv=$(mktemp -d)
-    python3 -m venv "$temp_venv"
-    source "$temp_venv/bin/activate"
-
-    # Install only dependencies from Python files in the specific directory
-    for py_file in $(find "$dir_path" -name "*.py" -type f); do
-        # Extract imports and install them if they're not built-in modules
-        # get_imports.py exits with code 1 if new packages were installed, 0 if all cached
-        if python3 "$PWD/.github/hooks/pre_commit/get_imports.py" "$py_file" "$cache_file"; then
-            # Exit code 0 means all packages were cached (no new installations)
+        if [ -z "$parsed_modules" ]; then
             continue
-        else
-            # Exit code 1 means new packages were installed
-            new_packages_installed=true
         fi
+
+        # Iterate over the newly found modules
+        for module in $parsed_modules; do
+            # Check if the module is already in the requirements file to avoid re-processing
+            if ! grep -q -E "^${module}(==|>=|>|<|<=)?" "$requirements_path"; then
+
+                echo "Found new dependency: '${module}'. Installing..."
+
+                # 1. Install the package into the active environment.
+                pip3 install "$module"
+                echo "Adding '${module}' to ${requirements_path}"
+
+                # 2. Get the installed version from pip.
+                local version
+                version=$(pip3 show "$module" | grep 'Version:' | awk '{print $2}')
+
+                # 3. Append the package and its version to the requirements file.
+                if [ -n "$version" ]; then
+                    echo "${module}==${version}" >> "$requirements_path"
+                else
+                    # Fallback if version detection fails for some reason
+                    echo "${module}" >> "$requirements_path"
+                fi
+
+            fi
+        done
     done
 
-    # Only update requirements file if new packages were installed
-    if [ "$new_packages_installed" = true ]; then
-        echo "New packages detected, updating requirements file..."
-
-        # Generate requirements file with only external packages
-        old_requirements=""
-        if [ -f "$requirements_path" ]; then
-            old_requirements=$(cat "$requirements_path")
-        fi
-
-        pip3 freeze | grep -v -E "^($(IFS='|'; echo "${BLACKLISTED[*]}"))" > "$requirements_path"
-
-        diff=$(diff <(echo "$old_requirements") "$requirements_path")
-        git add "$requirements_path"
-        echo -e "Updated requirements for $dir_path:\n$(cat "$requirements_path")\nProducing diff: $diff\n"
-    else
-        echo "No new packages installed for $dir_path, requirements file unchanged."
-    fi
-
-    # Clean up temporary virtual environment
-    deactivate
-    rm -rf "$temp_venv"
+    # Sort the requirements file to keep it clean and prevent unnecessary diffs
+    sort -o "$requirements_path" "$requirements_path"
+    git add "$requirements_path"
 }
 
+cd ../../../
+PWD=$(pwd)
+
+# Activate the virtual environment if it exists
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+fi
+
 # Process Allocator requirements
-ALLOCATOR_PATH=$PWD/Src/Allocator
-ALLOCATOR_REQUIREMENTS_PATH=$PWD/Src/Allocator/requirements.txt
+ALLOCATOR_PATH="$PWD/Src/Allocator"
+ALLOCATOR_REQUIREMENTS_PATH="$ALLOCATOR_PATH/requirements.txt"
 process_requirements "$ALLOCATOR_PATH" "$ALLOCATOR_REQUIREMENTS_PATH"
 
 # Process Scripts requirements
-SCRIPTS_PATH=$PWD/Src/RTL/Scripts
-SCRIPTS_REQUIREMENTS_PATH=$PWD/Src/RTL/Scripts/requirements.txt
+SCRIPTS_PATH="$PWD/Src/Scripts"
+SCRIPTS_REQUIREMENTS_PATH="$SCRIPTS_PATH/requirements.txt"
 process_requirements "$SCRIPTS_PATH" "$SCRIPTS_REQUIREMENTS_PATH"
+
+# Deactivate if we sourced it
+if [ -d ".venv" ]; then
+    deactivate
+fi
+
+echo "Requirements update complete."

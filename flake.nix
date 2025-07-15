@@ -20,50 +20,58 @@
         };
 
         # Build Python package from pyproject.toml
-        llacPackage = pkgs.python311.pkgs.buildPythonPackage {
-          pname = "LLAC";
-          version = "0.0.0a";
-          format = "pyproject";
+        # llacPackage = pkgs.python313.pkgs.buildPythonPackage {
+        #   pname = "LLAC";
+        #   version = "0.0.0a";
+        #   format = "pyproject";
+        #
+        #   src = ./Src;
+        #
+        #   nativeBuildInputs = with pkgs.python313.pkgs; [
+        #     setuptools
+        #     wheel
+        #   ];
+        #
+        #   # Add runtime dependencies here if needed
+        #   propagatedBuildInputs = with pkgs.python313.pkgs; [
+        #     # e.g., numpy, pandas, etc.
+        #   ];
+        #
+        #   # Disable tests during build
+        #   doCheck = false;
+        #
+        #   pythonImportsCheck = [ "LLAC" ];
+        # };
 
-          src = ./Src;
-
-          nativeBuildInputs = with pkgs.python311.pkgs; [
-            setuptools
-            wheel
-          ];
-
-          # Add runtime dependencies here if needed
-          propagatedBuildInputs = with pkgs.python311.pkgs; [
-            # e.g., numpy, pandas, etc.
-          ];
-
-          # Disable tests during build
-          doCheck = false;
-
-          pythonImportsCheck = [ "LLAC" ];
-        };
-
-        pythonEnv = pkgs.python311.withPackages (ps: with ps; [
+        pythonEnv = pkgs.python313.withPackages (ps: with ps; [
           # Development dependencies
+          virtualenv
           setuptools
           wheel
           pip
           pytest
           ipython
+          ruff
         ]);
 
       in
       {
         # The package itself
-        packages.default = llacPackage;
+        # packages.default = llacPackage;
 
         # Development shell
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell rec {
           buildInputs = with pkgs; [
             pythonEnv
 
+            (python313Packages.matplotlib.override {
+              enableQt = true;
+            })
+
             # Build tools
             stdenv.cc.cc.lib
+            zlib
+            zlib-ng
             gcc
             gnumake
             pkg-config
@@ -73,6 +81,16 @@
             m4
             bison
             flex
+
+            # Graphics (tested: all of these should be optional)
+            glib
+            libGL
+            fontconfig
+            wayland
+            libxkbcommon
+            freetype
+            dbus
+            libsForQt5.wrapQtAppsHook
 
             # System dependencies
             git
@@ -95,15 +113,41 @@
             sudo
           ];
 
+          # Specify dependencies that need to be on LD_LIBRARY_PATH
+          ldLibPath = with pkgs; [
+            zlib
+            libGL
+            glib.out
+          ];
+
           shellHook = ''
+            export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
+
             export PYTHONDONTWRITEBYTECODE=1
             export PYTHONUNBUFFERED=1
+            VENV_DIR=".venv"
 
-            cd "$PWD"
-            ${pythonEnv}/bin/pip install -e ./Src 2>/dev/null || true
+            # Create a virtual environment if it doesn't exist
+            if [ ! -d "$VENV_DIR" ]; then
+              echo "Creating Python virtual environment in $VENV_DIR..."
+              ${pythonEnv}/bin/python -m venv $VENV_DIR
+            fi
+
+            # Activate the virtual environment
+            source "$VENV_DIR/bin/activate"
+
+            # Install dependencies from requirements.txt files
+            echo "Installing Python dependencies into the virtual environment..."
+            pip install -r Src/Allocator/requirements.txt
+            pip install -r Src/Scripts/requirements.txt
+
+            # Install the main project package in editable mode
+            pip install -e ./Src
 
             echo "LLAC development environment loaded"
-            echo "Python: ${pythonEnv}/bin/python"
+            echo "Python virtual environment activated. Python: $(which python)"
+            python3 --version
           '';
         };
       });

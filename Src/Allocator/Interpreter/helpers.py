@@ -28,13 +28,17 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
+import importlib
 import itertools
 import xxhash
-import importlib
 import regex as re
 import numpy as np
 
-from collections.abc import Callable, Iterable, Hashable, Sequence
+from typing import Any
+
+from collections.abc import Callable, Iterable, Hashable, Mapping, Sequence
+
+from Allocator.Interpreter.extendedenum import ExtendedEnum
 
 
 def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
@@ -62,17 +66,61 @@ def machine_has_extended_float_support() -> bool:
         return False
 
 
-dataclasses = importlib.import_module('.dataclass', package='Allocator.Interpreter')
-ExtendedEnum = dataclasses.ExtendedEnum
+def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
+    """# Summary
+
+    Get the largest avaliable bit-size for a numpy dtype
+    """
+    # Filter np.sctypeDict to find all concrete types that are subclasses of `kind`.
+    candidate_types = []
+    for type_class in set(np.sctypeDict.values()):
+        if isinstance(type_class, type) and issubclass(type_class, kind):
+            try:
+                # Check if it's a concrete type by trying to instantiate its dtype.
+                # Abstract types will raise a TypeError.
+                if np.dtype(type_class).itemsize:
+                    candidate_types.append(type_class)
+            except TypeError:
+                continue
+
+    if not candidate_types:
+        raise ValueError(f'Could not find any concrete numpy dtypes for kind {kind}')
+
+    return max(candidate_types, key=lambda x: np.dtype(x).itemsize)
 
 
-def fast_stable_hash(data: Hashable) -> int:
-    return xxhash.xxh64(data).intdigest()
+def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterable[Any]:
+    """# Summary
 
+    Sorts an iterable `to_sort` based on the integer values in a `mask` mapping.
+    Items in `to_sort` that are present in the `mask` are sorted first, according to the mask's values.
+    Items not in the `mask` are sorted after all masked items, maintaining their natural relative order.
+    If two items have the same rank in the mask, their natural order is used as a tie-breaker.
 
-def pairwise(t: Iterable) -> zip:
-    it = iter(t)
-    return zip(it,it)
+    ## Args:
+        to_sort (Iterable[Any]): The iterable to be sorted. Can contain duplicates.
+        mask (Mapping[Any, int]): A mapping from values in `to_sort` to integer sort keys.
+
+    ## Returns:
+        Iterable[Any]: A new list containing the items from `to_sort` sorted according to the rules.
+
+    ## Examples:
+        >>> X = ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
+        >>> mask = {"a": 0, "d": 0, "h": 0, "b": 1, "c": 1, "e": 1, "i": 1, "f": 2, "g": 2}
+        >>> sort_relative_to(X, mask)
+        ['a', 'd', 'h', 'b', 'c', 'e', 'i', 'f', 'g']
+
+        >>> X = ["a", "b", "c", "d", "e", "f"]
+        >>> mask = {"a": 1, "c": 0}
+        >>> sort_relative_to(X, mask)
+        ['c', 'a', 'b', 'd', 'e', 'f']
+
+        >>> X = ["a", "a", "a", "b", "c"]
+        >>> mask = {'a': 0, 'c': 1, 'b': 2}
+        >>> sort_relative_to(X, mask)
+        ['a', 'a', 'a', 'c', 'b']
+    """
+    return sorted(to_sort, key=lambda item: (mask.get(item, float('inf')), item))
 
 
 def underline_match(text: str, to_match: str,
@@ -130,30 +178,112 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
             to_match = '|'.join(re.escape(m) if literal else m for m in to_match)
 
         for m in re.finditer(to_match, text, pos=start_index, endpos=end_index):
-            if m is None:
-                return None
-            i, txt = underline_match(text, m.group(0), prev_i)
+            if (match := underline_match(text, m.group(0), prev_i)) is None:
+                continue
+            i, txt = match
             underlined.extend(txt)
             prev_i = i
 
-        return f'{text}\n{"".join(underlined)}'
-
-    if not isinstance(to_match, str):
-        underlined = []
+    elif not isinstance(to_match, str):
         for m in to_match:
             if (match := underline_match(text, m, prev_i)) is None:
                 continue
             i, txt = match
             underlined.extend(txt)
             prev_i = i
-        return f'{text}\n{"".join(underlined)}'
+    else:
+        if (match := underline_match(text, to_match, start_index, end_index)) is None:
+            # TODO: fix so match greedily first, then replace start_index with where match fails
+            underlined.append(' ' * start_index)
+            underlined.append('^')
+        else:
+            _, txt = match
+            underlined.extend(txt)
 
-    _, txt = underline_match(text, to_match, start_index, end_index)
-    underlined.extend(txt)
-    return f'{text}\n{"".join(underlined)}'
+    return f'{text}\n{''.join(underlined)}'
 
 
-def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
+def underline_first_non_captured_group(groups: re.Pattern[str], string: str) -> str | Sequence[str]:
+    """# Summary
+
+    Returns the first group that couldn't be captured in the list of groups,
+    all of the matched groups O.T.W
+    """
+    groups = re.findall(r'\([^()]+\)[+?*]?', groups)                                    # First of all, extract the groups into a list
+    matches = []
+    j = 0                                                                               # Tracks last matches' end position
+    for i, group in enumerate(groups):
+        if not (match := re.match(r''.join(groups[:i+1]), string)):
+            return f'\n{underline_matches(string, group, start_index=j, literal=False)}'
+        matches.append(match.group(i+1))
+        j = match.end()
+    return matches
+
+
+nptypes = importlib.import_module('.nptypes', 'Allocator.Interpreter')
+
+
+def bools2bitstr(*args: bool, in_first_msb: bool = True,
+                 offset: Iterable[np.uint] | np.uint = 0,
+                 count: bool = True) -> np.uint:
+    offset_is_iterable = isinstance(offset, Iterable)
+    args_length = len(args) - 1
+
+    result = 0
+    i = 0 # Index counting # of args if count is set
+    j = 0 # Index counting into offset if offset is an iterable
+    for a in args:
+
+        if offset_is_iterable:
+            leftshift = find_left_shift_from_iterable_offset(offset, j, i, in_first_msb=in_first_msb)
+            j += 1
+        else:
+            leftshift = find_left_shift_from_integer_offset(offset, args_length, i, in_first_msb=in_first_msb)
+
+        if count:
+            i += 1
+
+        result |= nptypes.STANDARD_NP_DTYPES.LARGEST_UINT.value(a) << leftshift
+    return result
+
+
+def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
+                                         in_first_msb : bool = True) -> int:
+    bitfield_length = max(offset)
+    leftshift = offset[offset_index]
+
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
+def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
+                                        in_first_msb: bool = True) -> int:
+    leftshift = offset
+    if count:
+        leftshift += count
+
+    if in_first_msb:
+        leftshift = bitfield_length - leftshift
+
+    return leftshift
+
+
+def pairwise(t: Iterable) -> zip:
+    it = iter(t)
+    return zip(it,it)
+
+
+def fast_stable_hash(data: Hashable) -> int:
+    return xxhash.xxh64(data).intdigest()
+
+
+def pad_lists_to_same_length(list1: list, list2: list, value: Any = None,
+                             repeat_last: bool = False) -> tuple[list, list]:
     """# Summary
 
     Pad the shorter list by extending it with its last element to match the longer list's length.
@@ -161,6 +291,8 @@ def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
     ## Args:
         list1: First list
         list2: Second list
+        value: Value to repeat
+        repeat_last: When set to true value is disregarded and the last element is extended
 
     ## Returns:
         tuple[list, list]: A tuple of (padded_list1, padded_list2) where both lists have the same length
@@ -176,12 +308,46 @@ def pad_lists_to_same_length(list1: list, list2: list) -> tuple[list, list]:
     # Determine which list is shorter and pad it
     if len1 < len2:
         # Pad list1 to match list2's length
-        padded_list1 = list1 + list(itertools.repeat(list1[-1], len2 - len1))
+        if repeat_last:
+            padded_list1 = list1 + list(itertools.repeat(list1[-1], len2 - len1))
+        else:
+            padded_list1 = list1 + [value] * (len2 - len1)
         return padded_list1, list2
     else:
         # Pad list2 to match list1's length
-        padded_list2 = list2 + list(itertools.repeat(list2[-1], len1 - len2))
+        if repeat_last:
+            padded_list2 = list2 + list(itertools.repeat(list2[-1], len1 - len2))
+        else:
+            padded_list2 = list2 + [value] * (len1 - len2)
         return list1, padded_list2
+
+
+def reverse_bits(n: np.uint) -> int:
+    result = 0
+    for _ in range(n.bit_length()):
+        result <<= 1
+        result |= n & 1
+        n >>= 1
+    return result
+
+
+bitfield = importlib.import_module('.bitfield', 'Allocator.Interpreter')
+
+
+def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
+                            in_first_msb: bool = True) -> bitfield.BITFIELD: # type: ignore
+    offset = e.get_members_from_mask(mask)
+    return bitfield.BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=in_first_msb,
+                    **{m.name : 1 for m in offset})
+
+
+def bitstr_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
+                          in_first_msb: bool = True, *args: bool) -> int:
+    offset = e.get_members_from_mask(mask)
+    if not args:
+        args = [True] * len(offset)
+    return bools2bitstr(*args, offset=[m.value for m in offset], count=False,
+                         in_first_msb=in_first_msb)
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:
