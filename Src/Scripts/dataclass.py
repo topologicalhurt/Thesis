@@ -191,6 +191,7 @@ class TRIG_ATAN_OPTS(ExtendedEnum):
 
     Enum that stores any atan options
     """
+    SAMPLES_FOR_LOW_MODE = 1000 # Arbitrarily chosen
 
 
 class TRIG_SINC_OPTS(ExtendedEnum):
@@ -198,4 +199,4 @@ class TRIG_SINC_OPTS(ExtendedEnum):
 
     Enum that stores any sinc options
     """
-    SAMPLES_IN_MAIN_LOBE = 256
+    SAMPLES_IN_MAIN_LOBE = 256 # Arbitrarily chosen

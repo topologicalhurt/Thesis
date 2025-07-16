@@ -31,20 +31,24 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 # TODO's:
-# (1) More descriptive argparse error messages (E.G. what to do instead, remove bin unless in verbose mode etc.)
-# (2) Fix atan so it can generate a quarter table LUT as well
-# (3) Implement chebyshev polynomial for max opt mode
-# (4) Fix BUG where k threshold isn't properly computed (ln: 682)
-# (5) Ensure bram is correctly enforced (it isn't on sinc)
-# (6) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (1) Implement k threshold for tan
+# (2) Full opt coverage for all functions
+# (3) More descriptive argparse error messages (E.G. what to do instead, remove bin unless in verbose mode etc.)
+# (4) Introduce RMS, mean, max, newtown raphson modes for each k estimation technique
+# (5) Introduce way to prioritize phase distortion or frequency response or both
+# (6) Introduce chebyshev polynomial for max opt mode
+# (7) Fix BUG where k threshold isn't properly computed (ln: 682)
+# (8) Ensure bram is correctly enforced (it isn't on sinc)
+# (9) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
 
 
 import collections
 import sys
 import functools
+import regex as re
 import argparse as ap
 import numpy as np
-import regex as re
+import scipy as sp
 
 from collections.abc import Sequence, Callable
 from typing import assert_never
@@ -58,6 +62,11 @@ from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_
 from Scripts.dataclass import TRIG_SINC_OPTS, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
 from Scripts.hex_utils import TrigLutManager
 from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, log_wrapper
+
+
+###############
+# Arg parsing #
+###############
 
 
 def bram(v: str) -> int:
@@ -98,7 +107,12 @@ def os_factor(v: str) -> int:
     return v
 
 
-def newton_raphson_atan_N(k: int, tolerance: float = 1e-7, max_iter: int = 100) -> float | None:
+#######################################
+# K (tolerance) estimation heuristics #
+#######################################
+
+
+def newton_raphson_atan_N(k: int, tolerance: float = 1e-7, max_iter: int = 100) -> np.floating | None:
     N_current = 8 # This value seems stable
     for _ in range(max_iter):
         # Define f(N) = ln(N^2 + 1) - 2 * N * k
@@ -125,6 +139,107 @@ def newton_raphson_atan_N(k: int, tolerance: float = 1e-7, max_iter: int = 100) 
         N_current = N_next
 
     return
+
+
+def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: int = 100) -> np.floating:
+    """# Summary
+
+    Find minimum N such that |cos(x) - cos_N(x)| < epsilon.
+    Prioritize numerical stability.
+
+    ## Parameters:
+    x: input domain
+    epsilon: desired error tolerance
+
+    ## Returns:
+    N: minimum N satisfying the error bound
+    """
+
+    x_array = np.array(x)
+    x_array[x == 0] = 1
+    log_x = np.log(np.abs(x_array))
+    log_epsilon = np.log(epsilon)
+
+    # Start with rough estimate for each x
+    N_values = np.maximum(0, (np.abs(x_array) * np.e / 2 - 1).astype(np.int32))
+
+    # Create a mask for values that still need checking
+    active_mask = np.ones(x_array.size, dtype=np.bool)
+
+    for _ in range(max_iter):
+
+        if not np.any(active_mask):
+            break
+
+        # Current N values for active elements
+        N_active = N_values[active_mask]
+        log_x_active = log_x[active_mask]
+
+        # Compute log error for active elements
+        log_error = (2*N_active + 2) * log_x_active - sp.special.gammaln(2*N_active + 3)
+
+        # Check which ones satisfy the condition
+        satisfied = log_error < log_epsilon
+
+        # Update the active mask
+        active_indices = np.where(active_mask)[0]
+        active_mask[active_indices[satisfied]] = False
+
+        # Increment N for those that don't satisfy
+        N_values[active_mask] += 1
+
+        break
+    else:
+        msg = f'Warning: N > {max_iter} for x={x}, epsilon={epsilon}'
+        LOGGER.warning(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+        print(msg)
+
+    return np.argmax(N_values)
+
+
+##########################################################
+# Alternative functions for different optimisation modes #
+##########################################################
+
+
+def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
+    x = np.asarray(x)
+    result = np.zeros_like(x, dtype=args['bw']) # Handle x = 0 case explicitly
+    x_nz = x[x != 0]
+
+    lobe_number, lobe_index = np.divmod(x_nz, np.full(x_nz.size, 2))
+
+    envelope = 1.0 / (np.pi * np.abs(x_nz))
+    sign = (-1) ** lobe_number
+    canonical_values = _canonical_sinc_lobe_lookup(lobe_index)
+    result[x != 0] = sign * envelope * canonical_values
+
+    return result
+
+
+def _canonical_sinc_lobe_lookup(lobe_index: np.ndarray) -> np.ndarray[np.floating]:
+    """# Summary
+
+    Vectorized canonical lobe lookup function.
+
+    Args:
+        lobe_index: numpy array of values in [0, 2) representing position within canonical lobe
+
+    Returns:
+        numpy array of canonical lobe values
+    """
+    # Convert lobe_index from [0, 2) to [0, π) for sinc calculation
+    t = lobe_index * np.pi / 2.0
+
+    # Handle the sinc(0) case to avoid division by zero
+    result = np.where(t == 0, 1.0, np.sinc(t))
+
+    return result
+
+
+#######################
+# Main control flow   #
+#######################
 
 
 def main() -> None:
@@ -451,9 +566,7 @@ def main() -> None:
 
     # Check that (if auto mode isn't just the tuple (TAN, ATAN) as these supply default thresholds)
     # k is specified
-    if not args['auto_off'] and\
-        (len(args['auto']) != 2 or (TRIGLUTDEFS.TAN not in args['auto'] or\
-        TRIGLUTDEFS.ATAN not in args['auto'])) and args['k'] is None:
+    if not args['auto_off'] and set(TRIGMUSTHAVEKSET.fields()).intersection('auto') and args['k'] is None:
         err_invoker = get_action_from_parser_by_name(parser, 'k')
         raise ap.ArgumentError(err_invoker,
                                'k must be supplied if auto mode is turned on'
@@ -545,7 +658,6 @@ def main() -> None:
             case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
             case TRIGFOLD.LOW:
-                # Naive (no optimisation)
                 # Avoid pi/2 exactly
                 stop = (np.pi * (sz - 1)) / (2 * sz) # = 0.5 * pi - step_size = 0.5 * pi - (np.pi/4) / sz
                 start = -stop
@@ -577,7 +689,6 @@ def main() -> None:
                 case TRIGFOLD.MED:
                     raise NotImplementedError('Half table not yet supported')
                 case TRIGFOLD.LOW:
-                    # Naive (no optimisation)
                     stop = 1
                 case _:
                     assert_never(args['table_mode'])
@@ -609,50 +720,53 @@ def main() -> None:
             f'Generating {TRIGLUTDEFS.ATAN.name} domain...'
         ))
 
+        table_mode = args['table_mode'][TRIGLUTDEFS.ATAN]
+        k = args['atan_k']
+        N = newton_raphson_atan_N(k)
+
         match args['table_mode'][TRIGLUTDEFS.ATAN]:
             case TRIGFOLD.HIGH:
-                k = args['atan_k']
-                N = newton_raphson_atan_N(k)
-                if N is not None:
-                    err = 0.5 * np.log(N**2 + 1) / N
-                err_threshold = 0.1 * k # I.e. 10% of the threshold value
-                if k > k + err_threshold or k < k - err_threshold:
-                    msg = ('---Building atan LUT---'
-                        f'\n\tError: couldn\'t find an optimal table size N based on precision threshold {k}'
-                        ' Try using a bigger value.'
-                        f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
-                        )
-
-                    LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-                    print(msg)
-
-                msg = ('---Building atan LUT---'
-                    f'\n\tFound optimal value for N {N}'
-                    f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
-                    )
-                LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-                print(msg)
-
                 sz = 1 << int(np.ceil(np.log2(N)))
                 stop = int(np.ceil(N))
             case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
             case TRIGFOLD.LOW:
-                # Naive (no optimisation)
-                N = 1000 # Arbitrarily chosen
                 start = -N
                 stop = N
                 sz = N_TABLE_ENTRIES
             case _:
                 assert_never(args['table_mode'])
 
-        xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, sz, dtype=args['bw'])
+        # Rather confusingly, now we check the error against an error
+        if N is not None:
+            err = 0.5 * np.log(N**2 + 1) / N
+        err_threshold = 0.1 * k # I.e. 10% of the threshold value
+
+        if k > k + err_threshold or k < k - err_threshold:
+            msg = ('---Building atan LUT---'
+                f'\n\tError: couldn\'t find an optimal table size N based on precision threshold {k}'
+                ' Try using a bigger value.'
+                f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
+                )
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+            print(msg)
+
+        msg = ('---Building atan LUT---'
+            f'\n\tFound optimal value for N {N}'
+            f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
+            f'\n\tSaved {sz - N:0.3f} many bytes'
+            )
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+        print(msg)
+
+        xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, int(N), dtype=args['bw'])
 
     if trig_opts & TRIG_LUTS.SINC.value:
         """The envelope of the sinc function is 1 / (pi * x).
         We want to find the point x where the function has attenuated to at least k.
         1 / (pi * x) = k  => x = 1 / (pi * k)
         """
+
         LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
             f'Generating {TRIGLUTDEFS.SINC.name} domain...'
         ))
@@ -690,7 +804,16 @@ def main() -> None:
             case _:
                 assert_never(args['table_mode'][TRIGLUTDEFS.SINC])
 
-        xs[TRIGLUTDEFS.SINC] = np.linspace(start, stop, sz, dtype=args['bw'])
+        # Here, the heuristic to estimate N depends upon the input domain, x
+        N = sinc_k_N(np.linspace(start, stop, sz, dtype=args['bw']), k)
+        xs[TRIGLUTDEFS.SINC] = np.linspace(start, stop, int(N), dtype=args['bw'])
+
+        msg = ('---Building sinc LUT---'
+            f'\n\tFound optimal value for N {N}'
+            f'\n\tSaved {sz - N:0.3f} many bytes'
+            )
+        LOGGER.info(msg)
+        print(msg)
 
 
     luts_to_w = []
@@ -765,53 +888,22 @@ def main() -> None:
         ))
 
 
-def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
-    opt_mode = args['table_mode'][m]
+###############
+# Auxiliary   #
+###############
 
+
+def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
     # Special cases: return a different function based on the opt mode
+    opt_mode = args['table_mode'][m]
     match m:
         case TRIGLUTDEFS.SINC:
             if opt_mode == TRIGFOLD.HIGH:
                 LOGGER.info('Using compact sinc function for sinc')
                 return compact_sinc # Store canonical lobe only, use envelope estimation method after zero crossing
         case _:
-            return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value[1] # Default behaviour: return the function itself
-
-
-def compact_sinc(x: np.ndarray) -> np.ndarray[np.floating]:
-    x = np.asarray(x)
-    result = np.zeros_like(x, dtype=args['bw']) # Handle x = 0 case explicitly
-    x_nz = x[x != 0]
-
-    lobe_index = x_nz % 2.0
-    lobe_number = (x_nz // 2).astype(int)
-
-    envelope = 1.0 / (np.pi * np.abs(x_nz))
-    sign = (-1) ** lobe_number
-    canonical_values = _canonical_sinc_lobe_lookup(lobe_index)
-    result[x != 0] = sign * envelope * canonical_values
-
-    return result
-
-
-def _canonical_sinc_lobe_lookup(lobe_index: int) -> np.ndarray[np.floating]:
-    """# Summary
-
-    Vectorized canonical lobe lookup function.
-
-    Args:
-        lobe_index: numpy array of values in [0, 2) representing position within canonical lobe
-
-    Returns:
-        numpy array of canonical lobe values
-    """
-    # Convert lobe_index from [0, 2) to [0, π) for sinc calculation
-    t = lobe_index * np.pi / 2.0
-
-    # Handle the sinc(0) case to avoid division by zero
-    result = np.where(t == 0, 1.0, np.sinc(t))
-
-    return result
+            pass
+    return TRIGLUTFNDEFS.get_member_via_value_from_name(m.name).value[1] # Default behaviour: return the function itself
 
 
 def assess_lut_accuracy(fn: Callable[..., float],
