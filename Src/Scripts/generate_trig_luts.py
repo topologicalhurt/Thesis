@@ -59,7 +59,7 @@ from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, BYTEORDER
 from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches
 
 from Scripts.argparse_helpers import str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name, str2float, str2posint
-from Scripts.dataclass import TRIG_SINC_OPTS, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
+from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_SINC_OPTS, TRIGLUTDEFS, TRIGLUTFNDEFS, TRIGLUTS, TRIGFOLD, TRIGMUSTHAVEKSET, TRIGPREC
 from Scripts.hex_utils import TrigLutManager
 from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, log_wrapper
 
@@ -155,16 +155,19 @@ def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: int = 1
     N: minimum N satisfying the error bound
     """
 
-    x_array = np.array(x)
-    x_array[x == 0] = 1
-    log_x = np.log(np.abs(x_array))
+    if epsilon <= 0:
+        raise ValueError('Epsilon value must be strictly positive.')
+
+    x_array = np.atleast_1d(x).astype(np.double)
+    nz_x = x_array[x_array != 0]
+    log_x = np.log(np.abs(nz_x))
     log_epsilon = np.log(epsilon)
 
     # Start with rough estimate for each x
-    N_values = np.maximum(0, (np.abs(x_array) * np.e / 2 - 1).astype(np.int32))
+    N_values = np.maximum(0, (np.abs(nz_x) * np.e / 2 - 1).astype(np.int32))
 
     # Create a mask for values that still need checking
-    active_mask = np.ones(x_array.size, dtype=np.bool)
+    active_mask = np.ones(nz_x.size, dtype=np.bool)
 
     for _ in range(max_iter):
 
@@ -187,14 +190,12 @@ def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: int = 1
 
         # Increment N for those that don't satisfy
         N_values[active_mask] += 1
-
-        break
     else:
         msg = f'Warning: N > {max_iter} for x={x}, epsilon={epsilon}'
         LOGGER.warning(GENERATE_TRIG_LUTS_PREFIX.format(msg))
         print(msg)
 
-    return np.argmax(N_values)
+    return np.max(N_values)
 
 
 ##########################################################
@@ -331,6 +332,10 @@ def main() -> None:
 
     parser.add_argument('--auto-off', action='store_true', default=False,
                         help='Turns auto mode off if specified'
+                        )
+
+    parser.add_argument('--quantize', action='store_true', default=False,
+                        help='Forcibly quantize the generated LUT to nearest power of 2'
                         )
 
     parser.add_argument('--all', action='store_true', default=False,
@@ -604,6 +609,9 @@ def main() -> None:
             ))
 
             sz = N_TABLE_ENTRIES // _calculate_scale_factor(args['table_mode'][k], args['hp'][k])
+            if args['quantize']:
+                sz = quantize(sz)
+
             match table_mode:
                 case TRIGFOLD.HIGH:
                     stop = np.pi / 2
@@ -653,18 +661,19 @@ def main() -> None:
                 k = args['tan_k']
                 start = 0
                 stop = np.pi / 4
-                sz = np.ceil(np.pi / (2 * k)) + 1 # ((pi/4) / (k / 2)) = pi/2
-                sz = 1 << int(np.ceil(np.log2(sz)))
+                sz = np.uint(np.ceil(np.pi / (2 * k)) + 1) # ((pi/4) / (k / 2)) = pi/2
             case TRIGFOLD.MED:
                 raise NotImplementedError('Half table not yet supported')
             case TRIGFOLD.LOW:
                 # Avoid pi/2 exactly
-                stop = (np.pi * (sz - 1)) / (2 * sz) # = 0.5 * pi - step_size = 0.5 * pi - (np.pi/4) / sz
+                stop = (np.pi * (sz - 1)) / (2 * sz)       # = 0.5 * pi - step_size = 0.5 * pi - (np.pi/4) / sz
                 start = -stop
                 sz = N_TABLE_ENTRIES
             case _:
                 assert_never(args['table_mode'])
 
+        if args['quantize']:
+            sz = quantize(sz)
         phis[TRIGLUTDEFS.TAN] = np.linspace(start, stop, sz, dtype=args['bw'])
 
     if trig_opts & (TRIG_LUTS.ASIN.value | TRIG_LUTS.ACOS.value):
@@ -682,7 +691,6 @@ def main() -> None:
                 f'Generating {k.name} domain...'
             ))
 
-            sz = N_TABLE_ENTRIES // _calculate_scale_factor(args['table_mode'][k], args['hp'][k])
             match table_mode:
                 case TRIGFOLD.HIGH:
                     stop = np.sqrt(2) / 2
@@ -693,6 +701,8 @@ def main() -> None:
                 case _:
                     assert_never(args['table_mode'])
 
+            if args['quantize']:
+                sz = quantize(sz)
             xs[k] = np.linspace(0, stop, sz, dtype=args['bw'])
 
     if trig_opts & TRIG_LUTS.ATAN.value:
@@ -722,44 +732,45 @@ def main() -> None:
 
         table_mode = args['table_mode'][TRIGLUTDEFS.ATAN]
         k = args['atan_k']
+
+        # Rather confusingly, now we check the error against an 'error, error' tolerance
         N = newton_raphson_atan_N(k)
-
-        match args['table_mode'][TRIGLUTDEFS.ATAN]:
-            case TRIGFOLD.HIGH:
-                sz = 1 << int(np.ceil(np.log2(N)))
-                stop = int(np.ceil(N))
-            case TRIGFOLD.MED:
-                raise NotImplementedError('Half table not yet supported')
-            case TRIGFOLD.LOW:
-                start = -N
-                stop = N
-                sz = N_TABLE_ENTRIES
-            case _:
-                assert_never(args['table_mode'])
-
-        # Rather confusingly, now we check the error against an error
-        if N is not None:
-            err = 0.5 * np.log(N**2 + 1) / N
-        err_threshold = 0.1 * k # I.e. 10% of the threshold value
-
-        if k > k + err_threshold or k < k - err_threshold:
+        err = 0.5 * np.log(N**2 + 1) / N
+        err_threshold = TRIG_ATAN_OPTS.ERR_THRESHOLD.value * k
+        if N is None or k > k + err_threshold or k < k - err_threshold:
             msg = ('---Building atan LUT---'
-                f'\n\tError: couldn\'t find an optimal table size N based on precision threshold {k}'
+                f'\n\tCouldn\'t find an optimal table size N based on precision threshold {k}'
                 ' Try using a bigger value.'
                 f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
+                )
+            LOGGER.warning(GENERATE_TRIG_LUTS_PREFIX.format(msg))
+            print(msg)
+        else:
+            match args['table_mode'][TRIGLUTDEFS.ATAN]:
+                case TRIGFOLD.HIGH:
+                    stop = np.int32(np.ceil(N))
+                    sz = stop
+                case TRIGFOLD.MED:
+                    raise NotImplementedError('Half table not yet supported')
+                case TRIGFOLD.LOW:
+                    start = -N
+                    stop = N
+                    sz = N_TABLE_ENTRIES
+                case _:
+                    assert_never(args['table_mode'])
+
+            if args['quantize']:
+                sz = quantize(sz)
+
+            msg = ('---Building atan LUT---'
+                f'\n\tFound optimal value for N {N}'
+                f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
+                f'\n\tSaved {bw_int_bytes * (stop - sz)} many bytes'
                 )
             LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
             print(msg)
 
-        msg = ('---Building atan LUT---'
-            f'\n\tFound optimal value for N {N}'
-            f'\n\tErr W.R.T k (lower is better): {abs(err - k)}'
-            f'\n\tSaved {sz - N:0.3f} many bytes'
-            )
-        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-        print(msg)
-
-        xs[TRIGLUTDEFS.ATAN] = np.linspace(0, stop, int(N), dtype=args['bw'])
+            xs[TRIGLUTDEFS.ATAN] = np.linspace(start, stop, sz, dtype=args['bw'])
 
     if trig_opts & TRIG_LUTS.SINC.value:
         """The envelope of the sinc function is 1 / (pi * x).
@@ -775,28 +786,15 @@ def main() -> None:
         k = args['sinc_k']
         x_max = 1 / (np.pi * k)
 
-        """
-        Auto-sizing based on k for higher optimization modes
-        Use a heuristic for the number of points in the main lobe [0, 1]
-        And scale the total size based on that.
-        """
-        if table_mode in (TRIGFOLD.MED, TRIGFOLD.HIGH):
-            sz = np.ceil(TRIG_SINC_OPTS.SAMPLES_IN_MAIN_LOBE.value * x_max)
-            sz = 1 << int(np.ceil(np.log2(sz))) if sz > 1 else 1
-        else:
-            # Fallback to BRAM size for low optimization mode
-            sz = N_TABLE_ENTRIES
-
-        sz //= _calculate_scale_factor(
-            table_mode, args['hp'][TRIGLUTDEFS.SINC])
-
         match table_mode:
             case TRIGFOLD.LOW:
                 # Full table, store for x in [-x_max, x_max]
+                sz = N_TABLE_ENTRIES
                 start = -x_max
                 stop = x_max
             case TRIGFOLD.MED | TRIGFOLD.HIGH:
                 # Half-symmetry, store for x >= 0
+                sz = np.uint(np.ceil(TRIG_SINC_OPTS.SAMPLES_IN_MAIN_LOBE.value * x_max))
                 start = 0
                 stop = x_max
             case TRIGFOLD.MAX:
@@ -804,16 +802,23 @@ def main() -> None:
             case _:
                 assert_never(args['table_mode'][TRIGLUTDEFS.SINC])
 
+        if args['quantize']:
+            sz = quantize(sz)
+
         # Here, the heuristic to estimate N depends upon the input domain, x
         N = sinc_k_N(np.linspace(start, stop, sz, dtype=args['bw']), k)
-        xs[TRIGLUTDEFS.SINC] = np.linspace(start, stop, int(N), dtype=args['bw'])
+
+        if args['quantize']:
+            N = quantize(N)
 
         msg = ('---Building sinc LUT---'
             f'\n\tFound optimal value for N {N}'
-            f'\n\tSaved {sz - N:0.3f} many bytes'
+            f'\n\tSaved {np.floor(sz - N * bw_int_bytes)} many bytes'
             )
         LOGGER.info(msg)
         print(msg)
+
+        xs[TRIGLUTDEFS.SINC] = np.linspace(start, stop, N, dtype=args['bw'])
 
 
     luts_to_w = []
@@ -891,6 +896,12 @@ def main() -> None:
 ###############
 # Auxiliary   #
 ###############
+
+
+def quantize(x: np.floating) -> np.integer:
+    # alias = INT_STR_NPMAP.get_member_via_name_from_value(bw_int)
+    # return 1 << alias(np.ceil(np.log2(x)))
+    pass
 
 
 def _get_fn_from_optmode(m: TRIGLUTDEFS) -> Callable[[np.ndarray], np.ndarray[np.floating]]:

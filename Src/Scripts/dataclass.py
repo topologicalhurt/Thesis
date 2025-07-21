@@ -192,6 +192,7 @@ class TRIG_ATAN_OPTS(ExtendedEnum):
     Enum that stores any atan options
     """
     SAMPLES_FOR_LOW_MODE = 1000 # Arbitrarily chosen
+    ERR_THRESHOLD = 0.1         # I.e. Must be within 10% of the threshold value
 
 
 class TRIG_SINC_OPTS(ExtendedEnum):
