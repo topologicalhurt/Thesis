@@ -28,9 +28,28 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import ast
+import functools
+import regex as re
 import subprocess as sp
 
 from pathlib import Path
+
+
+def join_regex(*regex: str) -> str:
+    def _increment_match(match, i: int):
+        return f'\\{int(match.group(0)[1:]) + i}'
+
+    wrapped_patterns = []
+    i = 0
+    for pattern in regex:
+        if re.search(r'\\\d+', pattern):
+            wrapped_patterns.append(re.sub(r'\\\d+', functools.partial(_increment_match, i=i), pattern))
+            i += 1
+            continue
+        wrapped_patterns.append(pattern)
+
+    wrapped_patterns = [f'(?:{pattern})' for pattern in wrapped_patterns]
+    return '|'.join(wrapped_patterns)
 
 
 def get_git_author() -> tuple[str, str] | None:

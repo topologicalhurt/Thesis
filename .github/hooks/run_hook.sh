@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -eo pipefail
 
 CDIR="$(cd "$(dirname "$0")" && pwd)"
 DIR="${1:-.}"
@@ -11,13 +11,11 @@ FP="$(realpath "$CDIR/$DIR")"
 
 cd "$FP"
 
-BLACKLIST=("codespell.sh" "verilator.sh" "clean_ipynb.sh")
-
+EXIT_CODE=0
 for f in "$FP"/*.sh; do
-  basename "$f" | grep -q -F -f <(printf "%s\n" "${BLACKLIST[@]}") && {
-    echo "Skipping blacklisted script: $f"
-    continue
-  }
-
-  bash "$f" | tee "${DIR}.log" || break
+  if ! bash "$f" | tee "${DIR}.log"; then
+    EXIT_CODE=1
+  fi
 done
+
+exit $EXIT_CODE

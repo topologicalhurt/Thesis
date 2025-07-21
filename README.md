@@ -78,9 +78,6 @@ curl -L https://raw.githubusercontent.com/topologicalhurt/Thesis/main/setup.sh |
 Run the docker with ```docker compose up```
 
 ## FPGA based system architecture overview
-
-Because the aforementioned goals have such good synergy & parity with an FPGA based design, it follows that an implementation of a DSP environment on an FPGA might be a good idea - might just be able to be taken into the realm of configurability. The following section provides a broad-level overview of the hardware architecture involved in the project.
-
 ___
 ### _Static_ hardware elements
 
@@ -93,14 +90,14 @@ The focus of the initial research was to allow for user-configurable 'modules' c
 > * Expensive, or otherwise makes little to no sense for the component to be completely reconfigurable.
 
 > [!NOTE]
-> Examples include: two-pole / second order filters *(I.e. necessary)*, truncation or readback modules *(I.e. critical to processing chain but might not be neccessary)*, mix-down operations & certain FX like delay *(I.e. frequently called)*, most typical IP cores like cordics, LUTS etc. *(I.e. significantly interleave with communication)*, functions like FFT, LAPLACE, DCT, VOLTARRE *(I.e. a combination of highly optimised, frequently called, expected, expensive or makes little sense to reconfigure)*.
+> Examples include: two-pole / second order filters *(I.e. necessary)*, truncation or readback modules *(I.e. critical to processing chain but might not be necessary)*, mix-down operations & certain FX like delay *(I.e. frequently called)*, most typical IP cores like cordics, LUTS etc. *(I.e. significantly interleave with communication)*, functions like FFT, LAPLACE, DCT, VOLTARRE *(I.e. a combination of highly optimised, frequently called, expected, expensive or makes little sense to reconfigure)*.
 
 ___
 ### _User configurable kernels_ / Audio _ensemble cores_
 
-*User configurable kernels*, used interchangeably with *Audio ensemble cores*, are the partially reconfigurable 'crux' of the project components that are uploaded to the board as part of the toolchain. They depend upon a netlist / heirarchy of other elements which compositely change the signal. **The very big-picture of this project is that to enable as many of these cores as possible, in a way that preserves non-linearities as best as possible AND with as strict a tolerance as possible on latency, timing & throughput as possible we have to intelligently schedule hardware.** There are essentially 4 ways of doing this:
+*User configurable kernels*, used interchangeably with *Audio ensemble cores*, are the partially reconfigurable 'crux' of the project components that are uploaded to the board as part of the toolchain. They depend upon a netlist / hierarchy of other elements which compositely change the signal. **The very big-picture of this project is that to enable as many of these cores as possible, in a way that preserves non-linearities as best as possible AND with as strict a tolerance as possible on latency, timing & throughput as possible we have to intelligently schedule hardware.** There are essentially 4 ways of doing this:
 
-- **Predicting / anticipating the evolving demands of a signal:** By "dynamically predicting the future workload" of the signal we can more intelligently decide what type of resources it will call upon. I.e. the kernel is going to use a-lot of trig functions at a low precision but require a-lot of DSPS? Load in the LUT implementation of trig functions, rather than their polynomial DSP implementation, offseting resource usage from the DSPS and speeding up the computation.
+- **Predicting / anticipating the evolving demands of a signal:** By "dynamically predicting the future workload" of the signal we can more intelligently decide what type of resources it will call upon. I.e. the kernel is going to use a-lot of trig functions at a low precision but require a-lot of DSPS? Load in the LUT implementation of trig functions, rather than their polynomial DSP implementation, offsetting resource usage from the DSPS and speeding up the computation.
 - **Swapping kernels via DFX:** This is implicit in the idea above. Sometimes a kernel will implement a really complex functionality that can't be loaded at once E.g. an RF power amplifier, an AMP sim, a filter ladder. Sometimes it will use one module once and never again (I.e. we could observe this by it's zero-input or impulse response.) Under these circumstances, it makes sense that we would want to swap out the module itself or dependencies of the module to reserve resources.
 - **Tricks that involve treating a composite chain as a much simpler single block or approximation:** If we have the entire time domain (sample) or know the signal transformation is steady-state or periodic over a reasonable interval then we might be able to roll a kernel described as a complex composite of blocks / dependencies into a single kernel. Wherever possible, we want to reduce the dimension & order of the implementation so-long as the isomorphic form is meets the tolerance requirements.
 - **Negotiating between kernels:** If the optimisations above fail & the head-room is needed, then we might have to sacrifice fidelity or throughput according to preference. The implementation is intelligent enough that it can settle back into a local-minima of sorts by allowing kernels to 'talk' to each other & decide what introduced errors are acceptable, at the gain of more resources.

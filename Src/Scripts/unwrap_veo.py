@@ -133,7 +133,7 @@ def main() -> None:
 
         # Inner instantiation
         raw_text = '\n'.join(raw_text)
-        raw_text = ''.join(raw_text.rsplit(',', 1)) # replace last occurance of comma with empty string
+        raw_text = ''.join(raw_text.rsplit(',', 1)) # replace last occurrence of comma with empty string
 
     is_dir, out_f = args['o']
     if is_dir:
