@@ -65,7 +65,7 @@ make clean
 - **Xilinx Vivado XSim** (default) - `SIM=xsim`
 - **Mentor ModelSim** - `SIM=modelsim`
 - **Mentor QuestaSim** - `SIM=questa`
-- **Synopsys VCS** - `SIM=vcs`
+- **Synopsis VCS** - `SIM=vcs`
 - **Verilator** (lint only) - `make lint`
 
 ## Test Cases

@@ -1,3 +1,11 @@
+# Workflow
+
+This project uses nixOS as a development environment. To activate:
+
+```shell
+nix develop
+```
+
 # Project structure
 
 Everything under ```Src``` is designed to be structured in a way that is as modular (_in terms of documentation, at-least_) as possible. Every folder under ```Src/RTL``` should have a ```README.md``` describing what each component does and how it is a part of the overall system architecture. Diagrams are great too!
@@ -290,16 +298,15 @@ Scripts ran as part of devops should be written in shell. This includes scripts 
 
 .ipynb files should be introduced only under docs. They are designed to reflect the more technical or complicated research components of the project which is always ongoing.
 
+### How to use
+
+Switch to the ```research``` branch first via & then run nix development environment, which will detect the branch & use the research environment automatically:
+
+```shell
+git switch research
+nix develop
+```
+
 ### Cache clearing
 
-If you didn't manually clear the cache for a .ipynb file one of the pre-commit hooks will do that automatically for you. However, the changes can't be included as part of that commit and have to be manually re-staged. If the original notebook was ```fn.ipynb``` A file with a name like ```fn_fixes.ipynb``` should appear in the same directory. Replace ```fn.ipynb``` with the fixes I.e.
-
-```
-mv docs/Notebook/filter_design_fixes.ipynb docs/Notebook/filter_design.ipynb
-```
-
-Then re-stage the modified files (it's recommended to apply the fix straight away before working):
-```
-git add -U
-git commit
-```
+If you didn't manually clear the cache for a .ipynb file one of the pre-commit hooks will do that automatically for you

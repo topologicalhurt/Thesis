@@ -62,6 +62,7 @@
         # Development shell
         devShells.default = pkgs.mkShell rec {
           buildInputs = with pkgs; [
+            # Dev
             pythonEnv
 
             (python313Packages.matplotlib.override {
@@ -103,7 +104,11 @@
             act
             docker
             docker-compose
+
+            # Git dependencies
             pre-commit
+            codespell
+
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # macOS specific packages
             darwin.apple_sdk.frameworks.CoreServices
@@ -121,34 +126,51 @@
           ];
 
           shellHook = ''
+            export PYTHONPATH=${builtins.toString ./.}:$PYTHONPATH
             export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
 
             export PYTHONDONTWRITEBYTECODE=1
             export PYTHONUNBUFFERED=1
-            VENV_DIR=".venv"
 
-            # Create a virtual environment if it doesn't exist
-            if [ ! -d "$VENV_DIR" ]; then
+            export ROOT="$(git rev-parse --show-toplevel)"
+            export CUR_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+            case "$CUR_BRANCH" in
+              "research") VENV_DIR="$ROOT/docs/Notebook/.venv";;
+              *) VENV_DIR="$ROOT/.venv";;
+            esac
+
+            export VENV_DIR="$VENV_DIR"
+
+            [ ! -d $VENV_DIR ] && {
               echo "Creating Python virtual environment in $VENV_DIR..."
-              ${pythonEnv}/bin/python -m venv $VENV_DIR
-            fi
+              python3 -m venv $VENV_DIR
+            }
 
-            # Activate the virtual environment
             source "$VENV_DIR/bin/activate"
 
-            # Install dependencies from requirements.txt files
-            echo "Installing Python dependencies into the virtual environment..."
-            pip install -r Src/Allocator/requirements.txt
-            pip install -r Src/Scripts/requirements.txt
+            # Install the main project package in editable mode for all branches
+            pip install -e "$ROOT/Src" --quiet
 
-            # Install the main project package in editable mode
-            pip install -e ./Src
+            case "$CUR_BRANCH" in
+              "research")
+                  echo "Installing Python dependencies into the research virtual environment..."
+                  pip install -r "$ROOT/docs/Notebook/requirements.txt" --quiet
+                  python3 -m ipykernel install --user --name=.venv
+                  cd "$ROOT/docs/Notebook"
+                ;;
+              *)
+                echo "Installing Python dependencies into the virtual environment..."
+                pip install -r "$ROOT/Src/Allocator/requirements.txt" --quiet
+                pip install -r "$ROOT/Src/Scripts/requirements.txt" --quiet
+              ;;
+            esac
 
-            echo "LLAC development environment loaded"
+            echo "LLAC development environment loaded on $CUR_BRANCH branch"
             echo "Python virtual environment activated. Python: $(which python)"
             python3 --version
           '';
         };
-      });
+    });
 }
