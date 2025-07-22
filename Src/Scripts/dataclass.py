@@ -34,7 +34,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from Allocator.Interpreter.bitfield import BITFIELD
 from Allocator.Interpreter.dataclass import FILTERTYPE, ExtendedEnum
 
 
@@ -80,6 +79,21 @@ class KaiserSchematic:
     parameters: KaiserParameters
 
 
+@dataclass(frozen=True)
+class TRIG_OPTS:
+    lut_select: np.uint          # *Every* single lut that should be generated
+    k_mask_bitfield: np.uint     # A mask which determines which luts need to have k also specified
+    k_lut_select: np.uint        # Provided luts which *also* need k to be specified
+    k_values_select: np.uint     # Provided k values, *only* those corresponding to luts which need k specified
+
+    def __str__(self):
+        return (f'\n\t<lut> selection: {bin(self.lut_select)}, {hex(self.lut_select)}'
+                f'\n\t<k-lut mask> bitfield: {bin(self.k_mask_bitfield)}, {hex(self.k_mask_bitfield)}'
+                f'\n\t<luts requiring k> selection: {bin(self.k_lut_select)}, {hex(self.k_lut_select)}'
+                f'\n\t<k values> selection: {bin(self.k_values_select)}, {hex(self.k_values_select)}'
+                )
+
+
 class TRIGLUTDEFS(ExtendedEnum):
     """# Summary
 
@@ -119,14 +133,6 @@ class TRIGMUSTHAVEKSET(ExtendedEnum):
     TAN = 0
     ATAN = 1
     SINC = 2
-
-
-class TRIGLUTS(BITFIELD):
-    """# Summary
-
-    Bitfield corresponding to which trig LUT tables to build
-    """
-    ALLOWED = TRIGLUTDEFS.fields()
 
 
 class TABLEMODE(ExtendedEnum):
@@ -200,4 +206,4 @@ class TRIG_SINC_OPTS(ExtendedEnum):
 
     Enum that stores any sinc options
     """
-    SAMPLES_IN_MAIN_LOBE = 256 # Arbitrarily chosen
+    SAMPLES_IN_MAIN_LOBE = 512  # Arbitrarily chosen

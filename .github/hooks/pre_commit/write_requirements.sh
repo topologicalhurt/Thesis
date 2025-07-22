@@ -14,7 +14,7 @@ process_requirements() {
 
     find "$dir_path" -name "*.py" -type f | while read -r py_file; do
         local modules_to_install
-        modules_to_install=$(python3 "$PWD/.github/hooks/pre_commit/get_imports.py" "$py_file" "$cache_file")
+        modules_to_install=$(python3 "$ROOT/.github/hooks/pre_commit/get_imports.py" "$py_file" "$cache_file")
         local parsed_modules
         parsed_modules=$(echo "$modules_to_install" | sed -e "s/^\[//" -e "s/\]$//" -e "s/'//g" -e "s/\"//g" | tr -d '[:space:]' | tr ',' ' ')
 

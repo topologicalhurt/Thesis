@@ -6,15 +6,15 @@
 //   Table size:               0.512kB
 //   LOP (level of precision): lowp
 //   Effective scaling factor: 1/4
-//   Measured avg. accuracy:   0.003211021889001131
+//   Measured avg. accuracy:   0.0032110216561704874
 //   Min accuracy:             0.0
 //   Max accuracy:             0.007722198963165283//
 
 // Each line contains a value (coeff.) corresponding to the function arcsin.
-// This file was automatically generated with the command: -bw 32 -hp 0 --auto-off
+// This file was automatically generated with the command: --all -tan-k -atan-k -sinc-k 0.001 --quantize
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-13 23:54:35.352434
+// File generated @ 2025-07-22 16:53:32.240553
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
@@ -56,7 +56,7 @@ eed82b3e
 7dd5483e
 6ca64e3e
 1679543e
-8b4d5a3e
+8a4d5a3e
 d623603e
 08fc653e
 2cd66b3e
@@ -117,7 +117,7 @@ f6550b3f
 425d103f
 e80d123f
 64c0133f
-c174153f
+c274153f
 0e2b173f
 53e3183f
 9d9d1a3f
@@ -126,10 +126,10 @@ f9591c3f
 1ad91f3f
 fa9b213f
 2261233f
-9f28253f
+9e28253f
 82f2263f
 d9be283f
-b58d2a3f
+b48d2a3f
 275f2c3f
 40332e3f
 100a303f
@@ -139,7 +139,7 @@ aee3313f
 0f82373f
 a467393f
 6b503b3f
-7f3c3d3f
+803c3d3f
 f82b3f3f
 ed1e413f
 7d15433f

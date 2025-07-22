@@ -1,0 +1,148 @@
+// Coefficient memory for cos
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Endianness.:              big
+//   Table mode:               high
+//   Table size:               0.512kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 1/4
+//   Measured avg. accuracy:   0.004946721252053976
+//   Min accuracy:             0.0
+//   Max accuracy:             0.012081355787813663//
+
+// Each line contains a value (coeff.) corresponding to the function cos.
+// This file was automatically generated with the command: --all -tan-k -atan-k -sinc-k 0.001 --quantize
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-07-22 16:53:32.239785
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//
+//
+0dcd846088fdef3f
+5df7feef72faef3f
+7e6d79e321f6ef3f
+ad718e6595f0ef3f
+3a8801adcde9ef3f
+095bbdfccae1ef3f
+2625d1a38dd8ef3f
+7ba66dfd15ceef3f
+d39fe17064c2ef3f
+41d7957179b5ef3f
+17a5087f55a7ef3f
+9b09c924f997ef3f
+a94b71fa6487ef3f
+7720a1a39975ef3f
+b05cf7cf9762ef3f
+2d2f0b3b604eef3f
+89e564acf338ef3f
+da3a76f75222ef3f
+d73092fb7e0aef3f
+c273e4a378f1ee3f
+634968e740d7ee3f
+740bdfc8d8bbee3f
+da2dc656419fee3f
+0dd14cab7b81ee3f
+12e148ec8862ee3f
+7ec12b4b6a42ee3f
+e586f6042121ee3f
+2bbe2d62aefeed3f
+3dc2ccb613dbed3f
+9ba0386252b6ed3f
+468d32cf6b90ed3f
+8be6c9736169ed3f
+3ac94dd13441ed3f
+dc353e74e717ed3f
+73c73cf47aedec3f
+5cfcfcf3f0c1ec3f
+f51134214b95ec3f
+9b7388348b67ec3f
+b1bd80f1b238ec3f
+49557226c408ec3f
+2a956facc0d7eb3f
+d3903567aaa5eb3f
+3d6e19458372eb3f
+1257f53e4d3eeb3f
+000215580a09eb3f
+11d5219ebcd2ea3f
+a3a10e29669bea3f
+e2fa021b0963ea3f
+822746a0a729ea3f
+94af29ef43efe93f
+4187f347e0b3e93f
+42d7c7f47e77e93f
+fb639249223ae93f
+0d94efa3ccfbe83f
+4117156b80bce83f
+be2eba0f407ce83f
+6e97ff0b0e3be83f
+711757e3ecf8e73f
+afaf6a22dfb5e73f
+6172035fe771e73f
+97ffef37082de73f
+aea8ea5444e7e63f
+cd3b7f669ea0e63f
+3d78f0251959e63f
+df2c1d55b710e63f
+8d0165be7bc7e53f
+9fec8c34697de53f
+9655a3928232e53f
+e9e5e3bbcae6e43f
+39099b9b449ae43f
+d61d0925f34ce43f
+d4564553d9fee33f
+b9502029faafe33f
+f35906b15860e33f
+3570e1fcf70fe33f
+eaf3fa25dbbee23f
+df12dd4c056de23f
+59eb3399791ae23f
+c968ae393bc7e13f
+48dbde634d73e13f
+234b1b54b31ee13f
+90895d4d70c9e03f
+efff22998773e03f
+b73e4c87fc1ce03f
+bb9af8dba48bdf3f
+d778ef5219dcde3f
+3ef606385d2bde3f
+8ce3865b7779dd3f
+62c431996ec6dc3f
+e81e01d84912dc3f
+c25ce109105ddb3f
+cc3f6d2bc8a6da3f
+8deda84379efd93f
+db93bc632a37d93f
+64a9aea6e27dd83f
+e8cc1d31a9c3d73f
+a145fa308508d73f
+c9273fdd7d4cd63f
+e11fab759a8fd53f
+6be77842e2d1d43f
+036617945c13d43f
+5481e1c21054d33f
+089fd52e0694d23f
+41db4c3f44d3d13f
+78f6b162d211d13f
+affd370eb84fd03f
+1e5f217bf919cf3f
+174345e54f93cd3f
+6a4f7e6a820bcc3f
+5904b025a082ca3f
+0da6693cb8f8c83f
+35bf50ded96dc73f
+cb3f8b4414e2c53f
+603e29b17655c43f
+42618e6e10c8c23f
+78f5dacef039c13f
+1473a9564e56bf3f
+dec29ec78537bc3f
+38b429bca617b93f
+28a49a0ad0f6b53f
+081ace9220d5b23f
+ea20f8796e65af3f
+24d80df1651fa93f
+e455947565d8a23f
+b766a3f75521993f
+0fc8defcd121893f
+075c143326a6913c
+49c7defcd12189bf
