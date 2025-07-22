@@ -1,22 +1,22 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
+
+source "$VENV_DIR/bin/activate"
 
 # Strip outputs from every staged .ipynb before the commit is recorded.
 notebooks=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ipynb$' || true)
 
+cd "$ROOT"
+
 unapplied=0
-cd $(git rev-parse --show-toplevel) || exit 1
 for nb in $notebooks; do
   base=$(basename "$nb" .ipynb)
-  [[ "$base" == *_fixes ]] && {
-    echo "Unapplied fixes in ${base}_fixes.ipynb. Please apply (see docs/CONTRIBUTING.md)"
-    exit 1
-  }
-  [ $(grep -q '"output_type":' "$nb")] && {
-    jupyter nbconvert --clear-output --to notebook --output "${base}_fixes.ipynb" "$nb"
-    echo "Wrote fixes to ${base}_fixes.ipynb. Please apply"
+  grep -q '"output_type":' "$nb" && {
+    jupyter nbconvert "$nb" --clear-output --to notebook
+    git add "$nb.ipynb"
     unapplied=1
   }
 done
-cd - >/dev/null
+
+deactivate
 exit $unapplied

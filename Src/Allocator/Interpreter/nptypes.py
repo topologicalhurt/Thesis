@@ -43,7 +43,7 @@ class STANDARD_NP_DTYPES(ExtendedEnum):
     """# Summary
 
     An enum map that stores system specific aliases as known types
-    E.G. LARGEST_UINT is the largest avaliable unsigned integer on the system
+    E.G. LARGEST_UINT is the largest available unsigned integer on the system
     """
     LARGEST_UINT = largest_dtype_of_kind(np.uint)
     LARGEST_INT = largest_dtype_of_kind(np.integer)
