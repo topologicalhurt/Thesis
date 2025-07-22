@@ -1,0 +1,148 @@
+// Coefficient memory for arccos
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Endianness.:              big
+//   Table mode:               high
+//   Table size:               0.512kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 1/4
+//   Measured avg. accuracy:   0.003211019095033407
+//   Min accuracy:             0.0
+//   Max accuracy:             0.007722258567810059//
+
+// Each line contains a value (coeff.) corresponding to the function arccos.
+// This file was automatically generated with the command: --all -tan-k -atan-k -sinc-k 0.001 --quantize
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-07-22 17:16:52.314310
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//
+//
+db0fc93f
+6959c83f
+f5a2c73f
+7fecc63f
+0436c63f
+837fc53f
+fbc8c43f
+6b12c43f
+d05bc33f
+2aa5c23f
+77eec13f
+b537c13f
+e380c03f
+ffc9bf3f
+0913bf3f
+fe5bbe3f
+dda4bd3f
+a5edbc3f
+5436bc3f
+e87ebb3f
+60c7ba3f
+bb0fba3f
+f757b93f
+12a0b83f
+0ce8b73f
+e12fb73f
+9177b63f
+1abfb53f
+7b06b53f
+b24db43f
+bd94b33f
+9adbb23f
+4922b23f
+c768b13f
+13afb03f
+2bf5af3f
+0d3baf3f
+b880ae3f
+29c6ad3f
+600bad3f
+5a50ac3f
+1595ab3f
+90d9aa3f
+c91daa3f
+be61a93f
+6da5a83f
+d4e8a73f
+f12ba73f
+c36ea63f
+47b1a53f
+7bf3a43f
+5e35a43f
+ec76a33f
+26b8a23f
+07f9a13f
+8e39a13f
+b879a03f
+84b99f3f
+f0f89e3f
+f8379e3f
+9a769d3f
+d6b49c3f
+a6f29b3f
+0b309b3f
+006d9a3f
+84a9993f
+93e5983f
+2c21983f
+4b5c973f
+ee96963f
+12d1953f
+b50a953f
+d243943f
+687c933f
+74b4923f
+f2eb913f
+df22913f
+3859903f
+fa8e8f3f
+22c48e3f
+abf88d3f
+932c8d3f
+d65f8c3f
+71928b3f
+5fc48a3f
+9df5893f
+2726893f
+fa55883f
+1085873f
+64b3863f
+f6e0853f
+be0d853f
+b839843f
+e064833f
+318f823f
+a6b8813f
+39e1803f
+e708803f
+515f7e3f
+f4aa7c3f
+a8f47a3f
+623c793f
+1982773f
+bcc5753f
+4107743f
+9b46723f
+bb83703f
+93be6e3f
+17f76c3f
+342d6b3f
+dc60693f
+0192673f
+8fc0653f
+76ec633f
+a515623f
+083c603f
+8b5f5e3f
+1d805c3f
+a69d5a3f
+12b8583f
+4acf563f
+36e3543f
+bdf3523f
+c800513f
+390a4f3f
+f50f4d3f
+df114b3f
+db0f493f

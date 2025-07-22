@@ -11,10 +11,10 @@
 //   Max accuracy:             0.024249744938656052//
 
 // Each line contains a value (coeff.) corresponding to the function sin.
-// This file was automatically generated with the command: -bw 64 -hp 2 --auto-off
+// This file was automatically generated with the command: --all -tan-k -atan-k -sinc-k 0.001 -bw 64 -hp 2 --quantize
 
 // *Do not* make any manual changes to this file
-// File generated @ 2025-06-13 23:55:00.180783
+// File generated @ 2025-07-22 17:16:52.573576
 // Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 //
@@ -56,7 +56,7 @@ aea8ea5444e7e63f
 be2eba0f407ce83f
 0c94efa3ccfbe83f
 41d7c7f47e77e93f
-93af29ef43efe93f
+94af29ef43efe93f
 e1fa021b0963ea3f
 10d5219ebcd2ea3f
 1157f53e4d3eeb3f
@@ -66,7 +66,7 @@ d2903567aaa5eb3f
 5cfcfcf3f0c1ec3f
 db353e74e717ed3f
 8be6c9736169ed3f
-9ba0386252b6ed3f
+9aa0386252b6ed3f
 2abe2d62aefeed3f
 7ec12b4b6a42ee3f
 0cd14cab7b81ee3f
@@ -106,19 +106,19 @@ dd353e74e717ed3f
 d3903567aaa5eb3f
 1257f53e4d3eeb3f
 12d5219ebcd2ea3f
-e3fa021b0963ea3f
+e4fa021b0963ea3f
 94af29ef43efe93f
 42d7c7f47e77e93f
 0e94efa3ccfbe83f
 c02eba0f407ce83f
-721757e3ecf8e73f
+731757e3ecf8e73f
 6172035fe771e73f
 afa8ea5444e7e63f
 3e78f0251959e63f
 8e0165be7bc7e53f
 9855a3928232e53f
 38099b9b449ae43f
-d5564553d9fee33f
+d4564553d9fee33f
 f45906b15860e33f
 ebf3fa25dbbee23f
 5beb3399791ae23f
@@ -126,7 +126,7 @@ ebf3fa25dbbee23f
 8f895d4d70c9e03f
 b83e4c87fc1ce03f
 d878ef5219dcde3f
-8ee3865b7779dd3f
+8de3865b7779dd3f
 ec1e01d84912dc3f
 c93f6d2bc8a6da3f
 d893bc632a37d93f
@@ -178,7 +178,7 @@ d3564553d9fee3bf
 9355a3928232e5bf
 8c0165be7bc7e5bf
 3d78f0251959e6bf
-aea8ea5444e7e6bf
+ada8ea5444e7e6bf
 5f72035fe771e7bf
 6e1757e3ecf8e7bf
 bf2eba0f407ce8bf
@@ -195,7 +195,7 @@ d4903567aaa5ebbf
 dc353e74e717edbf
 8ae6c9736169edbf
 9aa0386252b6edbf
-2cbe2d62aefeedbf
+2dbe2d62aefeedbf
 80c12b4b6a42eebf
 0ed14cab7b81eebf
 750bdfc8d8bbeebf
@@ -260,7 +260,7 @@ cb3f6d2bc8a6dabf
 da93bc632a37d9bf
 eccc1d31a9c3d7bf
 bd273fdd7d4cd6bf
-62e77842e2d1d4bf
+63e77842e2d1d4bf
 4b81e1c21054d3bf
 39db4c3f44d3d1bf
 abfd370eb84fd0bf
