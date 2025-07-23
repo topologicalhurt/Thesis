@@ -47,6 +47,7 @@ class ProgramMetaInformation:
     DATE_RUN: dt.datetime
     GIT_ROOT: Path
     AUTHOR_CREDENTIALS: Sequence[str, str]
+    EXCLUDED_DIRS: set
 
 
 @dataclass(frozen=True)

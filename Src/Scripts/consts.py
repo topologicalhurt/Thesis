@@ -65,7 +65,8 @@ META_INFO = ProgramMetaInformation(
     **{
         'DATE_RUN': dt.datetime.now(),
         'GIT_ROOT': get_repo_root(),
-        'AUTHOR_CREDENTIALS': get_git_author()
+        'AUTHOR_CREDENTIALS': get_git_author(),
+        'EXCLUDED_DIRS': {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}
     }
 )
 
