@@ -208,7 +208,7 @@ class _XILINX_NAME_SCHEME_META(ExtendedEnum):
                                     f'{generation.name}_LUT_COUNT': 3
                                    }
                                  )
-        return [getattr(cls.get_member_via_value_from_name(name).value, generation.name) for name in group_names]
+        return [getattr(cls.get_member_via_name(name).value, generation.name) for name in group_names]
 
     @classmethod
     def get_regex_for_generation(cls, generation: XILINX_GENERATION) -> str:

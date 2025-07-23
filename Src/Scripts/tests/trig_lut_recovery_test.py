@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from Allocator.Interpreter.dataclass import BYTEORDER, FLOAT_STR_NPMAP
 
 from Scripts.consts import RTL_TRIG_HEX_DIR
-from Scripts.dataclass import TRIGLUTDEFS, TRIGLUTFNDEFS
+from Scripts.dataclass import TRIG_DEFS, TRIG_FN_DEFS
 from Scripts.generate_trig_luts import assess_lut_accuracy
 from Scripts.hex_utils import TrigLutManager
 
@@ -99,7 +99,7 @@ def hex_manager():
 def high_opt_lowp_wout_cos_domains(hex_manager: TrigLutManager):
     # Read in all files with (function_name)_32_high_lowp name
     domains = {m : f'{fn.__name__.lower()}_32_high_lowp.hex'
-                for (_, m), fn in zip(TRIGLUTDEFS.__members__.items(), TRIGLUTFNDEFS.values())}
+                for (_, m), fn in zip(TRIG_DEFS.__members__.items(), TRIG_FN_DEFS.values())}
     # Exclude cos, arccos .hex files (which are excluded by default)
     domains = {m : hex_manager.read_lut_from_hex(file_name, FLOAT_STR_NPMAP.FLOAT32.value[1],
                                                  target_order=BYTEORDER.NATIVE)
@@ -134,7 +134,7 @@ class ArcSinusoidLutDomains:
 def sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
     domains = high_opt_lowp_wout_cos_domains
     return SinusoidLutDomains(
-        sin=ReconstructSin(domain=domains[TRIGLUTDEFS.SIN],
+        sin=ReconstructSin(domain=domains[TRIG_DEFS.SIN],
                            dtype=FLOAT_STR_NPMAP.FLOAT32.value[1]),
         cos=None # TODO: implement ReconstructCos
     )
@@ -144,7 +144,7 @@ def sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
 def arc_sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
     domains = high_opt_lowp_wout_cos_domains
     return ArcSinusoidLutDomains(
-        asin=ReconstructArcSin(domain=domains[TRIGLUTDEFS.ASIN],
+        asin=ReconstructArcSin(domain=domains[TRIG_DEFS.ASIN],
                                dtype=FLOAT_STR_NPMAP.FLOAT32.value[1]),
         acos=None # TODO: implement ReconstructArcCos
     )

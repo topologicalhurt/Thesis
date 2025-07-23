@@ -94,7 +94,7 @@ class TRIG_OPTS:
                 )
 
 
-class TRIGLUTDEFS(ExtendedEnum):
+class TRIG_DEFS(ExtendedEnum):
     """# Summary
 
     Enum storing the supported trig LUTS
@@ -111,7 +111,7 @@ class TRIGLUTDEFS(ExtendedEnum):
     _AUX = (SINC,)
 
 
-class TRIGLUTFNDEFS(ExtendedEnum):
+class TRIG_FN_DEFS(ExtendedEnum):
     """# Summary
 
     Enum storing the trig names & their corresponding functions
@@ -125,7 +125,7 @@ class TRIGLUTFNDEFS(ExtendedEnum):
     SINC = 6, np.sinc
 
 
-class TRIGMUSTHAVEKSET(ExtendedEnum):
+class TRIG_MUST_HAVE_KSET(ExtendedEnum):
     """# Summary
 
     Enum storing the trig names for which k must be set
@@ -145,7 +145,7 @@ class TABLEMODE(ExtendedEnum):
     """
 
 
-class TRIGFOLD(TABLEMODE):
+class TRIG_OPT_MODE(TABLEMODE):
     """# Summary
 
     Enum corresponding to how the trig LUT is 'folded' E.G. refer to the basic sin case
@@ -169,7 +169,7 @@ class TRIGFOLD(TABLEMODE):
     MAX = 3
 
 
-class TRIGPREC(ExtendedEnum):
+class TRIG_PRECISION(ExtendedEnum):
     """# Summary
 
     Enum corresponding to how trig LUT is sized
