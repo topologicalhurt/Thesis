@@ -180,11 +180,11 @@ def str2enumval(val: str, target_enum: ExtendedEnum) -> Enum:
             raise ap.ArgumentTypeError('val must be one of the provided field names:'
                                         f' {target_enum.fields()} (got {val} instead)'
                                         )
-        return target_enum.get_member_via_value_from_name(val)
+        return target_enum.get_member_via_name(val)
 
     try:
         # Indicates we got an integer (I.e. val |-> field)
-        return target_enum.get_member_via_name_from_value(posint)
+        return target_enum.get_member_via_value(posint)
     except ValueError:
         raise ap.ArgumentTypeError(f'val must be in the provided range of the enum {target_enum.__name__}:'
                                     f' {target_enum.fields()} |-> {target_enum.vals()}'
@@ -390,7 +390,7 @@ def str2bitwidth(v: str, is_int: bool = False) -> tuple[int, np.floating]:
                 raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
                                            f' of {type_mapping.fields()} but got {v} instead'
                                           )
-            return type_mapping.get_member_via_value_from_name(v).value
+            return type_mapping.get_member_via_name(v).value
 
     v: int
     if v < 16 or v > 128:
@@ -403,7 +403,7 @@ def str2bitwidth(v: str, is_int: bool = False) -> tuple[int, np.floating]:
         raise ap.ArgumentTypeError('If value is specified as a digit it must be one'
                                     f' of {[v for v in type_mapping.values() if isinstance(v, int)]} but got {v} instead'
                                     )
-    return type_mapping.get_member_via_name_from_value(v).value
+    return type_mapping.get_member_via_value(v).value
 
 
 def get_non_flags(parser: ap.ArgumentParser) -> Mapping[str, Any]:

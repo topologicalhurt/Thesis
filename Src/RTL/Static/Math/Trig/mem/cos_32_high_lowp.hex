@@ -1,0 +1,148 @@
+// Coefficient memory for cos
+// ----------------------------------------------
+//   Bits per coeff.:          32
+//   Endianness.:              big
+//   Table mode:               high
+//   Table size:               0.512kB
+//   LOP (level of precision): lowp
+//   Effective scaling factor: 1/4
+//   Measured avg. accuracy:   0.004946720786392689
+//   Min accuracy:             0.0
+//   Max accuracy:             0.01208131480962038//
+
+// Each line contains a value (coeff.) corresponding to the function cos.
+// This file was automatically generated with the command: --all -tan-k -atan-k -sinc-k 0.001 --quantize
+
+// *Do not* make any manual changes to this file
+// File generated @ 2025-07-22 17:16:52.313264
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//
+//
+43ec7f3f
+98d37f3f
+0fb17f3f
+ab847f3f
+6d4e7f3f
+580e7f3f
+6dc47e3f
+b0707e3f
+24137e3f
+ccab7d3f
+ac3a7d3f
+c9bf7c3f
+283b7c3f
+cdac7b3f
+be147b3f
+02737a3f
+9dc7793f
+9812793f
+f853783f
+c58b773f
+07ba763f
+c6de753f
+0bfa743f
+dd0b743f
+4714733f
+5213723f
+0809713f
+73f56f3f
+9ed86e3f
+93b26d3f
+5e836c3f
+0c4b6b3f
+a7096a3f
+3cbf683f
+d86b673f
+870f663f
+59aa643f
+5a3c633f
+98c5613f
+2146603f
+06be5e3f
+532d5d3f
+1a945b3f
+6af2593f
+5348583f
+e595563f
+31db543f
+4918533f
+3d4d513f
+207a4f3f
+029f4d3f
+f8bb4b3f
+13d1493f
+65de473f
+03e4453f
+00e2433f
+71d8413f
+67c73f3f
+f9ae3d3f
+3b8f3b3f
+4268393f
+233a373f
+f304353f
+c9c8323f
+bb85303f
+de3b2e3f
+4aeb2b3f
+1494293f
+5636273f
+24d2243f
+9967223f
+cbf61f3f
+d17f1d3f
+c5021b3f
+bf7f183f
+d9f6153f
+2b68133f
+ccd3103f
+da390e3f
+6b9a0b3f
+9bf5083f
+824b063f
+3d9c033f
+e4e7003f
+265dfc3e
+c9e0f63e
+eb5af13e
+bbcbeb3e
+7433e63e
+5192e03e
+81e8da3e
+4136d53e
+c97bcf3e
+54b9c93e
+16efc33e
+491dbe3e
+2b44b83e
+f063b23e
+d37cac3e
+118fa63e
+e69aa03e
+86a09a3e
+31a0943e
+249a8e3e
+948e883e
+c07d823e
+cfcf783e
+819a6c3e
+125c603e
+fe14543e
+c4c5473e
+cf6e3b3e
+a0102f3e
+b9ab223e
+8440163e
+85cf093e
+6bb2fa3d
+32bce13d
+35bdc83d
+7bb6af3d
+0ba9963d
+772b7b3d
+29fb483d
+1cc3163d
+be0ac93c
+860e493c
+2ebd3bb3
+640e49bc

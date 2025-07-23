@@ -129,18 +129,18 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
         matches = [match.group(0) for field in cls.fields() if (match := re.match(pattern, field)) is not None]
         if not all([hasattr(cls, match) for match in matches]):
             raise AttributeError(f'Unexpected: one or more of the matches didn\'t exist as an attribute for {cls}')
-        return [cls.get_member_via_value_from_name(match) for match in matches]
+        return [cls.get_member_via_name(match) for match in matches]
 
     @classmethod
     def get_members_from_mask(cls, mask: Iterable | None) -> Iterable:
         if mask is not None:
-            return [cls.get_member_via_value_from_name(v) for v in mask if v in cls]
+            return [cls.get_member_via_name(v) for v in mask if v in cls]
         return cls.get_members()
 
     @classmethod
-    def get_member_via_name_from_value(cls, value: int) -> Enum:
+    def get_member_via_value(cls, value: int) -> Enum:
         """ # Summary
-        Finds the name of an enum member from its integer value
+        Finds the name of an enum member from its value
         (reverse of get_value_from_name)
 
        ## Args:
@@ -159,9 +159,9 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
         raise ValueError(f'"{value}" is not a valid value in {cls.__name__}')
 
     @classmethod
-    def get_member_via_value_from_name(cls, name: str) -> Enum:
+    def get_member_via_name(cls, name: str) -> Enum:
         """ # Summary
-        Finds the value of an enum member from its string value / field name
+        Finds the value of an enum member from its field name
         (reverse of get_name_from_value)
 
        ## Args:

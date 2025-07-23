@@ -49,6 +49,8 @@ class STANDARD_NP_DTYPES(ExtendedEnum):
     LARGEST_INT = largest_dtype_of_kind(np.integer)
     LARGEST_FLOAT = largest_dtype_of_kind(np.floating)
     LARGEST_DOUBLE = largest_dtype_of_kind(np.double)
+    LARGEST_INT32_VALUE = np.iinfo(np.int32).max
+    LARGEST_INT64_VALUE = np.iinfo(np.int64).max
 
 
 class FLOAT_STR_NPMAP(ExtendedEnum):

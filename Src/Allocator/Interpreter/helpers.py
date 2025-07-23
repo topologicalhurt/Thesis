@@ -66,6 +66,10 @@ def machine_has_extended_float_support() -> bool:
         return False
 
 
+def quantize(x: np.floating, dtype: np.uint) -> np.uint:
+    return 1 << dtype(np.ceil(np.log2(x)))
+
+
 def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
     """# Summary
 
@@ -335,7 +339,7 @@ bitfield = importlib.import_module('.bitfield', 'Allocator.Interpreter')
 
 
 def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
-                            in_first_msb: bool = True) -> bitfield.BITFIELD: # type: ignore
+                            in_first_msb: bool = True):
     offset = e.get_members_from_mask(mask)
     return bitfield.BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=in_first_msb,
                     **{m.name : 1 for m in offset})
