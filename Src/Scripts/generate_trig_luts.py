@@ -252,48 +252,46 @@ class _TrigArgParser():
         self.bw_sz, self.args['bw'] = self.args['bw']
 
         self.bw_sz_bytes = self.bw_sz // 8
-        self.n_entries = self.args['bram'] // self.bw_sz_bytes                                  # Num. of entries in table / lut
+        self.n_entries = self.args['bram'] // self.bw_sz_bytes                        # Num. of entries in table / lut
         self.bw_type_int = INT_STR_NPMAP.get_member_via_value(self.bw_sz).value[1]    # Integer equiv. of bw_sz
 
         self.trig_opts = None
 
     @staticmethod
-    def bram(v: str) -> int:
-        return int(eval_arithmetic_str_safe(v))
+    def bram(val: str) -> np.uint:
+        return np.uint64(eval_arithmetic_str_safe(val))
 
     @staticmethod
-    def precmode(v: str) -> ExtendedEnum:
-        if v in TRIG_DEFS:
-            return str2enumval(v, TRIG_DEFS)
-        return str2enumval(v, TRIG_PRECISION)
+    def precmode(val: str) -> ExtendedEnum:
+        if val in TRIG_DEFS:
+            return str2enumval(val, TRIG_DEFS)
+        return str2enumval(val, TRIG_PRECISION)
 
     @staticmethod
-    def kthresh(v: str) -> np.floating:
-        if isinstance(v, str):
-            if v.isdigit():
-                v = str2float(v)
-            else:
-                v = eval_arithmetic_str_safe(v)
+    def kthresh(val: str) -> np.floating:
+        if val.isdigit():
+            val = str2float(val)
+        else:
+            val = eval_arithmetic_str_safe(val)
 
-        if v >= 1 or v <= 0:
+        if val >= 1 or val <= 0:
             raise ap.ArgumentTypeError('Value must be positive float in range (0, 1)'
-                                       f' but got {v:.6f} instead'
+                                       f' but got {val:.6f} instead'
                                        )
-        return v
+        return val
 
     @staticmethod
-    def os_factor(v: str) -> int:
-        if isinstance(v, str):
-            if v.isdigit():
-                v = str2posint(v)
-            else:
-                v = int(eval_arithmetic_str_safe(v))
+    def os_factor(val: str) -> np.uint:
+        if val.isdigit():
+            val = str2posint(val)
+        else:
+            val = np.uint(eval_arithmetic_str_safe(val))
 
-        if not float(np.log2(v)).is_integer():
+        if not float(np.log2(val)).is_integer():
             raise ap.ArgumentTypeError('Value must be a power of 2'
-                                       f' but got {v} instead'
+                                       f' but got {val} instead'
                                        )
-        return v
+        return val
 
     def _check_bram_sz(self) -> bool:
         """
@@ -577,7 +575,7 @@ def tan_k_N_pi4(k: np.floating) -> np.floating:
     return np.ceil(np.pi / (2 * k) + 1)
 
 
-def newton_raphson_atan_N(k: np.integer, tolerance: float = 1e-7, max_iter: int = 100) -> np.floating | None:
+def newton_raphson_atan_N(k: np.floating, k_tolerance: np.floating = 1e-7, max_iter: np.uint = 100) -> np.floating | None:
     """
     atan(x) may be written as 0.5*i*ln(1 - i*x) - 0.5*i*ln(1 + i*x)
     => Indefinite integral of atan(x) from 0 to N for some natural number N is:
@@ -603,7 +601,7 @@ def newton_raphson_atan_N(k: np.integer, tolerance: float = 1e-7, max_iter: int 
         denominator_f_prime = N_current**2 + 1
         f_prime_N = (2 * N_current / denominator_f_prime) - 2 * k
 
-        if abs(f_prime_N) < tolerance: # Avoid division by a very small number (or zero)
+        if abs(f_prime_N) < k_tolerance: # Avoid division by a very small number (or zero)
             break
 
         # Newton-Raphson iteration
@@ -613,7 +611,7 @@ def newton_raphson_atan_N(k: np.integer, tolerance: float = 1e-7, max_iter: int 
             break
 
         # Check for convergence
-        if abs(N_next - N_current) < tolerance:
+        if abs(N_next - N_current) < k_tolerance:
             return N_next
 
         # Update N for the next iteration
@@ -622,7 +620,7 @@ def newton_raphson_atan_N(k: np.integer, tolerance: float = 1e-7, max_iter: int 
     return
 
 
-def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: int = 100) -> np.floating:
+def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: np.uint = 100) -> np.floating:
     """# Summary
 
     Find minimum N such that |cos(x) - cos_N(x)| < epsilon.
@@ -1090,10 +1088,10 @@ def _get_fn_from_optmode(m: TRIG_DEFS, trig_parser: _TrigArgParser) -> Callable[
     return TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
 
 
-def assess_lut_accuracy(fn: Callable[..., float],
-                         lut: Sequence[float], axis: Sequence[float],
-                         oversample_factor: int, type: float,
-                         test_type: float = np.float32) -> LUT_ACC_REPORT | None:
+def assess_lut_accuracy(fn: Callable[..., np.floating],
+                         lut: Sequence[np.floating], axis: Sequence[np.floating],
+                         oversample_factor: np.uint, type: np.floating,
+                         test_type: np.dtype = np.float32) -> LUT_ACC_REPORT | None:
     """ # Summary
 
     Assesses the lut accuracy against a function, fn, sampled at oversample_factor
