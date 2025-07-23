@@ -35,12 +35,12 @@ import argparse as ap
 import numpy as np
 import regex as re
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, assert_never
+from typing import Any
 from enum import Enum
 
-from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP
+from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP, STANDARD_NP_DTYPES
 from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ
 from Allocator.Interpreter.helpers import underline_matches
 
@@ -50,6 +50,9 @@ from Scripts.decorators import warning
 
 
 _, FLOAT32 = FLOAT_STR_NPMAP.FLOAT32.value
+FLOAT = STANDARD_NP_DTYPES.LARGEST_FLOAT.value
+INT = STANDARD_NP_DTYPES.LARGEST_INT.value
+UINT = STANDARD_NP_DTYPES.LARGEST_UINT.value
 
 
 def get_action_from_parser_by_name(parser: ap.ArgumentParser, arg_name: str) -> ap.Action | None:
@@ -66,19 +69,19 @@ def get_action_from_parser_by_name(parser: ap.ArgumentParser, arg_name: str) -> 
                  if action.dest == arg_name), None)
 
 
-def str2int(val: str) -> int:
+def str2int(val: str) -> np.integer:
     if not val.isdigit():
         raise ExpectedIntParseException(f'Couldn\'t parse integer from {val}')
-    return int(val)
+    return INT(val)
 
 
-def str2posint(val: str) -> int:
+def str2posint(val: str) -> np.uint:
     if val.startswith('-'):
         raise ExpectedPosIntParseException(f'Couldn\'t parse positive integer from {val}')
-    return str2int(val)
+    return UINT(str2int(val))
 
 
-def str2negint(val: str) -> int:
+def str2negint(val: str) -> np.integer:
     if not val.startswith('-'):
         raise ExpectedPosIntParseException(f'Couldn\'t parse negative integer from {val}')
     return str2int(val)
@@ -88,7 +91,7 @@ def str2float(val: str) -> np.floating:
     matched = re.fullmatch(r'(\d+(?:\.\d+)?)', val)
     if matched is None:
         raise ExpectedFloatParseException(f'Couldn\'t parse float from {val}')
-    return FLOAT32(matched.group(0))
+    return FLOAT(matched.group(0))
 
 
 def str2posfloat(val: str) -> np.floating:
@@ -103,52 +106,54 @@ def str2negfloat(val: str) -> np.floating:
     return str2float(val)
 
 
-def str2float_with_atmost_n_floating_digits(val: str, n: int) -> np.floating:
+def str2float_with_atmost_n_floating_digits(val: str, n: np.uint) -> np.floating:
     if n == 0:
-        return str2int(val) # if n == 0 return the value as an integer
+        return FLOAT(0)
     if n < 1:
-        raise ValueError('n must be at-least 1 (I.e. match at-least 1 many floating point digits)')
+        raise ValueError('n must be at-least 1 (I.e. match at-least 1 floating point digits)')
 
     matched = re.fullmatch(rf'(\d+(?:\.\d+{{1,{n}}})?)', val)
     if matched is None:
         raise ExpectedFloatParseException(f'Expected a float with at-least n ({n}) many decimal point places but got {val}')
-    return FLOAT32(matched.group(0))
+    return FLOAT(matched.group(0))
 
 
-def str2num(val: str) -> np.floating | int:
+def str2num(val: str) -> np.floating | np.integer:
     if val.find('.'):
         return str2float(val)
     return str2int(val)
 
 
-def str2posnum(val: str) -> np.floating | int:
+def str2posnum(val: str) -> np.floating | np.integer:
     if val.find('.'):
         return str2posfloat(val)
     return str2posint(val)
 
 
-def str2negnum(val: str) -> np.floating | int:
+def str2negnum(val: str) -> np.floating | np.integer:
     if val.find('.'):
         return str2negfloat(val)
     return str2negint(val)
 
 
-def num_in_range(val: np.floating | int, r: range,
+def num_in_range(val: np.floating | np.integer, r: range,
                 lower_inclusive: bool = True,
-                upper_inclusive: bool = True) -> np.floating | int:
+                upper_inclusive: bool = True) -> np.floating | np.integer:
+
     if (lower_inclusive and val < r.start) or (upper_inclusive and val > r.stop) or\
         (not lower_inclusive and val <= r.start) or (not lower_inclusive and val >= r.stop):
         lower_symb = '[' if lower_inclusive else '('
         upper_symb = ']' if upper_inclusive else ')'
-        if isinstance(val, FLOAT32):
+        if isinstance(val, np.floating):
             raise ap.ArgumentTypeError(f'Expected a float in the range: {lower_symb}{r.start}, {r.stop}{upper_symb}'
                                         f' but got {val}'
                                         )
-        if isinstance(val, int):
+        if isinstance(val, np.integer):
             raise ap.ArgumentTypeError(f'Expected an integer in the range: {lower_symb}{r.start}, {r.stop}{upper_symb}'
                             f' but got {val}'
                             )
-        assert_never(f'Value should be an integer or float but got {val} instead')
+        raise ValueError(f'Value should be an integer or float but got {val} instead')
+
     return val
 
 
@@ -323,8 +328,8 @@ def str2path(val: str) -> Path:
 
 
 def str2path_belongs_in(val: str, ancestor: Path, enforce_exists: bool = True) -> Path:
-    fp: Path = Path(val)
-    if not fp.is_absolute():
+    fp = str2path(val)
+    if not val.is_absolute():
         fp = str2relpath(val, root=ancestor, enforce_exists=enforce_exists)
     try:
         fp.relative_to(ancestor)
@@ -333,8 +338,7 @@ def str2path_belongs_in(val: str, ancestor: Path, enforce_exists: bool = True) -
     return fp
 
 
-def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True,
-                excluded: set = {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}) -> Path:
+def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True) -> Path:
     # Try direct join from Src if it exists
     project_root = META_INFO.GIT_ROOT
     search_root = project_root / root # Default search root is Src directory
@@ -349,8 +353,9 @@ def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True,
     filename = Path(val).name
     matches = []
     for match in search_root.rglob(filename):
+
         # Skip if any parent directory is in excluded set
-        if not any(parent.name in excluded for parent in match.parents):
+        if not any(parent.name in META_INFO.EXCLUDED_DIRS for parent in match.parents):
             matches.append(match)
 
     if not matches:
@@ -361,12 +366,11 @@ def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True,
     return shallowest_match
 
 
-def str2freq(val: str, granularity: FREQ = FREQ.KHZ) -> int:
+def str2freq(val: str, granularity: FREQ = FREQ.KHZ) -> np.uint:
     try:
-        n_accepted_digits = int(np.log10(granularity.value))
+        n_accepted_digits = UINT(np.log10(granularity.value))
         val = str2float_with_atmost_n_floating_digits(val, n_accepted_digits)
     except ExpectedFloatParseException:
-        # n_accepted_digits >= 1 as if n_accepted_digits = 0, behaviour is to cast to integer
         err_regex = rf'\d*\.(\d{{0,{n_accepted_digits}}})'
         err_msg = f'{underline_matches(val, err_regex, literal=False)} instead'
         raise ap.ArgumentTypeError('Given value couldn\'t be parsed as an appropriate frequency value.'
@@ -374,42 +378,42 @@ def str2freq(val: str, granularity: FREQ = FREQ.KHZ) -> int:
                                    f' {n_accepted_digits} floating point digit places. But got:'
                                    f' {err_msg}'
                                    )
-    return int(val * granularity.value)
+    return UINT(val * granularity.value)
 
 
-def str2bitwidth(v: str, is_int: bool = False) -> tuple[int, np.floating]:
+def str2bitwidth(val: str, is_int: bool = False) -> Sequence[np.uint, np.floating]:
     type_mapping = FLOAT_STR_NPMAP if not is_int else INT_STR_NPMAP
-    if isinstance(v, str):
-        if v.isdigit():
-            # If arg is purely digits attempt to convert to positive integer
-            v = str2posint(v)
-        else:
-            # If the arg is a mix of char & digits
-            v = v.upper()
-            if v not in type_mapping:
-                raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
-                                           f' of {type_mapping.fields()} but got {v} instead'
-                                          )
-            return type_mapping.get_member_via_name(v).value
+    if val.isdigit():
+        # If arg is purely digits attempt to convert to positive integer
+        val = str2posint(val)
+    else:
+        # If the arg is a mix of char & digits
+        val = val.upper()
+        if val not in type_mapping:
+            raise ap.ArgumentTypeError('If value is specified by type alias it must be one'
+                                        f' of {type_mapping.fields()} but got {val} instead'
+                                        )
+        return type_mapping.get_member_via_name(val).value
 
-    v: int
-    if v < 16 or v > 128:
+    if val < 16 or val > 128:
         valid_floatw = ' '.join(type_mapping.fields())
         raise ap.ArgumentTypeError('Value must be positive int in range [16, 128]'
-                                   f' but got {v} instead. I.e.:'
+                                   f' but got {val} instead. I.e.:'
                                    f'\n{underline_matches(valid_floatw, lambda char: char.isdigit())}'
                                    )
-    if v not in type_mapping:
+
+    if val not in type_mapping:
         raise ap.ArgumentTypeError('If value is specified as a digit it must be one'
-                                    f' of {[v for v in type_mapping.values() if isinstance(v, int)]} but got {v} instead'
+                                    f' of {[v for v in type_mapping.values()]} but got {val} instead'
                                     )
-    return type_mapping.get_member_via_value(v).value
+
+    return type_mapping.get_member_via_value(val).value
 
 
 def get_non_flags(parser: ap.ArgumentParser) -> Mapping[str, Any]:
     non_flags = [action.option_strings for action in parser._actions]
     non_flags = [opt.removeprefix('-').replace('-', '_') for opt in
                  itertools.chain.from_iterable(non_flags)
-                 if not opt.startswith('--')]   # Excl. non flags
-    non_flags.extend([action.dest for action in parser._get_positional_actions()]) # Excl. positionals
+                 if not opt.startswith('--')]                                       # Excl. non flags
+    non_flags.extend([action.dest for action in parser._get_positional_actions()])  # Excl. positionals
     return non_flags
