@@ -168,7 +168,7 @@ def main() -> None:
         h = filter_result.coeffs
         h = h[:h.size//2] # Only store half the window as the kaiser window is perfectly symmetric
         luts_to_w.append(
-            LUT(lut=h,
+            LUT(table=h,
                 endianness=BYTEORDER.BIG,
                 bit_width=bw_int, table_sz=((bw_int_bytes * np.size(h)) / 1000),
                 lop=None, table_mode=None,

@@ -45,6 +45,7 @@ class ProgramMetaInformation:
     (I.e. time of run, git repo root, author credentials etc.)
     """
     DATE_RUN: dt.datetime
+    DEBUG: bool
     GIT_ROOT: Path
     AUTHOR_CREDENTIALS: Sequence[str, str]
     EXCLUDED_DIRS: set

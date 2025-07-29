@@ -60,10 +60,10 @@ COMMON_RATES = [44100, 32000, 24000, 16000, 8000] # Common output rates
 # GENERAL PROGRAM / META INFO / MISC #
 ######################################
 
-# Meta
 META_INFO = ProgramMetaInformation(
     **{
         'DATE_RUN': dt.datetime.now(),
+        'DEBUG': True,
         'GIT_ROOT': get_repo_root(),
         'AUTHOR_CREDENTIALS': get_git_author(),
         'EXCLUDED_DIRS': {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}

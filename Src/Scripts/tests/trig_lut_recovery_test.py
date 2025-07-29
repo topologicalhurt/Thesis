@@ -43,7 +43,7 @@ from Allocator.Interpreter.dataclass import BYTEORDER, FLOAT_STR_NPMAP
 
 from Scripts.consts import RTL_TRIG_HEX_DIR
 from Scripts.dataclass import TRIG_DEFS, TRIG_FN_DEFS
-from Scripts.generate_trig_luts import assess_lut_accuracy
+from Scripts.generate_trig_luts import assess_lut_quantization_error
 from Scripts.hex_utils import TrigLutManager
 
 
@@ -164,7 +164,7 @@ def sinusoids_test_axis(sinusoids: SinusoidLutDomains, arc_sinusoids: ArcSinusoi
 
 def test_reconstruct_sin_high_32(sinusoids: SinusoidLutDomains, sinusoids_test_axis: TestDomains):
     reconstructed_sin = [sinusoids.sin.reconstruct_high(theta) for theta in sinusoids_test_axis.sin]
-    assess_lut_accuracy(np.sin, reconstructed_sin, sinusoids_test_axis.sin,
+    assess_lut_quantization_error(np.sin, reconstructed_sin, sinusoids_test_axis.sin,
                         oversample_factor=128,
                         type=FLOAT_STR_NPMAP.FLOAT32.value[1])
     for a1, a2 in zip(reconstructed_sin, sinusoids_test_axis.sin):

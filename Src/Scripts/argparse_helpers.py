@@ -40,8 +40,8 @@ from pathlib import Path
 from typing import Any
 from enum import Enum
 
-from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP, STANDARD_NP_DTYPES
-from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ
+from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP
+from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, QFormat
 from Allocator.Interpreter.helpers import underline_matches
 
 from Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException
@@ -379,11 +379,11 @@ def str2freq(val: str, granularity: FREQ = FREQ.KHZ) -> np.uint:
     return UINT(val * granularity.value)
 
 
-def str2bitwidth(val: str, is_int: bool = False) -> Sequence[np.uint, np.floating]:
+def str2bitwidth(val: str, is_int: bool = False) -> tuple[int, np.floating]:
     type_mapping = FLOAT_STR_NPMAP if not is_int else INT_STR_NPMAP
     if val.isdigit():
         # If arg is purely digits attempt to convert to positive integer
-        val = str2posint(val)
+        val = int(str2posint(val))
     else:
         # If the arg is a mix of char & digits
         val = val.upper()
@@ -399,13 +399,23 @@ def str2bitwidth(val: str, is_int: bool = False) -> Sequence[np.uint, np.floatin
                                    f' but got {val} instead. I.e.:'
                                    f'\n{underline_matches(valid_floatw, lambda char: char.isdigit())}'
                                    )
-
     if val not in type_mapping:
         raise ap.ArgumentTypeError('If value is specified as a digit it must be one'
-                                    f' of {[v for v in type_mapping.values()]} but got {val} instead'
+                                    f' of {[v for v in type_mapping.values() if isinstance(v, int)]} but got {val} instead'
                                     )
-
     return type_mapping.get_member_via_value(val).value
+
+
+def str2Qfixedinteger(val: str, qFormat: QFormat) -> np.uint:
+    val = str2int(val)
+    return qFormat.get_converted(val)
+
+
+def str2Qfixedformat(val: str) -> QFormat:
+    try:
+        return QFormat(val)
+    except ValueError as e:
+        raise ap.ArgumentTypeError(str(e))
 
 
 def get_non_flags(parser: ap.ArgumentParser) -> Mapping[str, Any]:
