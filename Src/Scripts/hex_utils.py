@@ -41,7 +41,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_QUANT_ACC_REPORT
 
 from Scripts.consts import META_INFO
 
@@ -325,8 +325,8 @@ class TrigLutManager(HexLutManager):
                 fmap['table_mode'] = fmap['table_mode'].name.lower()
 
             # Handle acc_report field that might be placeholder
-            if isinstance(fmap.get('acc_report'), LUT_ACC_REPORT):
-                acc_report: LUT_ACC_REPORT = fmap.pop('acc_report')
+            if isinstance(fmap.get('acc_report'), LUT_QUANT_ACC_REPORT):
+                acc_report: LUT_QUANT_ACC_REPORT = fmap.pop('acc_report')
                 fmap['avg_acc'] = f'{acc_report.avg_acc:.8f}'
                 fmap['min_acc'] = f'{acc_report.min_acc:.8f}'
                 fmap['max_acc'] = f'{acc_report.max_acc:.8f}'

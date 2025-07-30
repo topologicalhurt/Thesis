@@ -38,6 +38,7 @@ from textwrap import TextWrapper
 
 from Scripts.util_helpers import get_repo_root, get_git_author
 from Scripts.dataclass import ProgramMetaInformation
+from Allocator.Interpreter.dataclass import XILINX_BRAM_SIZES
 
 
 #############
@@ -55,6 +56,12 @@ HOP_SIZE=16
 # Downsampler coefficients
 DOWNSAMPLE_COEFFS_NTAPS=127
 COMMON_RATES = [44100, 32000, 24000, 16000, 8000] # Common output rates
+
+##############
+# LUT CONSTS #
+##############
+
+LUT_DEFAULT_BRAM = XILINX_BRAM_SIZES.members_from_indx(idx=2)[XILINX_BRAM_SIZES.ULTRASCALE_DUALPORT]
 
 ######################################
 # GENERAL PROGRAM / META INFO / MISC #

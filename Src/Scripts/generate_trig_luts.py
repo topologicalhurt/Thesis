@@ -55,13 +55,15 @@ from typing import Any, assert_never
 from Allocator.Interpreter.bitfield import BITFIELD
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, BYTEORDER, QFormat
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_TYPE
+from Allocator.Interpreter.lut_acc_metrics import LutAccMetrics
 from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches, quantize
 
-from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name, str2float, str2posint
+from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
+str2float, str2posint
 from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_MUST_HAVE_KSET, TRIG_PRECISION
 from Scripts.hex_utils import TrigLutManager
-from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, log_wrapper
+from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, LUT_DEFAULT_BRAM, log_wrapper
 
 
 #######################
@@ -88,7 +90,7 @@ def main() -> None:
                     ' / dealing with q format is not FPGA agnostic'
                     )
 
-    parser.add_argument('-bram', type=_TrigArgParser.bram, default=2048,
+    parser.add_argument('-bram', type=_TrigArgParser.bram, default=LUT_DEFAULT_BRAM,
                         help='The maximum allowable bram in bytes (I.e. if in quarter table mode table is of size'
                             ' requested_bram / 4)'
                         )
@@ -853,15 +855,17 @@ def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_pa
             case TRIG_OPT_MODE.MAX:
                 raise NotImplementedError(f'Max mode not yet supported for {k.name}')
             case TRIG_OPT_MODE.HIGH:
+                start = 0
                 stop = np.sqrt(2) / 2
             case TRIG_OPT_MODE.MED:
                 raise NotImplementedError(f'Half table not yet supported for {k.name}')
             case TRIG_OPT_MODE.LOW:
+                start = -1
                 stop = 1
             case _:
                 assert_never(table_mode)
 
-        xs[k] = np.linspace(0, stop, sz, dtype=trig_parser.args['bw'])
+        xs[k] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
 
 
 def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -1013,25 +1017,12 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
             log_msg = ''.join(reversed(log_msg))
             LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(log_msg))
 
-            acc_report = None
-            if m in domain:
-                acc_report = assess_lut_quantization_error(table,
-                                                 fn=fn_actual,
-                                                 axis=domain[m],
-                                                 oversample_factor=trig_parser.args['osf'],
-                                                 q_format=trig_parser.args['q']
-                                                )
-
-            fn=fn_nominal.func if isinstance(fn_nominal, functools.partial) else fn_nominal
-
-            msg = (f'--- Accuracy Report for {fn.__name__} ---'
-                  f'{acc_report}')
-            print(msg)
-            LOGGER.info(msg)
-
             # The factor that indicates mix of precision and optimisation
             scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][m], trig_parser.args['prec_mode'][m])
+            fn=fn_nominal.func if isinstance(fn_nominal, functools.partial) else fn_nominal
             lut = LUT(table=table,
+                      domain=domain[m],
+                      type=LUT_TYPE.TRIG,
                       q_format=trig_parser.args['q'],
                       endianness=BYTEORDER.BIG,
                       bit_width=trig_parser.bw_sz,
@@ -1040,11 +1031,28 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
                       table_mode=trig_parser.args['table_mode'][m],
                       scale_factor=scale_factor,
                       fn=fn,
-                      acc_report=acc_report,
                       cmd=underline_matches(cmd_line_args, f'--{m.name.lower()}', match_all=True)
                     )
 
+            acc_metrics = LutAccMetrics(lut)
             luts_to_w.append(lut)
+
+            acc_report = None
+            if m in domain:
+                quant_acc_report = acc_metrics.assess_lut_quantization_error(fn=fn_actual,
+                                                                             axis=domain[m],
+                                                                             oversample_factor=trig_parser.args['osf'],
+                                                                             q_format=trig_parser.args['q']
+                                                                             )
+
+                thd_acc_report = acc_metrics.assess_lut_thd()
+
+                acc_report = LUT_ACC_REPORT(quant_acc_report=quant_acc_report,
+                                            thd_acc_report=thd_acc_report
+                                           )
+
+            print(acc_report)
+            LOGGER.info(str(acc_report))
 
     return luts_to_w
 
@@ -1100,42 +1108,6 @@ def _get_fn_from_optmode(m: TRIG_DEFS, trig_parser: _TrigArgParser) -> Callable[
 
     # Default behaviour: return the function itself
     return TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
-
-
-def assess_lut_accuracy(fn: Callable[..., np.floating],
-                         lut: Sequence[np.floating], axis: Sequence[np.floating],
-                         oversample_factor: np.uint, type: np.floating,
-                         test_type: np.dtype = np.float32) -> LUT_ACC_REPORT | None:
-    """ # Summary
-
-    Assesses the lut table's quantization error against a function, fn.
-    It compares the generated LUT against the ideal function values at the
-    exact same domain points, using the same floating point precision.
-    """
-    if dtype is None:
-        dtype = np.float64
-
-    quantized_table = q_format.get_converted(table)
-    original_axis = np.asarray(axis, dtype=dtype)
-    l_axis = np.size(original_axis)
-
-    if l_axis < 2:
-        return None
-
-    min_ax_val, max_ax_val = np.min(original_axis), np.max(original_axis)
-    l_test_axis = (l_axis - 1) * oversample_factor + 1
-    test_axis = np.linspace(min_ax_val, max_ax_val, l_test_axis, dtype=dtype)
-
-    ideal_float_values = fn(test_axis)
-    ideal_q_values = q_format.get_converted(ideal_float_values)
-    interpolated_lut_q_values = np.interp(test_axis, original_axis, quantized_table)
-    interpolated_lut_q_values = np.round(interpolated_lut_q_values).astype(quantized_table.dtype)
-
-    int_acc_scores = np.abs(interpolated_lut_q_values.astype(np.int64) - ideal_q_values.astype(np.int64))
-    float_acc_scores = int_acc_scores / 2 ** q_format.floating_part_bw
-    acc_report = LUT_ACC_REPORT(avg_acc=np.average(float_acc_scores), min_acc=np.min(float_acc_scores), max_acc=np.max(float_acc_scores), std=np.std(float_acc_scores), acc_scores=float_acc_scores)
-
-    return acc_report
 
 
 if __name__ == '__main__':

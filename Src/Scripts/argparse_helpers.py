@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 from enum import Enum
 
-from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP
+from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP, STANDARD_NP_DTYPES
 from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, QFormat
 from Allocator.Interpreter.helpers import underline_matches
 

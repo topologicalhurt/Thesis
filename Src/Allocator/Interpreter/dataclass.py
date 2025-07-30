@@ -27,11 +27,10 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
-
-from __future__ import absolute_import
-
 import importlib
+import enum
 import functools
+import scipy as sp
 import numpy as np
 import regex as re
 
@@ -145,9 +144,12 @@ class XILINX_GEN7_LUT_IDENTIFIERS(ExtendedEnum):
     V_LI9 = 2000
 
 
-class XILINX_BRAM_SIZES(Enum):
-    GEN7_STANDARD = 36
-    GEN7_DUALPORT = 18
+class XILINX_BRAM_SIZES(ExtendedEnum):
+    GEN7_STANDARD = 1, 36, 36*1000
+    GEN7_DUALPORT = 2, 18, 36*1000
+
+    ULTRASCALE_STANDARD = 3, 36, 36*1000
+    ULTRASCALE_DUALPORT = 4, 18, 18*1000
 
 
 class XILINX_SUPPORTED_FAMILIES(Enum):
@@ -260,6 +262,12 @@ class FILTERTYPE(Enum):
     BANDSTOP=4
 
 
+class SIG_WINDOW_TYPE(Enum):
+    FLATTOP=sp.signal.windows.flattop
+    BLACKMANHARRIS=sp.signal.windows.blackmanharris
+    KAISER=enum.nonmember(functools.partial(sp.signal.windows.kaiser, beta=8.6))
+
+
 class FREQ(Enum):
     """# Summary
 
@@ -269,6 +277,12 @@ class FREQ(Enum):
     KHZ=HZ*1000
     MHZ=KHZ*1000
     GHZ=MHZ*1000
+
+
+class LUT_TYPE(Enum):
+    TRIG=1
+    DSD=2
+    OTHER=3
 
 
 @dataclass
@@ -304,12 +318,16 @@ class QFormat:
         _, uint_alias = INT_STR_NPMAP.get_member_via_name(f'UINT{sz}').value
         return uint_alias(self._fxp_parser(val).val)
 
+    def get_float_representation(self, val: np.ndarray[np.uint] | np.uint) -> np.floating:
+        return val / 2 ** self.floating_part_bw
+
 
 @dataclass(frozen=True)
-class LUT_ACC_REPORT:
+class LUT_QUANT_ACC_REPORT:
     """# Summary
 
-    Dataclass used for the generated LUT acc report
+    Dataclass used as part of the LUT acc report. Stores the quantization error per.
+    `assess_lut_quantization_error` under `lut_acc_metrics`
     """
     avg_acc: np.float32
     min_acc: np.float32
@@ -317,20 +335,54 @@ class LUT_ACC_REPORT:
     std:     np.float32
     acc_scores: np.ndarray[np.floating]
 
-    def __str__(self) -> str:
-        return (f'\n\tAvg. acc score (lower is better): {self.avg_acc:0.5f}'
+    def __str__(self):
+        return (f'---LUT QUANTIZATION ERROR ACC REPORT---'
+          f'\n\n\tAvg. acc score (lower is better): {self.avg_acc:0.5f}'
           f'\n\tMin-acc loss: {self.min_acc:0.5f}'
           f'\n\tMax-acc loss: {self.max_acc:0.5f}'
           f'\n\tStandard deviation: {self.std:0.5f}')
 
 
 @dataclass(frozen=True)
+class LUT_THD_ACC_REPORT:
+    """# Summary
+
+    Dataclass used as part of the LUT acc report. Stores the total harmonic distortion (THD) error per.
+    `assess_lut_thd` under `lut_acc_metrics`
+    """
+    thd_dB: np.float32
+    thd_scalar: np.float32
+
+    def __str__(self):
+        return (f'---LUT THD ACC REPORT---'
+          f'\n\n\tTHD dB: {self.thd_dB:0.5f}'
+          f'\n\tTHD scalar: {self.thd_scalar:0.5f}')
+
+
+@dataclass(frozen=True)
+class LUT_ACC_REPORT:
+    """# Summary
+
+    Dataclass used to store *all* types of lut acc report.
+    """
+    quant_acc_report: LUT_QUANT_ACC_REPORT
+    thd_acc_report: LUT_THD_ACC_REPORT | None
+
+    def __str__(self):
+        return (f'[*]---LUT ACC REPORTS---[*]'
+                f'\n\n{self.quant_acc_report}'
+                f'\n\n{self.thd_acc_report}')
+
+
+@dataclass
 class LUT:
     """# Summary
 
     Dataclass used for an arbitrary generated LUT
     """
-    table: np.ndarray
+    table: np.ndarray[np.integer | np.floating]
+    domain: np.ndarray[np.integer | np.floating]
+    type: LUT_TYPE
     q_format: QFormat
     endianness: BYTEORDER
     bit_width: np.uint
@@ -339,8 +391,17 @@ class LUT:
     scale_factor: np.floating
     table_mode: ExtendedEnum
     fn: Callable[..., np.floating]
-    acc_report: LUT_ACC_REPORT
     cmd: str | None # Command used to create LUT
+
+    _acc_report: LUT_QUANT_ACC_REPORT | None = None
+
+    @property
+    def acc_report(self) -> LUT_QUANT_ACC_REPORT:
+        return self._acc_report
+
+    @acc_report.setter
+    def acc_report(self, val: LUT_QUANT_ACC_REPORT) -> None:
+        self._acc_report = val
 
     def __str__(self):
         return (f'\n\tFunction: {self.fn.__name__}'

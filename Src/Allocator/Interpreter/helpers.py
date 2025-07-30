@@ -94,6 +94,17 @@ def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
     return max(candidate_types, key=lambda x: np.dtype(x).itemsize)
 
 
+def find_nearest(array: np.ndarray[np.number], values: np.ndarray[np.number]) -> np.ndarray[np.number]:
+    """
+    For each value in `values`, find the nearest value in `array`.
+    """
+    array = np.asarray(array)
+    values = np.asarray(values)
+    diff = np.abs(array[:, np.newaxis] - values)
+    indices = diff.argmin(axis=0)
+    return array[indices]
+
+
 def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterable[Any]:
     """# Summary
 
