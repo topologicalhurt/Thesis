@@ -1,5 +1,5 @@
 Cython==3.1.2
 numpy==2.3.1
+setuptools==80.9.0
 regex==2025.7.34
-setuptools==80.7.1.post0
 xxhash==3.5.0
