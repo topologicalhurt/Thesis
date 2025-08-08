@@ -44,7 +44,7 @@ from Allocator.Interpreter.nptypes import INT_STR_NPMAP
 
 
 @dataclass(frozen=True)
-class ProgramMetaInformation:
+class PROGRAM_META_INFO:
     DEBUG: bool
 
 
@@ -251,7 +251,7 @@ class BYTEORDER(Enum):
     NATIVE=2
 
 
-class FILTERTYPE(Enum):
+class FILTER_TYPE(Enum):
     """# Summary
 
     Enum storing common filter shapes
@@ -283,6 +283,25 @@ class LUT_TYPE(Enum):
     TRIG=1
     DSD=2
     OTHER=3
+
+
+class SIGNAL_TYPE(Enum):
+    TRIG=1
+    OTHER=2
+
+    @classmethod
+    def lut_type_to_signal_type(cls, lut_type: LUT_TYPE) -> Enum:
+        return cls._member_map_.get(lut_type.name)
+
+
+class TABLE_MODE(ExtendedEnum):
+    """# Summary
+
+    Abstract parent of classes defining LUT 'fold' mode
+    I.e. a periodic function (E.g. sinusoids)
+    OR a function having an entire domain that can be reconstructed from a
+    subset of it's domain (E.g. arctan)
+    """
 
 
 @dataclass
@@ -356,6 +375,7 @@ class LUT_THD_ACC_REPORT:
     def __str__(self):
         return (f'---LUT THD ACC REPORT---'
           f'\n\n\tTHD dB: {self.thd_dB:0.5f}'
+          f'\n\tTHD (%) {self.thd_scalar:.2%}'
           f'\n\tTHD scalar: {self.thd_scalar:0.5f}')
 
 
@@ -382,6 +402,7 @@ class LUT:
     """
     table: np.ndarray[np.integer | np.floating]
     domain: np.ndarray[np.integer | np.floating]
+    domain_fn: Callable[..., np.ndarray[np.integer | np.floating]]
     type: LUT_TYPE
     q_format: QFormat
     endianness: BYTEORDER

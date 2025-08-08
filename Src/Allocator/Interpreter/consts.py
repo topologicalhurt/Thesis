@@ -38,9 +38,9 @@ import logging.handlers
 ######################################
 
 dataclass = importlib.import_module('.dataclass', package='Allocator.Interpreter')
-ProgramMetaInformation = dataclass.ProgramMetaInformation
+PROGRAM_META_INFO = dataclass.PROGRAM_META_INFO
 
-META_INFO = ProgramMetaInformation(
+META_INFO = PROGRAM_META_INFO(
     **{
         'DEBUG': True
     }

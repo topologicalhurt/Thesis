@@ -37,7 +37,7 @@ from pathlib import Path
 from textwrap import TextWrapper
 
 from Scripts.util_helpers import get_repo_root, get_git_author
-from Scripts.dataclass import ProgramMetaInformation
+from Scripts.dataclass import PROGRAM_META_INFO
 from Allocator.Interpreter.dataclass import XILINX_BRAM_SIZES
 
 
@@ -67,7 +67,7 @@ LUT_DEFAULT_BRAM = XILINX_BRAM_SIZES.members_from_indx(idx=2)[XILINX_BRAM_SIZES.
 # GENERAL PROGRAM / META INFO / MISC #
 ######################################
 
-META_INFO = ProgramMetaInformation(
+META_INFO = PROGRAM_META_INFO(
     **{
         'DATE_RUN': dt.datetime.now(),
         'DEBUG': True,

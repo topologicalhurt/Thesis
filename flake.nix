@@ -130,6 +130,8 @@
             export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
 
+            export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
+
             export PYTHONDONTWRITEBYTECODE=1
             export PYTHONUNBUFFERED=1
 

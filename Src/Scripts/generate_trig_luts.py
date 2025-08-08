@@ -33,12 +33,16 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 # TODO's:
 # (1) Full opt coverage for all functions
 # (2) More descriptive argparse error messages (E.G. what to do instead, remove bin unless in verbose mode etc.)
+#   - Including errors for precision mismatches, high memory usage etc.
 # (3) Introduce RMS, mean, max, newtown raphson modes for each k estimation technique
 # (4) Introduce way to prioritize phase distortion or frequency response or both
 # (5) Methods to test phase distortion, harmonic distortion
 # (6) Introduce chebyshev polynomial for max opt mode
-# (7) Ensure bram is correctly enforced (it isn't on sinc)
-# (8) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (7) Non-uniform spacing for 'denser' functions I.e. tan which requires higher precision around the pole at pi/2
+# (8) Ensure bram is correctly enforced (it isn't on sinc)
+# (9) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (10) Option to generate another LUT to generate the target LUT e.g. arcsin on high mode requires computation of sqrt(1 - x).
+# so an option would be to store the arcsin LUT recovery method itself in a LUT for a ~2 cycle lookup, but at the cost of more memory
 
 
 import collections
@@ -754,7 +758,8 @@ def generate_sin_cos_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_pa
             f'Generating {k.name} domain...'
         ))
 
-        sz = trig_parser.n_entries // _calculate_scale_factor(trig_parser.args['table_mode'][k], trig_parser.args['prec_mode'][k])
+        scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][k], trig_parser.args['prec_mode'][k])
+        sz = trig_parser.n_entries // scale_factor
         if not trig_parser.args['no_quantize']:
             sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
@@ -777,10 +782,13 @@ def generate_sin_cos_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_pa
 
         # https://zipcpu.com/dsp/2017/08/26/quarterwave.html
         # Minimize harmonic distortion
-        phis[k] = np.astype(
-            (2 * np.pi * np.arange(0, sz) / trig_parser.n_entries) + np.pi / sz,
-            trig_parser.args['bw']
-        )
+        def domain_fn(sz: np.uint, scale_factor: np.uint) -> np.ndarray[np.floating]:
+            n_luts = scale_factor * sz
+            return np.astype((2 * np.pi * (np.arange(0, sz) + 0.5) / n_luts),
+                             trig_parser.args['bw'])
+
+        domain = domain_fn(sz, scale_factor)
+        phis[k] = (domain, functools.partial(domain_fn, sz=sz*4, scale_factor=1))
 
 
 def generate_tan_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -823,7 +831,9 @@ def generate_tan_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_parser
     if not trig_parser.args['no_quantize']:
         sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
-    phis[TRIG_DEFS.TAN] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+    phis[TRIG_DEFS.TAN] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                           functools.partial(np.linspace, start, stop, sz, dtype=trig_parser.args['bw'])
+                          )
 
 
 def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -846,8 +856,10 @@ def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_pa
             f'Generating {k.name} domain...'
         ))
 
-        sz = trig_parser.n_entries // _calculate_scale_factor(trig_parser.args['table_mode'][k],
+        scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][k],
                                                               trig_parser.args['prec_mode'][k])
+        sz = trig_parser.n_entries // scale_factor
+
         if not trig_parser.args['no_quantize']:
             sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
@@ -855,8 +867,19 @@ def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_pa
             case TRIG_OPT_MODE.MAX:
                 raise NotImplementedError(f'Max mode not yet supported for {k.name}')
             case TRIG_OPT_MODE.HIGH:
-                start = 0
-                stop = np.sqrt(2) / 2
+                """
+                Per. https://github.com/topologicalhurt/Thesis/discussions/46
+                The index recovery method is non-linearly distributed over the LUT.
+                If the args are linearly spaced, it will introduce quantization error (I.e. major discontinuities)
+                due to the relative sparsity or density of the lookup method.
+                """
+                inv_sqrt2 = 1.0 / np.sqrt(2.0)
+                qwave_domain = np.linspace(0.0, inv_sqrt2, sz, dtype=trig_parser.args['bw'])
+                domain_fn = lambda: np.linspace(-1.0, 1.0, sz*4, dtype=trig_parser.args['bw']) # noqa: E731
+
+                xs[k] = (qwave_domain, domain_fn)
+
+                continue
             case TRIG_OPT_MODE.MED:
                 raise NotImplementedError(f'Half table not yet supported for {k.name}')
             case TRIG_OPT_MODE.LOW:
@@ -865,7 +888,9 @@ def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_pa
             case _:
                 assert_never(table_mode)
 
-        xs[k] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+        xs[k] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                 functools.partial(np.linspace, start, stop=scale_factor*stop, sz=scale_factor*sz, dtype=trig_parser.args['bw'])
+                )
 
 
 def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -922,7 +947,9 @@ def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
     LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
     print(msg)
 
-    xs[TRIG_DEFS.ATAN] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+    xs[TRIG_DEFS.ATAN] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                          functools.partial(np.linspace, start, stop, sz, dtype=trig_parser.args['bw'])
+                         )
 
 
 def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -972,7 +999,9 @@ def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
     LOGGER.info(msg)
     print(msg)
 
-    xs[TRIG_DEFS.SINC] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+    xs[TRIG_DEFS.SINC] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                          functools.partial(np.linspace, start, stop, sz, dtype=trig_parser.args['bw'])
+                         )
 
 
 ###############
@@ -988,21 +1017,23 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
         if lut_select & bit_v.value:
             match m:
                 case TRIG_DEFS.SIN | TRIG_DEFS.COS | TRIG_DEFS.TAN:
-                    domain = phis
+                    domains = phis
                 case TRIG_DEFS.ASIN | TRIG_DEFS.ACOS | TRIG_DEFS.ATAN | TRIG_DEFS.SINC:
-                    domain = xs
+                    domains = xs
                 case _:
                     assert_never(m)
+
+            domain, domain_fn = domains[m]
 
             # fn_nominal is potentially different to fn_actual I.e. compact_sinc should be measured against sinc
             fn_nominal = _get_fn_from_optmode(m, trig_parser=trig_parser)
             fn_actual = TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
 
             log_msg = []
-            if m in domain:
-                table = fn_nominal(domain[m])
-                log_msg.append(f'\n\tDomain (first 10 values) {log_wrapper.fill(str(list(domain[m][:10])))}'
-                               f'\n\tDomain (last 10 values) {log_wrapper.fill(str(list(domain[m][-10:])))}'
+            if m in domains:
+                table = fn_nominal(domain)
+                log_msg.append(f'\n\tDomain (first 10 values) {log_wrapper.fill(str(list(domain[:10])))}'
+                               f'\n\tDomain (last 10 values) {log_wrapper.fill(str(list(domain[-10:])))}'
                                )
             else:
                 table = fn_nominal()                            # Methods that don't need a domain I.e. Chebyshev
@@ -1021,7 +1052,8 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
             scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][m], trig_parser.args['prec_mode'][m])
             fn=fn_nominal.func if isinstance(fn_nominal, functools.partial) else fn_nominal
             lut = LUT(table=table,
-                      domain=domain[m],
+                      domain=domain,
+                      domain_fn=domain_fn,
                       type=LUT_TYPE.TRIG,
                       q_format=trig_parser.args['q'],
                       endianness=BYTEORDER.BIG,
@@ -1038,14 +1070,13 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
             luts_to_w.append(lut)
 
             acc_report = None
-            if m in domain:
-                quant_acc_report = acc_metrics.assess_lut_quantization_error(fn=fn_actual,
-                                                                             axis=domain[m],
-                                                                             oversample_factor=trig_parser.args['osf'],
-                                                                             q_format=trig_parser.args['q']
-                                                                             )
-
-                thd_acc_report = acc_metrics.assess_lut_thd()
+            if m in domains:
+                test_axis: np.ndarray[np.floating | np.integer] = domain_fn()
+                quant_acc_report = acc_metrics.assess_quantization_error(fn=fn_actual,
+                                                                         axis=test_axis,
+                                                                         oversample_factor=trig_parser.args['osf']
+                                                                         )
+                thd_acc_report = acc_metrics.assess_thd()
 
                 acc_report = LUT_ACC_REPORT(quant_acc_report=quant_acc_report,
                                             thd_acc_report=thd_acc_report
