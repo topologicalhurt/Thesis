@@ -10,7 +10,7 @@ pip==25.0.1
 pytest==8.3.5
 PyYAML==6.0.2
 redis==6.2.0
-regex==2024.11.6
+regex==2025.7.34
 scipy==1.16.0
 sphinx==8.2.3
 urllib3_secure_extra==0.1.0
