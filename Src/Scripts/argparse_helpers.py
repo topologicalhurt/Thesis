@@ -35,7 +35,7 @@ import argparse as ap
 import numpy as np
 import regex as re
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from enum import Enum
