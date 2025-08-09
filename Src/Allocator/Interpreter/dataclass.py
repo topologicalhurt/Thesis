@@ -35,17 +35,13 @@ import numpy as np
 import regex as re
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, fields
 from enum import Enum
 from fxpmath import Fxp
 
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import INT_STR_NPMAP
-
-
-@dataclass(frozen=True)
-class PROGRAM_META_INFO:
-    DEBUG: bool
+from Allocator.Interpreter.singleton import SingletonMetaSubclass
 
 
 class XILINX_GENERATION(ExtendedEnum):
@@ -183,7 +179,12 @@ class XILINX_SUPPORTED_LUT_SIZES(Enum):
         return value < self.value
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
+class PROGRAM_META_INFO:
+    DEBUG: bool
+
+
+@dataclass(frozen=True, slots=True)
 class XILINX_NAME_SCHEME_STRUCTURE:
     """# Summary
 
@@ -294,6 +295,56 @@ class SIGNAL_TYPE(Enum):
         return cls._member_map_.get(lut_type.name)
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SIGNAL_METRIC:
+    signal: np.ndarray[np.floating | np.integer]
+    signal_type: SIGNAL_TYPE
+    signal_name: str | None
+
+
+class SignalStatistic(metaclass=SingletonMetaSubclass):
+    __slots__ = ('_signal_metric', '_signal', '_signal_type', '_signal_name', '_signal_mean', '_is_periodic', '_unbiased_signal')
+
+    def __init__(self, signal: np.ndarray[np.number], signal_type: SIGNAL_TYPE, signal_name: str | None = None):
+        self._signal = signal
+        self._signal_type = signal_type
+        self._signal_name = signal_name
+
+        # Defer to property time creation, I.e. lazy load
+        self._signal_metric = None
+        self._signal_mean = None
+        self._is_periodic = None
+        self._unbiased_signal = None
+
+    @property
+    def signal_metric(self):
+        if self._signal_metric is None:
+            self._signal_metric = SIGNAL_METRIC(
+                signal=self._signal,
+                signal_type=self._signal_type,
+                signal_name=self._signal_name
+            )
+        return self._signal_metric
+
+    @property
+    def signal_mean(self):
+        if self._signal_mean is None:
+            self._signal_mean = np.mean(self.signal_metric.signal)
+        return self._signal_mean
+
+    @property
+    def is_periodic(self):
+        if self._is_periodic is None:
+            self._is_periodic = self.signal_metric.signal_type == SIGNAL_TYPE.TRIG and self.signal_metric.signal_name in ('sin', 'cos', 'tan')
+        return self._is_periodic
+
+    @property
+    def unbiased_signal(self):
+        if self._unbiased_signal is None:
+            self._unbiased_signal = self.signal_metric.signal - self.signal_mean
+        return self._unbiased_signal
+
+
 class TABLE_MODE(ExtendedEnum):
     """# Summary
 
@@ -341,7 +392,7 @@ class QFormat:
         return val / 2 ** self.floating_part_bw
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LUT_QUANT_ACC_REPORT:
     """# Summary
 
@@ -362,7 +413,7 @@ class LUT_QUANT_ACC_REPORT:
           f'\n\tStandard deviation: {self.std:0.5f}')
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LUT_THD_ACC_REPORT:
     """# Summary
 
@@ -379,7 +430,7 @@ class LUT_THD_ACC_REPORT:
           f'\n\tTHD scalar: {self.thd_scalar:0.5f}')
 
 
-@dataclass(frozen=True)
+@dataclass
 class LUT_ACC_REPORT:
     """# Summary
 
@@ -387,14 +438,23 @@ class LUT_ACC_REPORT:
     """
     quant_acc_report: LUT_QUANT_ACC_REPORT
     thd_acc_report: LUT_THD_ACC_REPORT | None
+    f_name: InitVar[str]
+
+    def __post_init__(self, f_name: str):
+        self._f_name = f_name.upper()
+
+    @property
+    def f_name(self):
+        return self._f_name
 
     def __str__(self):
-        return (f'[*]---LUT ACC REPORTS---[*]'
-                f'\n\n{self.quant_acc_report}'
-                f'\n\n{self.thd_acc_report}')
+        result = [f'[*]---LUT ACC REPORTS FOR {self.f_name}---[*]']
+        for v in fields(self):
+            result.append(f'\n{str(getattr(self, v.name))}')
+        return '\t\n'.join(result)
 
 
-@dataclass
+@dataclass(slots=True)
 class LUT:
     """# Summary
 

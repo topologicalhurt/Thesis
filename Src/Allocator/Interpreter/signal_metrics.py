@@ -2,8 +2,9 @@ import numpy as np
 import scipy as sp
 
 from collections.abc import Callable
+from typing import override
 
-from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat
+from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat, SignalStatistic
 
 
 # TODO:
@@ -14,27 +15,22 @@ from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_RE
 # (4): refactor potentially reusable signal methods into `signals.py`
 
 
-class SignalStatistic:
-    def __init__(self, signal: np.ndarray[np.number], signal_type: SIGNAL_TYPE, signal_name: str | None = None):
-        self.signal = signal
-        self.signal_type = signal_type
-        self.signal_mean = np.mean(signal)
-        self.signal_name = signal_name
-
-        self._unbiased_signal = self.signal - self.signal_mean
-
-
 class PeriodicityMetrics(SignalStatistic):
+
     def __init__(self, signal: np.ndarray[np.number], signal_type: SIGNAL_TYPE, signal_name: str | None = None):
         super().__init__(signal=signal, signal_type=signal_type, signal_name=signal_name)
-        self.is_periodic = self.signal_type == SIGNAL_TYPE.TRIG and self.signal_name in ('sin', 'cos', 'tan')
-        self.is_periodic = self.auto_corr_period_test() > 0 if not self.is_periodic else self.is_periodic
+
+    @override
+    @property
+    def is_periodic(self):
+        _is_periodic = super().is_periodic
+        return _is_periodic or self.auto_corr_period_test() > 0 and not _is_periodic
 
     def auto_corr_period_test(self) -> np.uint:
         """Use normalized autocorrelation to determine periodicity.
         Return the period of the function if it is periodic, with a result of 0 indicating no periodicity.
         """
-        sig_norm = np.sum(self._unbiased_signal**2)
+        sig_norm = np.sum(self.unbiased_signal**2)
 
         # Per the np.correlate documentation, FFT isn't use to compute the convolution which is inefficient on large arrays
         # sp.signal.correlate DOES do this, however.
@@ -47,6 +43,7 @@ class PeriodicityMetrics(SignalStatistic):
 
 
 class DistortionMetrics(SignalStatistic):
+
     def __init__(self, signal: np.ndarray[np.number], signal_type: SIGNAL_TYPE, signal_name: str | None = None):
         super().__init__(signal=signal, signal_type=signal_type, signal_name=signal_name)
 
@@ -62,7 +59,7 @@ class DistortionMetrics(SignalStatistic):
         non-periodic functions the FFT spreads energy (leakage) and makes THD meaningless.
         A DCT on the finite interval is the appropriate orthogonal basis.
         """
-        x = np.asarray(self._unbiased_signal, dtype=np.float64).copy()
+        x = np.asarray(self.unbiased_signal, dtype=np.float64).copy()
         n = x.size
         if n < 4:
             return LUT_THD_ACC_REPORT(thd_dB=-np.inf, thd_scalar=0.0)

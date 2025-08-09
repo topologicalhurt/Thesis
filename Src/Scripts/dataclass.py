@@ -37,7 +37,7 @@ from pathlib import Path
 from Allocator.Interpreter.dataclass import FILTER_TYPE, TABLE_MODE, ExtendedEnum
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PROGRAM_META_INFO:
     """# Summary
 
@@ -51,7 +51,7 @@ class PROGRAM_META_INFO:
     EXCLUDED_DIRS: set
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class KaiserParameters:
     """# Summary
 
@@ -66,7 +66,7 @@ class KaiserParameters:
     estimated_attenuation: np.float32
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class KaiserSchematic:
     """# Summary
 
@@ -81,7 +81,7 @@ class KaiserSchematic:
     parameters: KaiserParameters
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TRIG_OPTS:
     lut_select: np.uint          # *Every* single lut that should be generated
     k_mask_bitfield: np.uint     # A mask which determines which luts need to have k also specified

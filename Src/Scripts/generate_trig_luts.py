@@ -1078,7 +1078,8 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
                                                                          )
                 thd_acc_report = acc_metrics.assess_thd()
 
-                acc_report = LUT_ACC_REPORT(quant_acc_report=quant_acc_report,
+                acc_report = LUT_ACC_REPORT(f_name=lut.fn.__name__,
+                                            quant_acc_report=quant_acc_report,
                                             thd_acc_report=thd_acc_report
                                            )
 
