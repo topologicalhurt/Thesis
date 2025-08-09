@@ -28,6 +28,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
+import functools
 import importlib
 import itertools
 import xxhash
@@ -93,6 +94,17 @@ def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
     return max(candidate_types, key=lambda x: np.dtype(x).itemsize)
 
 
+def find_nearest(array: np.ndarray[np.number], values: np.ndarray[np.number]) -> np.ndarray[np.number]:
+    """
+    For each value in `values`, find the nearest value in `array`.
+    """
+    array = np.asarray(array)
+    values = np.asarray(values)
+    diff = np.abs(array[:, np.newaxis] - values)
+    indices = diff.argmin(axis=0)
+    return array[indices]
+
+
 def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterable[Any]:
     """# Summary
 
@@ -125,6 +137,27 @@ def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterabl
         ['a', 'a', 'a', 'c', 'b']
     """
     return sorted(to_sort, key=lambda item: (mask.get(item, float('inf')), item))
+
+
+def join_regex(*regex: str, non_capture: bool = True, or_join: bool = True) -> str:
+    def _increment_match(match, i: int):
+        return f'\\{int(match.group(0)[1:]) + i}'
+
+    wrapped_patterns = []
+    i = 0
+    for pattern in regex:
+        if re.search(r'\\\d+', pattern):
+            wrapped_patterns.append(re.sub(r'\\\d+',
+                                    functools.partial(_increment_match, i=i), pattern)
+                                   )
+            i += 1
+            continue
+        wrapped_patterns.append(pattern)
+
+    wrapped_patterns = [f'(?:{pattern})' if non_capture else f'({pattern})' for pattern in wrapped_patterns]
+    if or_join:
+        return '|'.join(wrapped_patterns)
+    return ''.join(wrapped_patterns)
 
 
 def underline_match(text: str, to_match: str,
@@ -207,7 +240,7 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
     return f'{text}\n{''.join(underlined)}'
 
 
-def underline_first_non_captured_group(groups: re.Pattern[str], string: str) -> str | Sequence[str]:
+def underline_first_non_captured_group(groups: re.Pattern | str, string: str) -> str | Sequence[str]:
     """# Summary
 
     Returns the first group that couldn't be captured in the list of groups,
@@ -217,11 +250,28 @@ def underline_first_non_captured_group(groups: re.Pattern[str], string: str) -> 
     matches = []
     j = 0                                                                               # Tracks last matches' end position
     for i, group in enumerate(groups):
-        if not (match := re.match(r''.join(groups[:i+1]), string)):
+        if not (match := re.match(join_regex(*groups[:i+1], or_join=False), string, partial=True)) or match.partial:
+            print(groups[:i+1])
             return f'\n{underline_matches(string, group, start_index=j, literal=False)}'
         matches.append(match.group(i+1))
         j = match.end()
     return matches
+
+
+def greater_than_n_regex(n: int) -> str:
+    """# Summary
+
+    Returns the regex for >= n
+    """
+    result = [r'\d*']
+    i = 0   # Value will be log10(n) after loop
+    while n:
+        d, r = divmod(n, 10)
+        result.append(rf'[{r}-9]')
+        n = d
+        i += 1
+    result = reversed(result)
+    return join_regex(fr'[1-9]\d{{{i},}}', ''.join(result))
 
 
 nptypes = importlib.import_module('.nptypes', 'Allocator.Interpreter')

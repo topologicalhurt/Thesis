@@ -30,6 +30,9 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import importlib
 import numpy as np
 
+from typing import override
+from enum import Enum
+
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 
 
@@ -91,11 +94,17 @@ class INT_STR_NPMAP(ExtendedEnum):
     """
     INT8 = 8, np.int8
     INT16 = 16, np.int16
-    INT = 32, np.int32
     INT32 = 32, np.int32
     INT64 = 64, np.int64
     UINT8 = 8, np.uint8
     UINT16 = 16, np.uint16
-    UINT = 32, np.uint32
     UINT32 = 32, np.uint32
     UINT64 = 64, np.uint64
+
+    @override
+    @classmethod
+    def get_member_via_name(cls, name: str) -> Enum:
+        """Alias default types to types with explicit bit width"""
+        if not name[-1].isdigit():
+            name += '32'
+        return super().get_member_via_name(name)

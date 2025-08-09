@@ -34,23 +34,24 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import FILTERTYPE, ExtendedEnum
+from Allocator.Interpreter.dataclass import FILTER_TYPE, TABLE_MODE, ExtendedEnum
 
 
-@dataclass(frozen=True)
-class ProgramMetaInformation:
+@dataclass(frozen=True, slots=True)
+class PROGRAM_META_INFO:
     """# Summary
 
     Dataclass storing static meta program information
     (I.e. time of run, git repo root, author credentials etc.)
     """
     DATE_RUN: dt.datetime
+    DEBUG: bool
     GIT_ROOT: Path
     AUTHOR_CREDENTIALS: Sequence[str, str]
     EXCLUDED_DIRS: set
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class KaiserParameters:
     """# Summary
 
@@ -65,7 +66,7 @@ class KaiserParameters:
     estimated_attenuation: np.float32
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class KaiserSchematic:
     """# Summary
 
@@ -73,14 +74,14 @@ class KaiserSchematic:
     """
     coeffs: np.ndarray[np.floating]
     cutoff_norm: float | Sequence[np.floating]
-    filter_type: FILTERTYPE
+    filter_type: FILTER_TYPE
     measured_stopband_attenuation: np.float32
     target_stopband_attenuation: np.float32
     frequency_response: Sequence[np.ndarray[np.floating], np.ndarray[np.floating]]
     parameters: KaiserParameters
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TRIG_OPTS:
     lut_select: np.uint          # *Every* single lut that should be generated
     k_mask_bitfield: np.uint     # A mask which determines which luts need to have k also specified
@@ -136,17 +137,7 @@ class TRIG_MUST_HAVE_KSET(ExtendedEnum):
     SINC = 2
 
 
-class TABLEMODE(ExtendedEnum):
-    """# Summary
-
-    Abstract parent of classes defining LUT 'fold' mode
-    I.e. a periodic function (E.g. sinusoids)
-    OR a function having an entire domain that can be reconstructed from a
-    subset of it's domain (E.g. arctan)
-    """
-
-
-class TRIG_OPT_MODE(TABLEMODE):
+class TRIG_OPT_MODE(TABLE_MODE):
     """# Summary
 
     Enum corresponding to how the trig LUT is 'folded' E.G. refer to the basic sin case

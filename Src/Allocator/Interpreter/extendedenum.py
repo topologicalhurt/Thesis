@@ -31,7 +31,7 @@ import regex as re
 
 from enum import Enum, EnumMeta
 from collections.abc import Sequence, Iterable
-from typing import Any
+from typing import Any, Mapping
 
 
 class _ExtendedEnumMeta(EnumMeta):
@@ -76,7 +76,7 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
         tuple if the index exceeds the number of elements in the tuple
         """
         if isinstance(value, (list, tuple)):
-            return [item[idx] if len(item) > idx else item
+            return [item[idx] if isinstance(item, (list, tuple)) and len(item) > idx else item
                     for item in value]
         return [value]
 
@@ -107,12 +107,27 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
                  for item in cls.unpack_nth(member.value, idx)]
 
     @classmethod
+    def members_from_indx(cls, idx: int) -> Mapping[Enum, Any]:
+        """# Summary
+
+        Unpacks and returns the idxth element of every tuple, in a dictionary with the
+        member as key. I.e.:
+
+        FIELD1 = (1, 'foo')
+        FIELD2 = (2, 'bar') ...
+
+        => {FIELD1: 'foo', FIELD2: 'bar' ...}
+        """
+        return {member: cls.unpack_nth(member.value, idx)[idx] for member in cls.get_members()
+                  if isinstance(member.value, (tuple, list))}
+
+    @classmethod
     def get_members(cls) -> Iterable:
         """# Summary
 
         Returns the enum member fields via iterator
         """
-        return [v for k, v in cls.__members__.items() if k in cls.fields()]
+        return [v for k, v in cls.__members__.items() if k in cls]
 
     @classmethod
     def get_members_from_pattern(cls, pattern: str | re.Pattern[str]) -> list[tuple] | dict:

@@ -27,13 +27,43 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 
 """
-
+import importlib
 
 import logging
 import logging.handlers
 
 
-# Logging
+######################################
+# GENERAL PROGRAM / META INFO / MISC #
+######################################
+
+dataclass = importlib.import_module('.dataclass', package='Allocator.Interpreter')
+PROGRAM_META_INFO = dataclass.PROGRAM_META_INFO
+
+META_INFO = PROGRAM_META_INFO(
+    **{
+        'DEBUG': True
+    }
+)
+
+#################
+# TARGET FPGA'S #
+#################
+
+xilinx_name_validator = importlib.import_module('.xilinx_name_validator', package='Allocator.Interpreter')
+XilinxDeviceSet = xilinx_name_validator.XilinxDeviceSet
+
+GEN7_ARTIX_TARGET_NAMES = ['XC7A100+T']
+GEN7_KINTEX_TARGET_NAMES = ['XC7K100+T']
+GEN7_VIRTEX_TARGET_NAMES = ['XC7V330+T']
+ZYNQ_ULTRASCALE_TARGET_NAMES = ['ZU2+CG', 'ZU2+EG']
+XILINX_ALL_TARGET_NAMES = GEN7_ARTIX_TARGET_NAMES + GEN7_KINTEX_TARGET_NAMES + GEN7_VIRTEX_TARGET_NAMES + ZYNQ_ULTRASCALE_TARGET_NAMES
+XILINX_TARGETS = XilinxDeviceSet(names=XILINX_ALL_TARGET_NAMES)
+
+###########
+# LOGGING #
+###########
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -56,4 +86,4 @@ def set_logger_opts():
     LOGGER.addHandler(handler)
 
 
-set_logger_opts()
+# set_logger_opts()

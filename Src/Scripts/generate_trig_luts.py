@@ -33,12 +33,16 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 # TODO's:
 # (1) Full opt coverage for all functions
 # (2) More descriptive argparse error messages (E.G. what to do instead, remove bin unless in verbose mode etc.)
+#   - Including errors for precision mismatches, high memory usage etc.
 # (3) Introduce RMS, mean, max, newtown raphson modes for each k estimation technique
 # (4) Introduce way to prioritize phase distortion or frequency response or both
 # (5) Methods to test phase distortion, harmonic distortion
 # (6) Introduce chebyshev polynomial for max opt mode
-# (7) Ensure bram is correctly enforced (it isn't on sinc)
-# (8) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (7) Non-uniform spacing for 'denser' functions I.e. tan which requires higher precision around the pole at pi/2
+# (8) Ensure bram is correctly enforced (it isn't on sinc)
+# (9) Refactor into the allocator itself (to dynamically generate LUT's based on signal functions)
+# (10) Option to generate another LUT to generate the target LUT e.g. arcsin on high mode requires computation of sqrt(1 - x).
+# so an option would be to store the arcsin LUT recovery method itself in a LUT for a ~2 cycle lookup, but at the cost of more memory
 
 
 import collections
@@ -55,13 +59,15 @@ from typing import Any, assert_never
 from Allocator.Interpreter.bitfield import BITFIELD
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, BYTEORDER
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_TYPE
+from Allocator.Interpreter.lut_acc_metrics import LutAccMetrics
 from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches, quantize
 
-from Scripts.argparse_helpers import get_non_flags, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name, str2float, str2posint
+from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
+str2float, str2posint
 from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_MUST_HAVE_KSET, TRIG_PRECISION
 from Scripts.hex_utils import TrigLutManager
-from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, log_wrapper
+from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, LUT_DEFAULT_BRAM, log_wrapper
 
 
 #######################
@@ -80,23 +86,31 @@ def main() -> None:
                         help='The output directory for the LUTs'
                         )
 
-    parser.add_argument('-bram', type=_TrigArgParser.bram, default=2048,
+    parser.add_argument('q', type=str2Qfixedformat,
+                    help='The Qm.n fixed point float format to convert the data into.'
+                    ' Format is Q<integer_part>.<floating_part>.'
+                    ' Also accepts the value "auto" which will automatically determine the minimum integer & floating part'
+                    ' for you. However, it is strongly recommended that you explicitly specify the q format as decoding'
+                    ' / dealing with q format is not FPGA agnostic'
+                    )
+
+    parser.add_argument('-bram', type=_TrigArgParser.bram, default=LUT_DEFAULT_BRAM,
                         help='The maximum allowable bram in bytes (I.e. if in quarter table mode table is of size'
                             ' requested_bram / 4)'
                         )
 
     parser.add_argument('-bw', type=functools.partial(str2bitwidth, is_int=False), default=FLOAT_STR_NPMAP.FLOAT32.value,
-                        help='The bit width of each value in the LUT (default: float / 32bit)'
+                        help='The bit width of each value in the LUT (default: float32 / 32bit)'
                         )
 
     parser.add_argument('-k', type=_TrigArgParser.kthresh, default=0.01,
-                    help='A floating point threshold value which determines the error tolerance for all trig functions'
-                    ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
-                    )
+                        help='A floating point threshold value which determines the error tolerance for all trig functions'
+                        ' NOTE: this will not be applied to tan & atan (see: -tan-k, -atan-k)'
+                        )
 
     parser.add_argument('-osf', type=_TrigArgParser.os_factor, default=128,
                         help='The oversampling factor to use on the reference LUT on the accuracy testbench'
-                       )
+                        )
 
     table_mode_enum_description = ''.join(TRIG_OPT_MODE.__doc__.strip().splitlines())
     table_mode_enum_description = re.sub(r'\s{2,}', ' ', table_mode_enum_description)
@@ -110,16 +124,16 @@ def main() -> None:
                         f' The following description might proove valuable: "{table_mode_enum_description}"'
                         )
 
-    parser.add_argument('-hp', type=_TrigArgParser.precmode, nargs='*', default=TRIG_PRECISION.LOWP,
+    parser.add_argument('-prec-mode', type=_TrigArgParser.precmode, nargs='*', default=TRIG_PRECISION.LOWP,
                         help=f'A list of trig values I.e. {TRIG_DEFS.fields()}'
                         ' to apply low precision mode to OR a list of trig values & explicit precision mode to use'
-                        ' E.g. -hp cos medp sin medp tan highp.'
+                        ' E.g. -prec-mode cos medp sin medp tan highp.'
                         ' (lowest p-mode used if none specified, applies to all values if none provided)'
                         ' For example, if -table_mode (see: -table_mode) is in the highest mode (quarter table mode)'
                         ' then the default behaviour is to also reduce the LUT size'
-                        ' by a factor of 4. In hp mode the requested table size remains the same (effective x4 oversampling)'
+                        ' by a factor of 4. In prec mode the requested table size remains the same (effective x4 oversampling)'
                         ' meaning it operates in a higher mode of precision.'
-                        ' If a value is explicitly provided & table_mode differs E.g. -table_mode -hp cos medp | 1 then the factors are multiplied'
+                        ' If a value is explicitly provided & table_mode differs E.g. -table_mode -prec-mode cos medp | 1 then the factors are multiplied'
                         ' to size the table. I.e. in this scenario'
                         ' => a quarter table lookup method is used for half the period of the function (effective x2 oversampling)'
                         )
@@ -142,23 +156,23 @@ def main() -> None:
                         ' prohibitions: -auto (see: -auto)'
                         )
 
-    parser.add_argument('-tan-k', type=_TrigArgParser.kthresh, const=0.01, default=None, nargs='?',
+    parser.add_argument('-tan-k', type=_TrigArgParser.kthresh, const=_TrigArgParser.DEFAULT_THRESHOLD, nargs='?',
                         help='A floating point threshold value which determines the error tolerance for tan'
                         )
 
-    parser.add_argument('-atan-k', type=_TrigArgParser.kthresh, const=0.01, default=None, nargs='?',
+    parser.add_argument('-atan-k', type=_TrigArgParser.kthresh, const=_TrigArgParser.DEFAULT_THRESHOLD, nargs='?',
                         help='A floating point threshold value which determines the error tolerance for atan'
                         )
 
-    parser.add_argument('-sinc-k', type=_TrigArgParser.kthresh, const=0.01, default=None, nargs='?',
-                    help='A floating point threshold value which determines the error tolerance for sinc'
-                    )
+    parser.add_argument('-sinc-k', type=_TrigArgParser.kthresh, const=_TrigArgParser.DEFAULT_THRESHOLD, nargs='?',
+                        help='A floating point threshold value which determines the error tolerance for sinc'
+                        )
 
     parser.add_argument('--auto-off', action='store_true', default=False,
                         help='Turns auto mode off if specified'
                         )
 
-    parser.add_argument('--quantize', action='store_true', default=False,
+    parser.add_argument('--no-quantize', action='store_true', default=False,
                         help='Forcibly quantize the generated LUT to nearest power of 2'
                         )
 
@@ -241,11 +255,15 @@ class _TrigArgParser():
     TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT = TRIG_LUTS_BITFIELD.COS.value | TRIG_LUTS_BITFIELD.ACOS.value | TRIG_LUTS_BITFIELD.SINC.value
     SIN_COS = TRIG_LUTS_BITFIELD.SIN.value | TRIG_LUTS_BITFIELD.COS.value
     ASIN_ACOS = TRIG_LUTS_BITFIELD.ASIN.value | TRIG_LUTS_BITFIELD.ACOS.value
+    DEFAULT_THRESHOLD = np.float32(0.001)
 
     def __init__(self, parser: ap.ArgumentParser, **kwargs: Mapping[str, Any]):
         self.args = kwargs
         self.parser = parser
         self.non_flags = get_non_flags(parser)
+
+        self.k_lut_mask = [field.lower() for field in TRIG_MUST_HAVE_KSET.fields()]
+        self.k_fields = {f'{field}_k': self.args[f'{field}_k'] for field in self.k_lut_mask}
 
         # self.args['bw'] is an enum member storing (<type_sz>, <type>) I.e. (32, np.int32)
         # Store the actual integer value (I.e 32) of the bit_width in bw_sz & the type in args['bw']
@@ -323,18 +341,18 @@ class _TrigArgParser():
                 lut_select ^= _TrigArgParser.TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT
 
         # This selects the lut values that *need* to be supplied from trig_opts, encoding as bitstr
-        k_lut_mask = [field.lower() for field in TRIG_MUST_HAVE_KSET.fields()]
-        k_mask_bitfield = bitfield_from_enum_mask(TRIG_DEFS, mask=k_lut_mask)
+        k_mask_bitfield = bitfield_from_enum_mask(TRIG_DEFS, mask=self.k_lut_mask)
         k_mask_bitfield = k_mask_bitfield.get_bit_str() & lut_select
 
         # This selects the lut values that *were* selected by the command line, encoding as bitstr
-        k_lut_select = bitstr_from_enum_mask(TRIG_DEFS, k_lut_mask, True, *[self.args[field] for field in k_lut_mask])
+        lut_values_specified = [self.args[field] for field in self.k_lut_mask]
+        k_lut_select = bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *lut_values_specified)
 
         # This selects the k values that *were* selected by the command line, encoding as bitstr
-        k_values = [k is not None for k in [self.args[f'{field}_k'] for field in k_lut_mask]]
-        k_values_select = bitstr_from_enum_mask(TRIG_DEFS, k_lut_mask, True, *k_values)
+        k_values_specified = [v is not None for v in self.k_fields.values()]
+        k_values_select = bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *k_values_specified)
 
-        # Occurs IFF. no lut AND no k were supplied
+        # Occurs IFF. no lut AND no k were supplied I.e. empty command line args or using --all
         no_k_no_vals = (k_values_select == k_lut_select == 0) and k_mask_bitfield != 0
 
         err_invoker = get_action_from_parser_by_name(self.parser, 'k')
@@ -356,21 +374,15 @@ class _TrigArgParser():
 
         # Case I: Ensure that there are as many k values as trig values, if supplied
         # Case II: Ensure that all k values are manually supplied for args specified in TRIGMUSTHAVEKSET
-        if  (k_values_select > k_lut_select and k_mask_bitfield ^ k_values_select) or no_k_no_vals:
-            if no_k_no_vals:
-                raise ap.ArgumentError(err_invoker,
-                                    f'The default behaviour is to generate according to: {bin(lut_select)}.'
-                                    ' which occurs when no trig & no threshold values are supplied'
-                                    f' Ensure k is explicitly declared for each value in {TRIG_MUST_HAVE_KSET.fields()}'
-                                    )
+        if  (k_values_select > k_lut_select and k_mask_bitfield ^ k_values_select) and not no_k_no_vals:
             raise ap.ArgumentError(err_invoker,
                                     'A k / threshold value was provided but the corresponding trig function was not explicitly declared:'
                                     f'\n{underline_matches(' '.join(sys.argv[1:]), r'-\w+-k', match_all=True, literal=False)}'
                                     '\nif LUT is to be generated.'
                                     )
 
-        elif k_mask_bitfield ^ k_values_select:
-            to_underline = [v.lower() for v in k_lut_mask]
+        elif k_mask_bitfield ^ k_values_select and not no_k_no_vals:
+            to_underline = [v.lower() for v in self.k_lut_mask]
             raise ap.ArgumentError(err_invoker,
                                     'k must be individually supplied for:'
                                     f'\n{underline_matches(' '.join(sys.argv[1:]), to_underline, match_all=True)}'
@@ -378,6 +390,9 @@ class _TrigArgParser():
                                     )
 
         return trig_opts
+
+    def _parse_k_vals(self) -> Mapping[str, bool]:
+        return {k: _TrigArgParser.DEFAULT_THRESHOLD if v is None else v for k, v in self.k_fields.items()}
 
     def _parse_table_mode(self) -> Mapping[TRIG_DEFS, TRIG_OPT_MODE]:
         table_mode_default = get_action_from_parser_by_name(self.parser, 'table_mode').default
@@ -403,54 +418,54 @@ class _TrigArgParser():
         return default_table_mode
 
     def _parse_optimisation_mode(self) -> Mapping[TRIG_DEFS, TRIG_PRECISION]:
-        opt_mode_default = get_action_from_parser_by_name(self.parser, 'hp').default
-        if not self.args['hp'] or self.args['hp'] in TRIG_PRECISION:
+        opt_mode_default = get_action_from_parser_by_name(self.parser, 'prec_mode').default
+        if not self.args['prec_mode'] or self.args['prec_mode'] in TRIG_PRECISION:
             """
-            If hp parameter provided but with no args supplied, then represent all luts as lowest precision by default
-            O.T.W if hp parameter wasn't provided at all, fallback to the default value for all luts
+            If prec-mode parameter provided but with no args supplied, then represent all luts as lowest precision by default
+            O.T.W ifprec-mode parameter wasn't provided at all, fallback to the default value for all luts
             (see: same control logic as _parse_table_mode)
             """
             return {k: opt_mode_default for k in TRIG_DEFS}
 
-        if len(self.args['hp']) == 1:
-            # If hp is provided as a single precision mode value, use that precision mode on all luts
-            opt_mode_default = self.args['hp'][0]
+        if len(self.args['prec_mode']) == 1:
+            # If prec mode is provided as a single precision mode value, use that precision mode on all luts
+            opt_mode_default = self.args['prec_mode'][0]
             return {k: opt_mode_default for k in TRIG_DEFS}
 
         # If multiple args were supplied check that the arg only specifies unique luts (I.e. illegal: sin |-> mode 0, sin |-> mode 2)
-        err_invoker = get_action_from_parser_by_name(self.parser, 'hp')
-        counts = collections.Counter([a for a in self.args['hp'] if a.name in TRIG_DEFS])
+        err_invoker = get_action_from_parser_by_name(self.parser, 'prec_mode')
+        counts = collections.Counter([a for a in self.args['prec_mode'] if a.name in TRIG_DEFS])
         counts_gt_one = {k.name: v for k, v in counts.items() if v > 1}
         if any(counts_gt_one):
             raise ap.ArgumentError(err_invoker,
-                                    '-hp takes only unique values for <trig function>'
+                                    '-prec-mode takes only unique values for <trig function>'
                                     ' but the argument contains duplicate pairs. I.e.:'
-                                    f'\n{underline_matches(' '.join([val.name for val in self.args['hp']]), counts_gt_one.keys(), match_all=True)}'
+                                    f'\n{underline_matches(' '.join([val.name for val in self.args['prec_mode']]), counts_gt_one.keys(), match_all=True)}'
                                     )
 
         # If multiple args were supplied check that each adjacent value is a precision arg
-        if len(self.args['hp']) % 2 != 0:
-            err_msg = [val.name for val in self.args['hp']]
+        if len(self.args['prec_mode']) % 2 != 0:
+            err_msg = [val.name for val in self.args['prec_mode']]
             last_w = err_msg[-1]
             err_msg.append('*missing value*')
             err_msg = ' '.join(err_msg)
             raise ap.ArgumentError(err_invoker,
-                                    '-hp takes <trig function> <precision mode> pairs as argument'
+                                    '-prec-mode takes <trig function> <precision mode> pairs as argument'
                                     ' but the argument length was odd. I.e.:'
                                     f'\n{underline_matches(err_msg, last_w)}'
                                     )
 
         # Now it is safe to iterate pairwise
-        for trig_v, pmode in pairwise(self.args['hp']):
+        for trig_v, pmode in pairwise(self.args['prec_mode']):
             if trig_v not in TRIG_DEFS or pmode not in TRIG_PRECISION:
-                err_msg = ' '.join([val.name for val in self.args['hp']])
+                err_msg = ' '.join([val.name for val in self.args['prec_mode']])
                 raise ap.ArgumentError(err_invoker,
-                                        '-hp takes <trig function> <precision mode> pairs as argument'
+                                        '-prec-mode takes <trig function> <precision mode> pairs as argument'
                                         ' but a pair was out of order. I.e.:'
                                         f'\n{underline_matches(err_msg, (trig_v.name, pmode.name))}'
                                        )
 
-        return {k: v for k, v in pairwise(self.args['hp'])}
+        return {k: v for k, v in pairwise(self.args['prec_mode'])}
 
     def _parse_auto(self) -> Sequence[Set[ExtendedEnum], Set[ExtendedEnum]]:
         auto_member_set = set(TRIG_DEFS.__members__.values())
@@ -467,10 +482,9 @@ class _TrigArgParser():
                 s2_was_supplied = isinstance(s2, Sequence)
                 if s2_was_supplied and s2:
                     return auto_member_set.difference(s2)
-                elif not s2:
+                if not s2:
                     return auto_member_set
-                else:
-                    return auto_member_set if s1 is True else set()
+                return auto_member_set if s1 is True else set()
             return set(s1)
 
         if self.args['auto_off']:
@@ -513,8 +527,12 @@ class _TrigArgParser():
                                 f'\n{underline_matches(err_msg, ('-auto-off', '-auto'), match_all=True)}'
                                 )
 
+        k_vals = self._parse_k_vals()
+        for field, v in k_vals.items():
+            self.args[field] = v
+
         self.args['table_mode'] = self._parse_table_mode()
-        self.args['hp'] = self._parse_optimisation_mode()
+        self.args['prec_mode'] = self._parse_optimisation_mode()
         self.args['auto'], self.args['excl_auto'] = self._parse_auto()
 
         LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
@@ -542,7 +560,7 @@ def chebyshev_sin_N_k(k: np.floating) -> np.uint:
     t = 4/(np.pi * np.e) * np.log((8 * 10**(2*k)) / np.pi**2)
     lw = sp.special.lambertw(t)
     n = np.pi/8 * np.exp(1 + lw) - 1.5
-    return np.uint(np.ceil(np.real(n))) # Return ceil(RE(n))
+    return np.uint(np.ceil(np.real(n)))
 
 
 def tan_k_N_pi4(k: np.floating) -> np.floating:
@@ -601,7 +619,7 @@ def newton_raphson_atan_N(k: np.floating, k_tolerance: np.floating = 1e-7, max_i
         denominator_f_prime = N_current**2 + 1
         f_prime_N = (2 * N_current / denominator_f_prime) - 2 * k
 
-        if abs(f_prime_N) < k_tolerance: # Avoid division by a very small number (or zero)
+        if abs(f_prime_N) < k_tolerance:
             break
 
         # Newton-Raphson iteration
@@ -610,11 +628,9 @@ def newton_raphson_atan_N(k: np.floating, k_tolerance: np.floating = 1e-7, max_i
         except OverflowError | ZeroDivisionError:
             break
 
-        # Check for convergence
         if abs(N_next - N_current) < k_tolerance:
             return N_next
 
-        # Update N for the next iteration
         N_current = N_next
 
     return
@@ -645,7 +661,6 @@ def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: np.uint
     # Start with rough estimate for each x
     N_values = np.maximum(0, (np.abs(nz_x) * np.e / 2 - 1).astype(np.int32))
 
-    # Create a mask for values that still need checking
     active_mask = np.ones(nz_x.size, dtype=np.bool)
 
     for _ in range(max_iter):
@@ -653,21 +668,14 @@ def sinc_k_N(x: np.ndarray[np.floating], epsilon: np.floating, max_iter: np.uint
         if not np.any(active_mask):
             break
 
-        # Current N values for active elements
         N_active = N_values[active_mask]
         log_x_active = log_x[active_mask]
-
-        # Compute log error for active elements
         log_error = (2*N_active + 2) * log_x_active - sp.special.gammaln(2*N_active + 3)
-
-        # Check which ones satisfy the condition
         satisfied = log_error < log_epsilon
 
-        # Update the active mask
         active_indices = np.where(active_mask)[0]
         active_mask[active_indices[satisfied]] = False
 
-        # Increment N for those that don't satisfy
         N_values[active_mask] += 1
     else:
         msg = f'Warning: N > {max_iter} for x={x}, epsilon={epsilon}'
@@ -687,8 +695,8 @@ def chebyshev_sin(deg: np.uint, dtype: np.dtype) -> np.ndarray[np.floating]:
 
 
 def compact_sinc(x: np.ndarray, dtype: np.dtype) -> np.ndarray[np.floating]:
-    x = np.asarray(x)
-    result = np.zeros_like(x, dtype=dtype)
+    x = np.asarray(x, dtype=dtype)
+    result = np.zeros_like(x)
     x_nz = x[x != 0]
     if x_nz.size > 0:
         abs_x_nz = np.abs(x_nz)
@@ -750,8 +758,9 @@ def generate_sin_cos_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_pa
             f'Generating {k.name} domain...'
         ))
 
-        sz = trig_parser.n_entries // _calculate_scale_factor(trig_parser.args['table_mode'][k], trig_parser.args['hp'][k])
-        if trig_parser.args['quantize']:
+        scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][k], trig_parser.args['prec_mode'][k])
+        sz = trig_parser.n_entries // scale_factor
+        if not trig_parser.args['no_quantize']:
             sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
         match table_mode:
@@ -773,10 +782,13 @@ def generate_sin_cos_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_pa
 
         # https://zipcpu.com/dsp/2017/08/26/quarterwave.html
         # Minimize harmonic distortion
-        phis[k] = np.astype(
-            (2 * np.pi * np.arange(0, sz) / trig_parser.n_entries) + np.pi / sz,
-            trig_parser.args['bw']
-        )
+        def domain_fn(sz: np.uint, scale_factor: np.uint) -> np.ndarray[np.floating]:
+            n_luts = scale_factor * sz
+            return np.astype((2 * np.pi * (np.arange(0, sz) + 0.5) / n_luts),
+                             trig_parser.args['bw'])
+
+        domain = domain_fn(sz, scale_factor)
+        phis[k] = (domain, functools.partial(domain_fn, sz=sz*4, scale_factor=1))
 
 
 def generate_tan_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -816,10 +828,12 @@ def generate_tan_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_parser
         case _:
             assert_never(table_mode)
 
-    if trig_parser.args['quantize']:
+    if not trig_parser.args['no_quantize']:
         sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
-    phis[TRIG_DEFS.TAN] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+    phis[TRIG_DEFS.TAN] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                           functools.partial(np.linspace, start, stop, sz, dtype=trig_parser.args['bw'])
+                          )
 
 
 def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -842,24 +856,41 @@ def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_pa
             f'Generating {k.name} domain...'
         ))
 
-        sz = trig_parser.n_entries // _calculate_scale_factor(trig_parser.args['table_mode'][k],
-                                                              trig_parser.args['hp'][k])
-        if trig_parser.args['quantize']:
+        scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][k],
+                                                              trig_parser.args['prec_mode'][k])
+        sz = trig_parser.n_entries // scale_factor
+
+        if not trig_parser.args['no_quantize']:
             sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
         match table_mode:
             case TRIG_OPT_MODE.MAX:
                 raise NotImplementedError(f'Max mode not yet supported for {k.name}')
             case TRIG_OPT_MODE.HIGH:
-                stop = np.sqrt(2) / 2
+                """
+                Per. https://github.com/topologicalhurt/Thesis/discussions/46
+                The index recovery method is non-linearly distributed over the LUT.
+                If the args are linearly spaced, it will introduce quantization error (I.e. major discontinuities)
+                due to the relative sparsity or density of the lookup method.
+                """
+                inv_sqrt2 = 1.0 / np.sqrt(2.0)
+                qwave_domain = np.linspace(0.0, inv_sqrt2, sz, dtype=trig_parser.args['bw'])
+                domain_fn = lambda: np.linspace(-1.0, 1.0, sz*4, dtype=trig_parser.args['bw']) # noqa: E731
+
+                xs[k] = (qwave_domain, domain_fn)
+
+                continue
             case TRIG_OPT_MODE.MED:
                 raise NotImplementedError(f'Half table not yet supported for {k.name}')
             case TRIG_OPT_MODE.LOW:
+                start = -1
                 stop = 1
             case _:
                 assert_never(table_mode)
 
-        xs[k] = np.linspace(0, stop, sz, dtype=trig_parser.args['bw'])
+        xs[k] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                 functools.partial(np.linspace, start, stop=scale_factor*stop, sz=scale_factor*sz, dtype=trig_parser.args['bw'])
+                )
 
 
 def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -905,7 +936,7 @@ def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
         case _:
             assert_never(table_mode)
 
-    if trig_parser.args['quantize']:
+    if not trig_parser.args['no_quantize']:
         sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
     msg = ('---Building atan LUT---'
@@ -916,7 +947,9 @@ def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
     LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
     print(msg)
 
-    xs[TRIG_DEFS.ATAN] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+    xs[TRIG_DEFS.ATAN] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                          functools.partial(np.linspace, start, stop, sz, dtype=trig_parser.args['bw'])
+                         )
 
 
 def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -956,7 +989,7 @@ def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
     N = sinc_k_N(np.linspace(start, stop, sz, dtype=trig_parser.args['bw']), k)
     sz = N
 
-    if trig_parser.args['quantize']:
+    if not trig_parser.args['no_quantize']:
         sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
     msg = ('---Building sinc LUT---'
@@ -966,7 +999,9 @@ def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
     LOGGER.info(msg)
     print(msg)
 
-    xs[TRIG_DEFS.SINC] = np.linspace(start, stop, sz, dtype=trig_parser.args['bw'])
+    xs[TRIG_DEFS.SINC] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
+                          functools.partial(np.linspace, start, stop, sz, dtype=trig_parser.args['bw'])
+                         )
 
 
 ###############
@@ -982,55 +1017,74 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
         if lut_select & bit_v.value:
             match m:
                 case TRIG_DEFS.SIN | TRIG_DEFS.COS | TRIG_DEFS.TAN:
-                    domain = phis
+                    domains = phis
                 case TRIG_DEFS.ASIN | TRIG_DEFS.ACOS | TRIG_DEFS.ATAN | TRIG_DEFS.SINC:
-                    domain = xs
+                    domains = xs
                 case _:
                     assert_never(m)
+
+            domain, domain_fn = domains[m]
 
             # fn_nominal is potentially different to fn_actual I.e. compact_sinc should be measured against sinc
             fn_nominal = _get_fn_from_optmode(m, trig_parser=trig_parser)
             fn_actual = TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
 
             log_msg = []
-            if m in domain:
-                lut = fn_nominal(domain[m])
-                log_msg.append(f'\n\tDomain (first 10 values) {log_wrapper.fill(str(list(domain[m][:10])))}'
-                               f'\n\tDomain (last 10 values) {log_wrapper.fill(str(list(domain[m][-10:])))}'
+            if m in domains:
+                table = fn_nominal(domain)
+                log_msg.append(f'\n\tDomain (first 10 values) {log_wrapper.fill(str(list(domain[:10])))}'
+                               f'\n\tDomain (last 10 values) {log_wrapper.fill(str(list(domain[-10:])))}'
                                )
             else:
-                lut = fn_nominal()  # Methods that don't need a domain I.e. Chebyshev
+                table = fn_nominal()                            # Methods that don't need a domain I.e. Chebyshev
 
-            lut_sz = trig_parser.bw_sz_bytes * lut.size
+            lut_sz = trig_parser.bw_sz_bytes * table.size
             log_msg.append(f'\n\tGenerating {m.name} LUT...'
                            f'\n\tSize (bytes): {lut_sz}, Size (kB) {lut_sz / 1000:0.3f}'
                            f'\n\tTable mode: {trig_parser.args['table_mode'][m].name}'
-                           f'\n\tLUT (first 10 values) {log_wrapper.fill(str(list(lut[:10])))}'
-                           f'\n\tLUT (last 10 values) {log_wrapper.fill(str(list(lut[-10:])))}'
+                           f'\n\tLUT (first 10 values) {log_wrapper.fill(str(list(table[:10])))}'
+                           f'\n\tLUT (last 10 values) {log_wrapper.fill(str(list(table[-10:])))}'
                            )
             log_msg = ''.join(reversed(log_msg))
             LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(log_msg))
 
-            acc_report = None
-            if m in domain:
-                acc_report = assess_lut_accuracy(fn_actual, lut, domain[m],
-                                                oversample_factor=trig_parser.args['osf'], type=trig_parser.args['bw'],
-                                                test_type=trig_parser.args['bw']
-                                                )
-
             # The factor that indicates mix of precision and optimisation
-            scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][m], trig_parser.args['hp'][m])
-
-            luts_to_w.append(
-                LUT(lut=lut,
-                    endianness=BYTEORDER.BIG,
-                    bit_width=trig_parser.bw_sz, table_sz=((trig_parser.bw_sz_bytes * np.size(lut)) / 1000),
-                    lop=trig_parser.args['hp'][m], table_mode=trig_parser.args['table_mode'][m],
-                    scale_factor=scale_factor,
-                    fn=fn_nominal, acc_report=acc_report,
-                    cmd=underline_matches(cmd_line_args, m.name, match_all=True)
+            scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][m], trig_parser.args['prec_mode'][m])
+            fn=fn_nominal.func if isinstance(fn_nominal, functools.partial) else fn_nominal
+            lut = LUT(table=table,
+                      domain=domain,
+                      domain_fn=domain_fn,
+                      type=LUT_TYPE.TRIG,
+                      q_format=trig_parser.args['q'],
+                      endianness=BYTEORDER.BIG,
+                      bit_width=trig_parser.bw_sz,
+                      table_sz=(lut_sz / 1000),
+                      lop=trig_parser.args['prec_mode'][m],
+                      table_mode=trig_parser.args['table_mode'][m],
+                      scale_factor=scale_factor,
+                      fn=fn,
+                      cmd=underline_matches(cmd_line_args, f'--{m.name.lower()}', match_all=True)
                     )
-            )
+
+            acc_metrics = LutAccMetrics(lut)
+            luts_to_w.append(lut)
+
+            acc_report = None
+            if m in domains:
+                test_axis: np.ndarray[np.floating | np.integer] = domain_fn()
+                quant_acc_report = acc_metrics.assess_quantization_error(fn=fn_actual,
+                                                                         axis=test_axis,
+                                                                         oversample_factor=trig_parser.args['osf']
+                                                                         )
+                thd_acc_report = acc_metrics.assess_thd()
+
+                acc_report = LUT_ACC_REPORT(f_name=lut.fn.__name__,
+                                            quant_acc_report=quant_acc_report,
+                                            thd_acc_report=thd_acc_report
+                                           )
+
+            print(acc_report)
+            LOGGER.info(str(acc_report))
 
     return luts_to_w
 
@@ -1082,78 +1136,10 @@ def _get_fn_from_optmode(m: TRIG_DEFS, trig_parser: _TrigArgParser) -> Callable[
                 LOGGER.info('Using compact sinc function for sinc')
 
                 # Store canonical lobe only, use envelope estimation method after zero crossing
-                return functools.partial(compact_sinc, trig_parser.args['bw'])
+                return functools.partial(compact_sinc, dtype=trig_parser.args['bw'])
 
     # Default behaviour: return the function itself
     return TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
-
-
-def assess_lut_accuracy(fn: Callable[..., np.floating],
-                         lut: Sequence[np.floating], axis: Sequence[np.floating],
-                         oversample_factor: np.uint, type: np.floating,
-                         test_type: np.dtype = np.float32) -> LUT_ACC_REPORT | None:
-    """ # Summary
-
-    Assesses the lut accuracy against a function, fn, sampled at oversample_factor
-    over the axis, axis.
-    """
-    lut_arr = np.asarray(lut, dtype=type)
-    axis_arr = np.asarray(axis, dtype=type)
-    l_axis = np.size(axis_arr)
-    min_ax_val, max_ax_val = np.min(axis_arr), np.max(axis_arr)
-
-    if l_axis == 0:
-        msg = (f'---Accuracy test results for {fn.__name__}---'
-        '\tAxis is empty. Cannot perform test.')
-        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-        print(msg)
-        return
-
-    if np.size(lut_arr) != l_axis:
-        msg = (f'---Accuracy test results for {fn.__name__}---'
-               f'\n\tTable size ({np.size(lut_arr)}) '
-               f'does not match axis size ({l_axis}). Cannot perform test')
-        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-        print(msg)
-        return
-
-    fn_eval_points: np.ndarray
-    if l_axis == 1:
-        fn_eval_points = np.array([axis_arr[0]], dtype=type)
-    else:
-        l_test_axis_orig = oversample_factor * l_axis
-        test_axis_orig = np.linspace(min_ax_val, max_ax_val, l_test_axis_orig, dtype=test_type)
-        actual_indices_for_tbl = np.arange(l_axis)
-        fn_eval_indices = actual_indices_for_tbl * oversample_factor
-        fn_eval_indices = np.clip(fn_eval_indices, 0, l_test_axis_orig - 1)
-        fn_eval_points = test_axis_orig[fn_eval_indices]
-
-    fn_values_at_eval_points = np.asarray(fn(fn_eval_points), dtype=type)
-
-    if fn_values_at_eval_points.shape != lut_arr.shape:
-        msg = (f'---Accuracy test results for {fn.__name__}---'
-              f'\n\tShape mismatch between evaluated function values ({fn_values_at_eval_points.shape}) '
-              f'and table values ({lut_arr.shape}). Cannot compute scores.')
-        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-        print(msg)
-        return
-
-    acc_scores = np.abs(lut_arr - fn_values_at_eval_points)
-
-    acc_report = LUT_ACC_REPORT(avg_acc=np.average(acc_scores), min_acc=np.min(acc_scores),
-                                 max_acc=np.max(acc_scores), acc_scores=acc_scores)
-
-    type_sz = np.size(lut_arr) * np.dtype(type).itemsize
-
-    msg = (f'---Accuracy test results for {fn.__name__}---'
-          f'\n\tLUT size in bytes: {type_sz} ({type_sz / 1000:.3f}kB)'
-          f'\n\tOver-sample factor for fn evaluation grid: x{oversample_factor}'
-          f'{acc_report}'
-        )
-    LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(msg))
-    print(msg)
-
-    return acc_report
 
 
 if __name__ == '__main__':

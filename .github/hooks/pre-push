@@ -6,9 +6,8 @@
 echo "Running GitHub Actions locally with act..."
 
 # Use local act configuration file
-ROOT=$(git rev-parse --show-toplevel)
 TOP_DIR="$ROOT/.github/workflows"
-cd "$TOP_DIR" || exit 1
+cd "$TOP_DIR"
 
 # Check if Docker is available and accessible
 if ! docker ps >/dev/null 2>&1; then
@@ -35,7 +34,6 @@ fi
 if ! $ACT_CMD -W "$TOP_DIR"; then
     echo "❌ GitHub Actions failed locally."
 
-    # Check if it's a network issue
     if ! ping -c 1 github.com >/dev/null 2>&1; then
         echo "⚠️  Network connectivity issue detected."
         echo "Running local ruff check as fallback..."

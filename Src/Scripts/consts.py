@@ -37,7 +37,8 @@ from pathlib import Path
 from textwrap import TextWrapper
 
 from Scripts.util_helpers import get_repo_root, get_git_author
-from Scripts.dataclass import ProgramMetaInformation
+from Scripts.dataclass import PROGRAM_META_INFO
+from Allocator.Interpreter.dataclass import XILINX_BRAM_SIZES
 
 
 #############
@@ -56,14 +57,20 @@ HOP_SIZE=16
 DOWNSAMPLE_COEFFS_NTAPS=127
 COMMON_RATES = [44100, 32000, 24000, 16000, 8000] # Common output rates
 
+##############
+# LUT CONSTS #
+##############
+
+LUT_DEFAULT_BRAM = XILINX_BRAM_SIZES.members_from_indx(idx=2)[XILINX_BRAM_SIZES.ULTRASCALE_DUALPORT]
+
 ######################################
 # GENERAL PROGRAM / META INFO / MISC #
 ######################################
 
-# Meta
-META_INFO = ProgramMetaInformation(
+META_INFO = PROGRAM_META_INFO(
     **{
         'DATE_RUN': dt.datetime.now(),
+        'DEBUG': True,
         'GIT_ROOT': get_repo_root(),
         'AUTHOR_CREDENTIALS': get_git_author(),
         'EXCLUDED_DIRS': {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}

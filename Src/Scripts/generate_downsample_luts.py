@@ -45,7 +45,7 @@ from scipy import signal
 
 from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP
 from Allocator.Interpreter.helpers import pad_lists_to_same_length, underline_matches
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, FILTERTYPE
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, FILTER_TYPE
 
 from Scripts.argparse_helpers import get_action_from_parser_by_name, str2freq, str2path, str2float_in_range, str2posint, str2bitwidth
 from Scripts.consts import COMMON_RATES, DOWNSAMPLE_COEFFS_NTAPS, SAMPLE_RATE
@@ -156,7 +156,7 @@ def main() -> None:
             SAMPLE_RATE,
             transition_width_norm=args['tw'],   # Transition width (value in (0, 1))
             guard_band=0.1,
-            filter_type=FILTERTYPE.LOWPASS
+            filter_type=FILTER_TYPE.LOWPASS
         )
 
         if args['verbose']:
@@ -168,7 +168,7 @@ def main() -> None:
         h = filter_result.coeffs
         h = h[:h.size//2] # Only store half the window as the kaiser window is perfectly symmetric
         luts_to_w.append(
-            LUT(lut=h,
+            LUT(table=h,
                 endianness=BYTEORDER.BIG,
                 bit_width=bw_int, table_sz=((bw_int_bytes * np.size(h)) / 1000),
                 lop=None, table_mode=None,
@@ -248,7 +248,7 @@ def kaiser_design_parameters(stopband_attenuation_db: float, transition_width_ra
 
 def design_kaiser_filter(cutoff_freq: float | Sequence[float], stopband_attenuation_db: float, sample_rate: int,
                         transition_width_norm: float = 0.1, guard_band: float = 0,
-                        filter_type: FILTERTYPE = FILTERTYPE.BANDSTOP) -> KaiserSchematic:
+                        filter_type: FILTER_TYPE = FILTER_TYPE.BANDSTOP) -> KaiserSchematic:
     """# Summary
     Design a complete Kaiser window filter.
     ## Args:
@@ -257,7 +257,7 @@ def design_kaiser_filter(cutoff_freq: float | Sequence[float], stopband_attenuat
     transition_width_norm: Transition width as fraction of Nyquist freq
     guard_band: The guard band (a percentage value normalized [0, 1) to multiply together with nyquist frequency
     sample_rate: Sample rate (Hz)
-    filter_type: see: FILTERTYPE dataclass
+    filter_type: see: FILTER_TYPE dataclass
     plot: Whether to plot frequency response
     ## Returns:
     dict with filter coefficients and parameters
@@ -278,7 +278,7 @@ def design_kaiser_filter(cutoff_freq: float | Sequence[float], stopband_attenuat
         raise ValueError('The guard band must be a value in [0, 1)')
 
     # Validate cutoff_freq for bandpass/bandstop filters
-    if filter_type in [FILTERTYPE.BANDPASS, FILTERTYPE.BANDSTOP]:
+    if filter_type in [FILTER_TYPE.BANDPASS, FILTER_TYPE.BANDSTOP]:
         if not isinstance(cutoff_freq, Sequence) or len(cutoff_freq) != 2:
             raise ValueError(f'{filter_type} filter requires a sequence of two cutoff frequencies')
         if cutoff_freq[0] >= cutoff_freq[1]:
@@ -289,7 +289,7 @@ def design_kaiser_filter(cutoff_freq: float | Sequence[float], stopband_attenuat
 
     # Normalize cutoff frequencies
     nyquist = 0.5 * (1 - guard_band) * sample_rate  # Cutoff frequency is the nyquist frequency, with a guard_band applied
-    if filter_type in [FILTERTYPE.BANDPASS, FILTERTYPE.BANDSTOP]:
+    if filter_type in [FILTER_TYPE.BANDPASS, FILTER_TYPE.BANDSTOP]:
         # Check if frequencies are already normalized
         if all(f <= 1.0 for f in cutoff_freq):
             cutoff_norm = cutoff_freq
@@ -311,9 +311,9 @@ def design_kaiser_filter(cutoff_freq: float | Sequence[float], stopband_attenuat
 
     # Create filter using Kaiser window
     match filter_type:
-        case FILTERTYPE.LOWPASS | FILTERTYPE.BANDSTOP:
+        case FILTER_TYPE.LOWPASS | FILTER_TYPE.BANDSTOP:
             h = signal.firwin(N, cutoff_norm, window=('kaiser', beta))
-        case FILTERTYPE.HIGHPASS | FILTERTYPE.BANDPASS:
+        case FILTER_TYPE.HIGHPASS | FILTER_TYPE.BANDPASS:
             h = signal.firwin(N, cutoff_norm, window=('kaiser', beta), pass_zero=False)
         case _:
             assert_never("filter_type must be 'lowpass', 'highpass', 'bandpass', or 'bandstop'")
@@ -324,28 +324,28 @@ def design_kaiser_filter(cutoff_freq: float | Sequence[float], stopband_attenuat
     H_db = 20 * np.log10(np.abs(H) + 1e-12)
 
     # Find actual stopband attenuation based on filter type
-    if filter_type == FILTERTYPE.LOWPASS:
+    if filter_type == FILTER_TYPE.LOWPASS:
         # Find minimum in stopband
         stopband_start_idx = int(len(w) * (cutoff_norm + transition_width_norm))
         if stopband_start_idx < len(H_db):
             actual_stopband_atten = np.min(H_db[stopband_start_idx:])
         else:
             actual_stopband_atten = np.min(H_db[-100:])  # Last part of spectrum
-    elif filter_type == FILTERTYPE.HIGHPASS:
+    elif filter_type == FILTER_TYPE.HIGHPASS:
         # Find minimum in stopband (before cutoff)
         stopband_end_idx = int(len(w) * (cutoff_norm - transition_width_norm))
         if stopband_end_idx > 0:
             actual_stopband_atten = np.min(H_db[:stopband_end_idx])
         else:
             actual_stopband_atten = np.min(H_db[:100])  # First part of spectrum
-    elif filter_type == FILTERTYPE.BANDPASS:
+    elif filter_type == FILTER_TYPE.BANDPASS:
         # Find minimum in both stopbands
         stopband1_end_idx = int(len(w) * (cutoff_norm[0] - transition_width_norm))
         stopband2_start_idx = int(len(w) * (cutoff_norm[1] + transition_width_norm))
         min1 = np.min(H_db[:max(1, stopband1_end_idx)]) if stopband1_end_idx > 0 else -np.inf
         min2 = np.min(H_db[min(len(H_db)-1, stopband2_start_idx):]) if stopband2_start_idx < len(H_db) else -np.inf
         actual_stopband_atten = max(min1, min2)  # Worst case attenuation
-    elif filter_type == FILTERTYPE.BANDSTOP:
+    elif filter_type == FILTER_TYPE.BANDSTOP:
         # Find minimum in stopband (between cutoffs)
         stopband_start_idx = int(len(w) * (cutoff_norm[0] + transition_width_norm))
         stopband_end_idx = int(len(w) * (cutoff_norm[1] - transition_width_norm))
@@ -402,7 +402,7 @@ def plot_kaiser_schematic(schematic: KaiserSchematic) -> None:
                    label=f'Actual: {schematic.measured_stopband_attenuation:.1f} dB')
 
         # Add vertical lines for cutoff frequencies
-        if schematic.filter_type in [FILTERTYPE.BANDPASS, FILTERTYPE.BANDSTOP]:
+        if schematic.filter_type in [FILTER_TYPE.BANDPASS, FILTER_TYPE.BANDSTOP]:
             for i, fc in enumerate(schematic.cutoff_norm):
                 plt.axvline(fc, color='orange', linestyle=':',
                            label=f'Cutoff {i+1}: {fc:.3f}' if i < 2 else '')

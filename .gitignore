@@ -185,3 +185,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 .direnv
+
+##########################################
+#     ARTEFACTS FROM 3RD PARTY TOOLS     #
+##########################################
+
+AGENTS.md
