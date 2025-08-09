@@ -1,0 +1,1434 @@
+'Allocator/Interpreter/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/bitfield.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'bitfield.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/extendedenum.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'extendedenum.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/lut_acc_metrics.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'lut_acc_metrics.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/nptypes.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'nptypes.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/signal_metrics.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'signal_metrics.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/signal_reconstructor.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'signal_reconstructor.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/singleton.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'singleton.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/xilinx_name_validator.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'xilinx_name_validator.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/setup.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'setup.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Demo/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'Demo/llac_audio_passthrough.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'llac_audio_passthrough.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Common/pos_edge_det.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'pos_edge_det.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Common design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Common module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/avg_iir/avg_iir.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'avg_iir.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the avg_iir design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The avg_iir module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/downsampler/CIC_decimator.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'CIC_decimator.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the downsampler design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The downsampler module is covered by the GPL 3.0
+    License (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/downsampler/dsd.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dsd.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the downsampler design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The downsampler module is covered by the GPL 3.0
+    License (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/highpass/hp.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hp.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the highpass design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The highpass module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Filters/lowpass/lp.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'lp.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the lowpass design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The lowpass module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/In/buf_audio_in.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'buf_audio_in.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the In design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Out/audio_dac_interface.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'audio_dac_interface.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Out design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Out module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Out/dfx_audio_ensemble_top.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dfx_audio_ensemble_top.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Out design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Out module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Out/llac_audio_system_top.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'llac_audio_system_top.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Out design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Out module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Comms/axi_dram_interface.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'axi_dram_interface.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Comms design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Comms module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Comms/axi_interrupt_controller.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'axi_interrupt_controller.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Comms design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Comms module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Comms/bus.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'bus.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Comms design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Comms module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Comms/dfx_controller.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dfx_controller.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Comms design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Comms module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Comms/llac_top_interface.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'llac_top_interface.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Comms design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Comms module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Cores/passthrough_core.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'passthrough_core.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Cores design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Cores module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/Trig/angle_shift_q22.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'angle_shift_q22.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Trig design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/Trig/cos_poly_q22.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'cos_poly_q22.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Trig design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/Trig/sin_poly_q22.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'sin_poly_q22.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Trig design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/Trig/sinc_euler_q22.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'sinc_euler_q22.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Trig design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/Trig/sincos_poly_q22_dp.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'sincos_poly_q22_dp.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Trig design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Static/Math/Trig/tan_reciprocal_q22.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'tan_reciprocal_q22.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Trig design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The Trig module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/CIC_decimator_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'CIC_decimator_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/avg_iir_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'avg_iir_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/dsd_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dsd_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/hp_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hp_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/Filters/lp_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'lp_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the Filters design
+    where a README.md detailing the design should exist, conforming to the details
+    provided
+
+    // under docs/CONTRIBUTING.md. The Filters module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'RTL/Verification/In/buf_audio_in_tb.sv':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'buf_audio_in_tb.sv'
+  'inputs': 'N/A'
+  'license_preamble': '// It is intended to be used as part of the In design where
+    a README.md detailing the design should exist, conforming to the details provided
+
+    // under docs/CONTRIBUTING.md. The In module is covered by the GPL 3.0 License
+    (see below.)
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'RTL'
+  'outputs': 'N/A'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/argparse_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'argparse_helpers.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/build_dbl_clock_fft.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'Generates a double-piped FFT from ZipCPU''s implementation
+
+    See: https://zipcpu.com/dsp/2018/10/02/fft.html'
+  'fname': 'build_dbl_clock_fft.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/decorators.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'decorators.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/exceptions.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'exceptions.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/generate_downsample_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_downsample_luts.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/generate_trig_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_trig_luts.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/hex_utils.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hex_utils.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/i2s_mono_stereo_wrapper.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'i2s_mono_stereo_wrapper.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/make_testbench_boilerplate.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'make_testbench_boilerplate.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/tests/trig_lut_recovery_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'trig_lut_recovery_test.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/unwrap_veo.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'unwrap_veo.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/util_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'util_helpers.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/write_file_header.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'write_file_header.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/bitfield.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'bitfield.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/extendedenum.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'extendedenum.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/Interpreter/nptypes.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'nptypes.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Allocator/setup.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'setup.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Demo/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Demo/llac_audio_passthrough.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'llac_audio_passthrough.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/argparse_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'argparse_helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/decorators.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'decorators.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/exceptions.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'exceptions.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/generate_downsample_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_downsample_luts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/generate_trig_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_trig_luts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/hex_utils.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hex_utils.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/i2s_mono_stereo_wrapper.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'i2s_mono_stereo_wrapper.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/make_testbench_boilerplate.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'make_testbench_boilerplate.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/tests/trig_lut_recovery_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'trig_lut_recovery_test.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/unwrap_veo.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'unwrap_veo.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/util_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'util_helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/Scripts/write_file_header.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'write_file_header.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/bitfield.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'bitfield.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/extendedenum.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'extendedenum.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/Interpreter/nptypes.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'nptypes.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Allocator/setup.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'setup.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Demo/__init__.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': '__init__.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Demo/llac_audio_passthrough.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'llac_audio_passthrough.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/argparse_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'argparse_helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/consts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'consts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/dataclass.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'dataclass.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/decorators.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'decorators.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/exceptions.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'exceptions.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/generate_downsample_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_downsample_luts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/generate_trig_luts.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'generate_trig_luts.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/hex_utils.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hex_utils.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/i2s_mono_stereo_wrapper.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'i2s_mono_stereo_wrapper.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/make_testbench_boilerplate.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'make_testbench_boilerplate.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/tests/trig_lut_recovery_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'trig_lut_recovery_test.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/unwrap_veo.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'unwrap_veo.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/util_helpers.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'util_helpers.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'
+'build/lib/build/lib/Scripts/write_file_header.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'write_file_header.py'
+  'license_preamble': !!null 'null'
+  'module': !!null 'null'
+  'separator': '------------------------------------------------------------------------'

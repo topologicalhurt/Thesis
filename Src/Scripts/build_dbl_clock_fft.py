@@ -1,8 +1,32 @@
 #!/usr/bin/env python3
 
 """
-Generates a double-piped FFT from ZipCPU's implementation
+------------------------------------------------------------------------
+Filename: 	build_dbl_clock_fft.py
+
+Project:	LLAC, intelligent hardware scheduler targeting common audio signal chains.
+
+For more information see the repository: https://github.com/topologicalhurt/Thesis
+
+Purpose:	Generates a double-piped FFT from ZipCPU's implementation
 See: https://zipcpu.com/dsp/2018/10/02/fft.html
+
+Author: topologicalhurt csin0659@uni.sydney.edu.au
+
+------------------------------------------------------------------------
+Copyright (C) 2025, LLAC project LLC
+
+This file is a part of the SCRIPTS module
+It is intended to be run as a script for use with developer operations, automation / task assistance or as a wrapper for the RTL code.
+
+The design is NOT COVERED UNDER ANY WARRANTY.
+
+LICENSE:     GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+As defined by GNU GPL 3.0 https://www.gnu.org/licenses/gpl-3.0.html
+
+A copy of this license is included at the root directory. It should've been provided to you
+Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
+------------------------------------------------------------------------
 """
 
 import subprocess
