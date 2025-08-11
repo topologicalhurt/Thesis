@@ -36,7 +36,7 @@ from typing import TypeVar, ParamSpec
 
 rT = TypeVar('rT')
 pT = ParamSpec('pT')
-def deprecated(func: Callable[pT, rT]) -> Callable[pT, rT]:
+def deprecated(msg: str | None =  None) -> Callable[pT, rT]:
     """# Summary
 
     Use this decorator to mark functions as deprecated.
@@ -49,15 +49,19 @@ def deprecated(func: Callable[pT, rT]) -> Callable[pT, rT]:
     Included under CC BY-SA 4.0
     https://creativecommons.org/licenses/by-sa/4.0/
     """
-    @functools.wraps(func)
-    def wrapped(*args: pT.args, **kwargs: pT.kwargs):
-        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
-        warnings.warn('Call to a deprecated function {}.'.format(func.__name__),
-                      category=DeprecationWarning,
-                      stacklevel=2)
-        warnings.simplefilter('default', DeprecationWarning)  # reset filter
-        return func(*args, **kwargs)
-    return wrapped
+    def decorator(func: Callable[pT, rT]) -> Callable[pT, rT]:
+        @functools.wraps(func)
+        def wrapped(*args: pT.args, **kwargs: pT.kwargs):
+            warnings.simplefilter('always', DeprecationWarning)
+            if msg is None:
+                warnings.warn(f'⚠️ Call to a deprecated function {func.__name__}.', category=DeprecationWarning, stacklevel=2)
+            else:
+                warnings.warn(f'⚠️ {msg}', category=DeprecationWarning, stacklevel=2)
+            warnings.simplefilter('default', DeprecationWarning)
+
+            return func(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 def warning(message_template: str) -> Callable[[Callable[pT, rT]], Callable[pT, rT]]:
@@ -90,7 +94,10 @@ def warning(message_template: str) -> Callable[[Callable[pT, rT]], Callable[pT, 
                 'kwargs': kwargs
             }
 
-            print(f'⚠️ Warning: {message_template.format(**format_context)}\n')
+            warnings.simplefilter('always')
+            warnings.warn(f'⚠️ Warning: {message_template.format(**format_context)}\n', stacklevel=2)
+            warnings.simplefilter('default')
+
             return result
         return wrapped
     return decorator

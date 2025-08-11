@@ -27,80 +27,150 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
+import logging
 import ast
+import shutil
 import subprocess as sp
 
 from pathlib import Path
 
+from Scripts.decorators import deprecated
+
+
+LOGGER = logging.getLogger('Scripts.consts')
+
 
 def get_git_author() -> tuple[str, str] | None:
-    """# Summary
+    """Return (user.name, user.email) from git config without relying on bare 'git' in PATH.
 
-    Get the current user's git credentials via shell
-
-    ## Returns:
-        tuple[str, str] | None: the tuple of (author_name, author_email) if the credentials could be found,
-        None otherwise
+    Strategy:
+    1. Locate git executable via shutil.which; if present, invoke directly using its absolute path.
+    2. Fallback: parse .git/config (repository local) then ~/.gitconfig for user section.
+    3. On failure, return None.
     """
-    try:
-        name_args = ['git', 'config', '--get', 'user.name']
-        author = sp.run(name_args, capture_output=True, text=True, check=True)
-        author = author.stdout.strip()
+    git_exe = shutil.which('git')
+    name: str | None = None
+    email: str | None = None
 
-        email_args = ['git', 'config', '--get', 'user.email']
-        author_email = sp.run(email_args, capture_output=True, text=True, check=True)
-        author_email = author_email.stdout.strip()
-    except (sp.CalledProcessError, FileNotFoundError) as e:
-        print(f'Error retrieving git config: {e}')
-        return None
-    return author, author_email
+    def _parse_git_config_file(cfg: Path):
+        nonlocal name, email
+        if not cfg.exists() or not cfg.is_file():
+            return
+        try:
+            cur_section = None
+            for line in cfg.read_text(encoding='utf-8', errors='ignore').splitlines():
+                line = line.strip()
+                if not line or line.startswith(('#',';')):
+                    continue
+                if line.startswith('[') and line.endswith(']'):
+                    cur_section = line[1:-1].strip().strip('"')
+                    continue
+                if cur_section == 'user' and '=' in line:
+                    k, v = line.split('=', 1)
+                    k = k.strip().lower()
+                    v = v.strip()
+                    if k == 'name' and not name:
+                        name = v
+                    elif k == 'email' and not email:
+                        email = v
+                if name and email:
+                    return
+        except OSError:
+            return
+
+    # Try git executable if found
+    if git_exe:
+        try:
+            author = sp.run([git_exe, 'config', '--get', 'user.name'], capture_output=True, text=True, check=True)
+            name = author.stdout.strip() or None
+            email_proc = sp.run([git_exe, 'config', '--get', 'user.email'], capture_output=True, text=True, check=True)
+            email = email_proc.stdout.strip() or None
+        except (sp.CalledProcessError, FileNotFoundError):
+            pass
+
+    # Parse config files if still missing
+    if not (name and email):
+        # local repo config
+        try:
+            repo_root = get_repo_root()
+            _parse_git_config_file(repo_root / '.git' / 'config')
+        except FileNotFoundError:
+            pass
+        # global config (~/.gitconfig)
+        if not (name and email):
+            home_cfg = Path.home() / '.gitconfig'
+            _parse_git_config_file(home_cfg)
+
+    if name and email:
+        return name, email
+
+    LOGGER.warning('Could not determine git author from config or executable.')
+    return None
 
 
-def get_repo_root() -> Path | None:
-    """Get the repository root directory.
+def get_repo_root(start: Path | None = None) -> Path:
+    """Discover the Git worktree root WITHOUT invoking the git executable.
 
-    Returns:
-        Path | None: Path to the repository root if found, None otherwise
+    Walks upward from `start` (or CWD) looking for a `.git` directory OR a
+    `.git` file (worktree/submodule pointer). Returns the first directory
+    containing one of these. Raises FileNotFoundError if no repository root
+    is found.
     """
+    p = (start or Path.cwd()).resolve()
+    for candidate in (p, *p.parents):
+        git_path = candidate / '.git'
+        if git_path.is_dir():
+            return candidate
+        if git_path.is_file():  # worktree / submodule pointer
+            try:
+                with git_path.open('r', encoding='utf-8') as f:
+                    first = f.readline().strip()
+                if first.startswith('gitdir:'):
+                    return candidate
+            except OSError:
+                continue
+    raise FileNotFoundError(f'No .git directory found from {p}')
+
+
+@deprecated('Use get_repo_root() which avoids invoking external git executable.')
+def get_repo_root_shell() -> Path | None:
+    """(Deprecated) Determine repository root via 'git rev-parse --show-toplevel'.
+
+    Falls back to returning None on failure. Prefer get_repo_root for a pure
+    filesystem implementation that avoids executing arbitrary repository hooks.
+    """
+    git_exe = shutil.which('git')
     try:
-        result = sp.run(['git', 'rev-parse', '--show-toplevel'],
-                       capture_output=True, text=True, check=True)
+        result = sp.run([git_exe, 'rev-parse', '--show-toplevel'],
+                        capture_output=True, text=True, check=True)
         return Path(result.stdout.strip())
-    except (sp.CalledProcessError, FileNotFoundError) as e:
-        raise ValueError(f'Error finding repository root: {e}')
+    except (sp.CalledProcessError, FileNotFoundError):
+        return None
 
 
 def extract_docstring_from_file(file_path: Path) -> str | None:
-    """Extract the module-level docstring from a Python file (equivalent to __doc__.strip())."""
+    """Safely extract the module-level docstring from a Python source file.
+
+    Returns the cleaned docstring (``stripped``) or ``None`` if no module docstring
+    could be determined (syntax error, encoding error, or absent docstring).
+    """
     try:
-        # Use compile() and exec() to get the __doc__ attribute like Python does
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        # Try to compile and execute to get __doc__
-        try:
-            # Create a module namespace
-            module_dict = {}
-            compiled = compile(content, str(file_path), 'exec')
-            exec(compiled, module_dict)
-
-            # Get the __doc__ attribute if it exists
-            doc = module_dict.get('__doc__')
-            if doc and isinstance(doc, str):
-                return doc.strip()
-
-        except (SyntaxError, Exception):
-            # Fallback: parse with AST to get the first string literal
-            try:
-                tree = ast.parse(content)
-                if (tree.body and isinstance(tree.body[0], ast.Expr) and
-                    isinstance(tree.body[0].value, ast.Constant) and
-                    isinstance(tree.body[0].value.value, str)):
-                    return tree.body[0].value.value.strip()
-            except SyntaxError:
-                pass
-
+        source = file_path.read_text(encoding='utf-8')
     except (OSError, UnicodeDecodeError):
-        pass
+        return None
 
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+
+    doc = ast.get_docstring(tree, clean=True)
+    if doc is not None:
+        return doc.strip()
+
+    # Fallback: explicitly inspect first node (should rarely be needed; ast.get_docstring normally covers this)
+    if (tree.body and isinstance(tree.body[0], ast.Expr) and
+            isinstance(tree.body[0].value, ast.Constant) and
+            isinstance(tree.body[0].value.value, str)):
+        return tree.body[0].value.value.strip()
     return None
