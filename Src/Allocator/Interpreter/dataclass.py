@@ -297,13 +297,15 @@ class SIGNAL_TYPE(Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SIGNAL_METRIC:
-    signal: np.ndarray[np.floating | np.integer]
+    signal: np.ndarray[np.float64 | np.integer]
     signal_type: SIGNAL_TYPE
     signal_name: str | None
 
 
 class SignalStatistic(metaclass=SingletonMetaSubclass):
-    __slots__ = ('_signal_metric', '_signal', '_signal_type', '_signal_name', '_signal_mean', '_is_periodic', '_unbiased_signal')
+
+    __slots__ = ('_signal_metric', '_signal', '_signal_type', '_signal_norm',
+    '_signal_name', '_signal_mean', '_is_periodic', '_unbiased_signal', '_unbiased_signal_norm')
 
     def __init__(self, signal: np.ndarray[np.number], signal_type: SIGNAL_TYPE, signal_name: str | None = None):
         self._signal = signal
@@ -313,8 +315,22 @@ class SignalStatistic(metaclass=SingletonMetaSubclass):
         # Defer to property time creation, I.e. lazy load
         self._signal_metric = None
         self._signal_mean = None
+        self._signal_norm = None
         self._is_periodic = None
         self._unbiased_signal = None
+        self._unbiased_signal_norm = None
+
+    @property
+    def signal(self):
+        return self._signal
+
+    @property
+    def signal_name(self):
+        return self._signal_name
+
+    @property
+    def signal_type(self):
+        return self._signal_type
 
     @property
     def signal_metric(self):
@@ -333,6 +349,12 @@ class SignalStatistic(metaclass=SingletonMetaSubclass):
         return self._signal_mean
 
     @property
+    def signal_norm(self):
+        if self._signal_norm is None:
+            self._signal_norm =  np.sum(self.signal**2) if self.signal.size > 0 else 1.0
+        return self._signal_norm
+
+    @property
     def is_periodic(self):
         if self._is_periodic is None:
             self._is_periodic = self.signal_metric.signal_type == SIGNAL_TYPE.TRIG and self.signal_metric.signal_name in ('sin', 'cos', 'tan')
@@ -343,6 +365,13 @@ class SignalStatistic(metaclass=SingletonMetaSubclass):
         if self._unbiased_signal is None:
             self._unbiased_signal = self.signal_metric.signal - self.signal_mean
         return self._unbiased_signal
+
+    @property
+    def unbiased_signal_norm(self):
+        if self._unbiased_signal_norm is None:
+            us = self.unbiased_signal
+            self._unbiased_signal_norm = np.sum(us**2) if us.size > 0 else 1.0
+        return self._unbiased_signal_norm
 
 
 class TABLE_MODE(ExtendedEnum):
@@ -382,13 +411,13 @@ class QFormat:
         self._fxp_parser = functools.partial(Fxp, signed=self.signed, n_word=self.integer_part_bw + self.floating_part_bw,
                                  n_frac=self.floating_part_bw)
 
-    def get_converted(self, val: np.ndarray[np.floating] | np.floating) -> np.uint:
+    def get_converted(self, val: np.ndarray[np.float64] | np.float64) -> np.uint:
         uint_alias: np.unsignedinteger
         sz = val[0].itemsize * 8 if isinstance(val, np.ndarray) else val.itemsize * 8
         _, uint_alias = INT_STR_NPMAP.get_member_via_name(f'UINT{sz}').value
         return uint_alias(self._fxp_parser(val).val)
 
-    def get_float_representation(self, val: np.ndarray[np.uint] | np.uint) -> np.floating:
+    def get_float_representation(self, val: np.ndarray[np.uint] | np.uint) -> np.float64:
         return val / 2 ** self.floating_part_bw
 
 
@@ -403,7 +432,7 @@ class LUT_QUANT_ACC_REPORT:
     min_acc: np.float32
     max_acc: np.float32
     std:     np.float32
-    acc_scores: np.ndarray[np.floating]
+    acc_scores: np.ndarray[np.float64]
 
     def __str__(self):
         return (f'---LUT QUANTIZATION ERROR ACC REPORT---'
@@ -422,12 +451,32 @@ class LUT_THD_ACC_REPORT:
     """
     thd_dB: np.float32
     thd_scalar: np.float32
+    test_type: str = 'THD'
 
     def __str__(self):
-        return (f'---LUT THD ACC REPORT---'
-          f'\n\n\tTHD dB: {self.thd_dB:0.5f}'
-          f'\n\tTHD (%) {self.thd_scalar:.2%}'
-          f'\n\tTHD scalar: {self.thd_scalar:0.5f}')
+        header = f'---LUT {self.test_type} ACC REPORT---'
+        if self.test_type == 'THD':
+            body = (f'\n\n\tTHD dB: {self.thd_dB:0.5f}'
+                    f'\n\tTHD (%) {self.thd_scalar:.2%}'
+                    f'\n\tTHD scalar: {self.thd_scalar:0.5f}')
+        elif self.test_type == 'K_CUT_DIST':
+            body = (f'\n\n\tK-cut distortion dB: {self.thd_dB:0.5f}'
+                    f'\n\tK-cut (%): {self.thd_scalar:.2%}'
+                    f'\n\tK-cut distortion scalar: {self.thd_scalar:0.5f}')
+
+        elif self.test_type == 'CHEB_MODEL':
+            body = (f'\n\n\tChebyshev residual/model dB: {self.thd_dB:0.5f}'
+                    f'\n\tChebyshev (%): {self.thd_scalar:.2%}'
+                    f'\n\tChebyshev residual/model scalar: {self.thd_scalar:0.5f}')
+        elif self.test_type == 'RESIDUAL_RMS':
+            body = (f'\n\n\tResidual RMS ratio dB: {self.thd_dB:0.5f}'
+                    f'\n\tResidual RMS ratio (%): {self.thd_scalar:.2%}'
+                    f'\n\tResidual RMS ratio scalar: {self.thd_scalar:0.5f}')
+        else:
+            body = (f'\n\n\tMetric dB: {self.thd_dB:0.5f}'
+                    f'\n\tMetric (%): {self.thd_scalar:.2%}'
+                    f'\n\tMetric scalar: {self.thd_scalar:0.5f}')
+        return header + body
 
 
 @dataclass
@@ -460,18 +509,18 @@ class LUT:
 
     Dataclass used for an arbitrary generated LUT
     """
-    table: np.ndarray[np.integer | np.floating]
-    domain: np.ndarray[np.integer | np.floating]
-    domain_fn: Callable[..., np.ndarray[np.integer | np.floating]]
+    table: np.ndarray[np.integer | np.float64]
+    domain: np.ndarray[np.integer | np.float64]
+    domain_fn: Callable[..., np.ndarray[np.integer | np.float64]]
     type: LUT_TYPE
     q_format: QFormat
     endianness: BYTEORDER
     bit_width: np.uint
     table_sz: np.uint
     lop: ExtendedEnum
-    scale_factor: np.floating
+    scale_factor: np.float64
     table_mode: ExtendedEnum
-    fn: Callable[..., np.floating]
+    fn: Callable[..., np.float64]
     cmd: str | None # Command used to create LUT
 
     _acc_report: LUT_QUANT_ACC_REPORT | None = None
