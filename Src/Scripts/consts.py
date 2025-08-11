@@ -27,6 +27,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 
+import importlib
 import sys
 import traceback
 import logging
@@ -36,9 +37,12 @@ import datetime as dt
 from pathlib import Path
 from textwrap import TextWrapper
 
-from Scripts.util_helpers import get_repo_root, get_git_author
-from Scripts.dataclass import PROGRAM_META_INFO
 from Allocator.Interpreter.dataclass import XILINX_BRAM_SIZES
+
+from Scripts.dataclass import PROGRAM_META_INFO
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 #############
@@ -63,23 +67,12 @@ COMMON_RATES = [44100, 32000, 24000, 16000, 8000] # Common output rates
 
 LUT_DEFAULT_BRAM = XILINX_BRAM_SIZES.members_from_indx(idx=2)[XILINX_BRAM_SIZES.ULTRASCALE_DUALPORT]
 
-######################################
-# GENERAL PROGRAM / META INFO / MISC #
-######################################
-
-META_INFO = PROGRAM_META_INFO(
-    **{
-        'DATE_RUN': dt.datetime.now(),
-        'DEBUG': True,
-        'GIT_ROOT': get_repo_root(),
-        'AUTHOR_CREDENTIALS': get_git_author(),
-        'EXCLUDED_DIRS': {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}
-    }
-)
-
 ###########
 # LOGGING #
 ###########
+
+LOGGER_LINE_WIDTH = 100
+log_wrapper = TextWrapper(width=LOGGER_LINE_WIDTH)
 
 MONO_STEREO_WRAPPER_PREFIX='\n[*] MONO_STEREO_WRAPPER [*] \n{}'
 GENERATE_TRIG_LUTS_PREFIX='\n[*] TRIG_LUT_GENERATOR[*] \n{}'
@@ -87,10 +80,6 @@ GENERATE_DOWNSAMPLE_LUTS_PREFIX='\n[*] DOWNSAMPLE_GENERATOR [*] \n{}'
 UNWRAP_VEO_PREFIX='\n[*] VEO_UNWRAPPER [*] \n{}'
 WRITE_FILE_HEADER_PREFIX='\n[*] HEADER_WRITER [*] \n{}'
 MAKE_TESTBENCH_BOILERPLATE_PREFIX='\n[*] TESTBENCH_BOILERPLATE_MAKER [*] \n{}'
-
-LOGGER = logging.getLogger(__name__)
-LOGGER_LINE_WIDTH = 100
-log_wrapper = TextWrapper(width=LOGGER_LINE_WIDTH)
 
 
 def set_logger_opts():
@@ -122,8 +111,34 @@ def excepthook(type, value, tback):
 
 
 sys.excepthook = excepthook
+
 set_logger_opts()
 
+######################################
+# GENERAL PROGRAM / META INFO / MISC #
+######################################
+
+def get_git_author():  # lazy to avoid circular import at module import time
+    util_helpers = importlib.import_module('util_helpers', package='Scripts')
+    return util_helpers.get_git_author()
+
+def get_repo_root():   # lazy wrapper
+    util_helpers = importlib.import_module('util_helpers', package='Scripts')
+    return util_helpers.get_repo_root()
+
+META_INFO = PROGRAM_META_INFO(
+    **{
+        'DATE_RUN': dt.datetime.now(),
+        'DEBUG': True,
+        'GIT_ROOT': get_repo_root(),
+        'AUTHOR_CREDENTIALS': get_git_author(),
+        'EXCLUDED_DIRS': {'.git', '__pycache__', '.venv', 'node_modules', 'obj_dir', '.cache'}
+    }
+)
+
+#############
+# DIRECTORY #
+#############
 
 # File paths (relative to script)
 CURRENT_DIR = Path(__file__).parent.resolve()
