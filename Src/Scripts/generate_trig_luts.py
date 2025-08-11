@@ -204,6 +204,10 @@ def main() -> None:
                         help='Creates an acos (arccos) LUT. Not turned on by default.'
                         )
 
+    parser.add_argument('--adaptive-arc', action='store_true', default=False,
+                        help='Use derivative-weighted adaptive sampling for arcsin/arccos (MED mode) to reduce NN/distortion error'
+                        )
+
     parser.add_argument('--atan', action='store_true', default=False,
                         help='Creates an atan (arctan) LUT'
                         )
@@ -863,34 +867,38 @@ def generate_asin_acos_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_pa
         if not trig_parser.args['no_quantize']:
             sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
+        """
+        Per. https://github.com/topologicalhurt/Thesis/discussions/46
+        The index recovery method is non-linearly distributed over the LUT in HIGH & MEDIUM modes.
+        If the args are linearly spaced, it could introduce quantization error (I.e. major discontinuities)
+        due to the relative sparsity or density of the lookup method.
+        """
         match table_mode:
             case TRIG_OPT_MODE.MAX:
                 raise NotImplementedError(f'Max mode not yet supported for {k.name}')
             case TRIG_OPT_MODE.HIGH:
-                """
-                Per. https://github.com/topologicalhurt/Thesis/discussions/46
-                The index recovery method is non-linearly distributed over the LUT.
-                If the args are linearly spaced, it will introduce quantization error (I.e. major discontinuities)
-                due to the relative sparsity or density of the lookup method.
-                """
-                inv_sqrt2 = 1.0 / np.sqrt(2.0)
-                qwave_domain = np.linspace(0.0, inv_sqrt2, sz, dtype=trig_parser.args['bw'])
-                domain_fn = lambda: np.linspace(-1.0, 1.0, sz*4, dtype=trig_parser.args['bw']) # noqa: E731
+                if trig_parser.args.get('adaptive_arc', False):
+                    LOGGER.warning('adaptive_arc ignored for HIGH mode arcsin/arccos (quarter-wave) to preserve uniform domain')
 
-                xs[k] = (qwave_domain, domain_fn)
+                if k == TRIG_DEFS.ACOS:
+                    domain = np.linspace(0.0, 1.0/np.sqrt(2.0), sz, dtype=trig_parser.args['bw'])
+                elif k == TRIG_DEFS.ASIN:
+                    domain = np.linspace(0.0, 1.0/np.sqrt(2.0), sz, dtype=trig_parser.args['bw'])
+                else:
+                    raise assert_never(f'Unexpected function {k} in arc_sinusoids HIGH mode')
 
-                continue
+                domain_fn = lambda: np.linspace(-1, 1, sz*4, dtype=trig_parser.args['bw']) # noqa: E731
             case TRIG_OPT_MODE.MED:
-                raise NotImplementedError(f'Half table not yet supported for {k.name}')
+                hwave_domain = np.linspace(0, 1, sz, dtype=trig_parser.args['bw'])
+                domain = hwave_domain
+                domain_fn = lambda: np.linspace(-1, 1, sz*2, dtype=trig_parser.args['bw'])      # noqa: E731
             case TRIG_OPT_MODE.LOW:
-                start = -1
-                stop = 1
+                domain = np.linspace(-1, 1, sz, dtype=trig_parser.args['bw'])
+                domain_fn = lambda: np.linspace(-1, 1, sz, dtype=trig_parser.args['bw'])        # noqa: E731
             case _:
                 assert_never(table_mode)
 
-        xs[k] = (np.linspace(start, stop, sz, dtype=trig_parser.args['bw']),
-                 functools.partial(np.linspace, start, stop=scale_factor*stop, sz=scale_factor*sz, dtype=trig_parser.args['bw'])
-                )
+        xs[k] = (domain, domain_fn)
 
 
 def generate_atan_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -1076,7 +1084,8 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
                                                                          axis=test_axis,
                                                                          oversample_factor=trig_parser.args['osf']
                                                                          )
-                thd_acc_report = acc_metrics.assess_thd()
+
+                thd_acc_report = acc_metrics.select_distortion_metric()
 
                 acc_report = LUT_ACC_REPORT(f_name=lut.fn.__name__,
                                             quant_acc_report=quant_acc_report,
@@ -1117,6 +1126,24 @@ def _calculate_scale_factor(table_mode: TRIG_OPT_MODE, table_prec: TRIG_PRECISIO
     Calculate the 'scale' factor for a LUT I.e. the ratio between optimisation:precision
     """
     return max(table_mode.value * (TRIG_PRECISION.HIGHP.value - table_prec.value), 1)
+
+
+def _adaptive_arc_domain(sz: int, trig_parser: _TrigArgParser, hr_mult: int = 16, eps: float = 1e-6) -> np.ndarray[np.floating]:
+    """Derivative-weighted adaptive sampling for arcsin/arccos.
+
+    Places nodes so |f'(x)| * local_step ~ constant with f'(x)=±1/sqrt(1-x^2).
+    Returns sz points in [-1,1]. First/last forced to exact endpoints.
+    """
+    bw = trig_parser.args['bw']
+    x_hr = np.linspace(-1.0, 1.0, sz * hr_mult, dtype=bw)
+    denom = np.sqrt(np.clip(1.0 - x_hr * x_hr, 1e-18, None))
+    w = 1.0 / denom + np.float64(eps)
+    cdf = np.cumsum(w)
+    cdf /= cdf[-1]
+    p = np.linspace(0.0, 1.0, sz, dtype=bw)
+    x_nodes = np.interp(p, cdf, x_hr).astype(bw)
+    x_nodes[0], x_nodes[-1] = -1.0, 1.0
+    return x_nodes
 
 
 def _get_fn_from_optmode(m: TRIG_DEFS, trig_parser: _TrigArgParser) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
