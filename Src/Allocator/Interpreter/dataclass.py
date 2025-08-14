@@ -30,18 +30,19 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import importlib
 import enum
 import functools
+from typing import assert_never
 import scipy as sp
 import numpy as np
 import regex as re
 
 from collections.abc import Callable
-from dataclasses import InitVar, dataclass, fields
+from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from fxpmath import Fxp
 
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import INT_STR_NPMAP
-from Allocator.Interpreter.singleton import SingletonMetaSubclass
+from Allocator.Interpreter.helpers import combined_fast_stable_hash, fast_stable_hash
 
 
 class XILINX_GENERATION(ExtendedEnum):
@@ -246,7 +247,7 @@ consts = importlib.import_module('.consts', package='Allocator.Interpreter')
 META_INFO = consts.META_INFO
 
 
-class BYTEORDER(Enum):
+class BYTEORDER(ExtendedEnum):
     LITTLE=0
     BIG=1
     NATIVE=2
@@ -302,76 +303,49 @@ class SIGNAL_METRIC:
     signal_name: str | None
 
 
-class SignalStatistic(metaclass=SingletonMetaSubclass):
+class TRIG_DEFS(ExtendedEnum):
+    """# Summary
 
-    __slots__ = ('_signal_metric', '_signal', '_signal_type', '_signal_norm',
-    '_signal_name', '_signal_mean', '_is_periodic', '_unbiased_signal', '_unbiased_signal_norm')
+    Enum storing the supported trig LUTS
+    """
+    SIN = 0
+    COS = 1
+    TAN = 2
+    ASIN = 3
+    ACOS = 4
+    ATAN = 5
+    SINC = 6
+    _SINUSOIDS = (SIN, COS)
+    _ARC_SINUSOIDS = (ASIN, ACOS)
+    _AUX = (SINC,)
 
-    def __init__(self, signal: np.ndarray[np.number], signal_type: SIGNAL_TYPE, signal_name: str | None = None):
-        self._signal = signal
-        self._signal_type = signal_type
-        self._signal_name = signal_name
 
-        # Defer to property time creation, I.e. lazy load
-        self._signal_metric = None
-        self._signal_mean = None
-        self._signal_norm = None
-        self._is_periodic = None
-        self._unbiased_signal = None
-        self._unbiased_signal_norm = None
+class LUT_FN_DEFS(ExtendedEnum):
+    """# Summary
 
-    @property
-    def signal(self):
-        return self._signal
+    Abstract class storing the LUT function definitions
+    """
 
-    @property
-    def signal_name(self):
-        return self._signal_name
+    @classmethod
+    def get_fn_class_from_name(cls, name: str) -> ExtendedEnum | None:
+        for subclass in cls.__subclasses__():
+            if name in subclass:
+                return subclass
+        return None
 
-    @property
-    def signal_type(self):
-        return self._signal_type
 
-    @property
-    def signal_metric(self):
-        if self._signal_metric is None:
-            self._signal_metric = SIGNAL_METRIC(
-                signal=self._signal,
-                signal_type=self._signal_type,
-                signal_name=self._signal_name
-            )
-        return self._signal_metric
+class TRIG_FN_DEFS(LUT_FN_DEFS):
+    """# Summary
 
-    @property
-    def signal_mean(self):
-        if self._signal_mean is None:
-            self._signal_mean = np.mean(self.signal_metric.signal)
-        return self._signal_mean
-
-    @property
-    def signal_norm(self):
-        if self._signal_norm is None:
-            self._signal_norm =  np.sum(self.signal**2) if self.signal.size > 0 else 1.0
-        return self._signal_norm
-
-    @property
-    def is_periodic(self):
-        if self._is_periodic is None:
-            self._is_periodic = self.signal_metric.signal_type == SIGNAL_TYPE.TRIG and self.signal_metric.signal_name in ('sin', 'cos', 'tan')
-        return self._is_periodic
-
-    @property
-    def unbiased_signal(self):
-        if self._unbiased_signal is None:
-            self._unbiased_signal = self.signal_metric.signal - self.signal_mean
-        return self._unbiased_signal
-
-    @property
-    def unbiased_signal_norm(self):
-        if self._unbiased_signal_norm is None:
-            us = self.unbiased_signal
-            self._unbiased_signal_norm = np.sum(us**2) if us.size > 0 else 1.0
-        return self._unbiased_signal_norm
+    Enum storing the trig names & their corresponding functions
+    """
+    SIN = TRIG_DEFS.SIN, np.sin
+    COS = TRIG_DEFS.COS, np.cos
+    TAN = TRIG_DEFS.TAN, np.tan
+    ASIN = TRIG_DEFS.ASIN, np.arcsin
+    ACOS = TRIG_DEFS.ACOS, np.arccos
+    ATAN = TRIG_DEFS.ATAN, np.arctan
+    SINC = TRIG_DEFS.SINC, np.sinc
 
 
 class TABLE_MODE(ExtendedEnum):
@@ -383,24 +357,92 @@ class TABLE_MODE(ExtendedEnum):
     subset of it's domain (E.g. arctan)
     """
 
+    @staticmethod
+    def get_table_mode_from_fn(fn: LUT_FN_DEFS) -> ExtendedEnum:
+        """Returns the table mode enum corresponding to the given LUT function."""
+        if fn in TRIG_FN_DEFS:
+            return TRIG_OPT_MODE
+        assert_never(f'{fn} is not a valid LUT_FN_DEFS member')
 
-@dataclass
+
+class TRIG_OPT_MODE(TABLE_MODE):
+    """# Summary
+
+    Enum corresponding to how the trig LUT is 'folded' E.G. refer to the basic sin case
+    for an example.
+    (Using higher modes will, ostensibly, take more effort to recover the data.)
+
+    Note: there are no real advantages to not using 2 = high mode for
+    most functions.
+
+    = 0 (lowest mode - full table / complete period)
+
+    = 1 (medium mode - half table / half period)
+
+    = 2 (high mode - quarter table / quarter period)
+
+    = 3 (max mode - polynomial reconstruction if supported)
+    """
+    LOW = 0
+    MED = 1
+    HIGH = 2
+    MAX = 3
+
+
+class PREC_MODE(ExtendedEnum):
+    """# Summary
+
+    Abstract class defining the precision modes for LUTs
+    """
+
+    @staticmethod
+    def get_prec_mode_from_fn(fn: LUT_FN_DEFS) -> ExtendedEnum:
+        """Returns the prec mode enum corresponding to the given LUT function."""
+        if fn in TRIG_FN_DEFS:
+            return TRIG_PRECISION
+        assert_never(f'{fn} is not a valid LUT_FN_DEFS member')
+
+
+class TRIG_PRECISION(PREC_MODE):
+    """# Summary
+
+    Enum corresponding to how trig LUT is sized
+
+    = 0 (lowest mode - normal precision)
+
+    = 1 (medium mode - double precision)
+
+    = 2 (high mode - full precision)
+    """
+    LOWP = 0
+    MEDP = 1
+    HIGHP = 2
+
+
+@dataclass(slots=True)
 class QFormat:
     """# Summary
 
     Dataclass used to contain a floating number & it's QFormat representation as an unsigned integer
     """
     format: str
+    integer_part_bw: int = field(init=False)
+    floating_part_bw: int = field(init=False)
+    signed: bool = field(init=False)
+    _fxp_parser: Callable[[np.ndarray[np.float64]], Fxp] = field(init=False, repr=False)
 
     def __post_init__(self):
         self._parse_q_format()
+
+    def __hash__(self):
+        return fast_stable_hash(self.format)
 
     def __str__(self):
         return self.format
 
     def _parse_q_format(self) -> None:
         groups = re.findall(r'^([Uu])?Q(\d+)\.(\d+)$', self.format)
-        groups = groups if groups is None else groups[0]
+        groups = groups[0] if groups is not None else None
         if groups is None or (l_groups := len(groups) < 2) or l_groups > 3:
             raise ValueError(f'Expected <sign?>Q<m>.<n> format but got: {self.format} instead')
 
@@ -451,7 +493,7 @@ class LUT_THD_ACC_REPORT:
     """
     thd_dB: np.float32
     thd_scalar: np.float32
-    test_type: str = 'THD'
+    test_type: str = field(default='THD')
 
     def __str__(self):
         header = f'---LUT {self.test_type} ACC REPORT---'
@@ -479,7 +521,7 @@ class LUT_THD_ACC_REPORT:
         return header + body
 
 
-@dataclass
+@dataclass(slots=True)
 class LUT_ACC_REPORT:
     """# Summary
 
@@ -488,6 +530,7 @@ class LUT_ACC_REPORT:
     quant_acc_report: LUT_QUANT_ACC_REPORT
     thd_acc_report: LUT_THD_ACC_REPORT | None
     f_name: InitVar[str]
+    _f_name: str = field(init=False, repr=False)
 
     def __post_init__(self, f_name: str):
         self._f_name = f_name.upper()
@@ -498,40 +541,54 @@ class LUT_ACC_REPORT:
 
     def __str__(self):
         result = [f'[*]---LUT ACC REPORTS FOR {self.f_name}---[*]']
-        for v in fields(self):
-            result.append(f'\n{str(getattr(self, v.name))}')
+        result.append(str(self.quant_acc_report))
+
+        if self.thd_acc_report is not None:
+            result.append(str(self.thd_acc_report))
+
         return '\t\n'.join(result)
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, kw_only=True)
 class LUT:
     """# Summary
 
     Dataclass used for an arbitrary generated LUT
     """
-    table: np.ndarray[np.integer | np.float64]
-    domain: np.ndarray[np.integer | np.float64]
-    domain_fn: Callable[..., np.ndarray[np.integer | np.float64]]
+    table: np.ndarray[np.integer | np.floating]
+    domain: np.ndarray[np.integer | np.floating]
+    domain_fn: Callable[..., np.ndarray[np.integer | np.floating]]
     type: LUT_TYPE
     q_format: QFormat
     endianness: BYTEORDER
-    bit_width: np.uint
-    table_sz: np.uint
+    bit_width: np.uint32
+    table_sz: np.uint32
     lop: ExtendedEnum
     scale_factor: np.float64
     table_mode: ExtendedEnum
-    fn: Callable[..., np.float64]
-    cmd: str | None # Command used to create LUT
+    cmd: str | None                                                                  # Command used to create LUT
+    fn: Callable[..., np.floating]                                                   # Nominal function
+    fn_ref: Callable[..., np.floating] | None = field(default=None)                  # Reference function
+    _acc_report: LUT_ACC_REPORT | None = field(default=None, init=False)
 
-    _acc_report: LUT_QUANT_ACC_REPORT | None = None
+    def __post_init__(self):
+        self.fn_ref = self.fn if self.fn_ref is None else self.fn_ref
+
+    def __hash__(self):
+        q_hsh = hash(self.q_format)
+        q_hsh_digestable: bytes = q_hsh.to_bytes(length=q_hsh.bit_length() // 8 + 1, byteorder='big')
+        bit_width_digestable: bytes = self.bit_width.to_bytes(length=self.bit_width.bit_length() // 8 + 1,
+                                                              byteorder='big')
+
+        return combined_fast_stable_hash((self.fn.__name__, q_hsh_digestable,
+                                          self.endianness.name, bit_width_digestable))
 
     @property
-    def acc_report(self) -> LUT_QUANT_ACC_REPORT:
+    def acc_report(self) -> LUT_ACC_REPORT:
         return self._acc_report
 
-    @acc_report.setter
-    def acc_report(self, val: LUT_QUANT_ACC_REPORT) -> None:
-        self._acc_report = val
+    def update_acc_report(self, report: LUT_ACC_REPORT) -> None:
+        self._acc_report = report   # Avoid acc_report.setter standard, prefer invocation of method
 
     def __str__(self):
         return (f'\n\tFunction: {self.fn.__name__}'

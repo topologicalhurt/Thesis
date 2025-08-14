@@ -1,25 +1,36 @@
 // Coefficient memory for tan
 // ----------------------------------------------
-//   Bits per coeff.:          32
-//   Q-format:                 Q8.15
-//   Endianness.:              big
-//   Table mode:               high
-//   Table size:               8.192kB
-//   LOP (level of precision): lowp
-//   Effective scaling factor: 1/4
-//   Measured avg. accuracy:   0.00000605
-//   Min accuracy:             0.00000000
-//   Max accuracy:             0.00003052
-//   Std:                      0.00001217//
-
-// Each line contains a value (coeff.) corresponding to the function tan.
-// This file was automatically generated with the command:
-Q8.15 --tan -tan-k 0.001
-      ^^^^^
-// *Do not* make any manual changes to this file
-// File generated @ 2025-07-29 13:31:50.602555
-// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//   Bits per coeff.:                32
+//   Q-format:                       Q8.15
+//   Endianness.:                    big
+//   Table mode:                     high
+//   Table size:                     8.192kB
+//   LOP (level of precision):       lowp
+//   Effective scaling factor:       1/4
 //
+//   Stats:
+//
+//   [*] Measured Quantization error [*]
+//	   Measured avg. accuracy:       0.00000604
+//	   Min accuracy:                 0.00000000
+//	   Max accuracy:                 0.00003052
+//	   Std:                          0.00001216
+//
+//   [*] Measured THD+N (Total Harmonic Distortion + noise) [*]
+//	   Measured avg. THD+N:          0.83477043
+//	   Measured avg. THD+N (dB):     -1.56865887
+//
+// ----------------------------------------------
+//
+// Each line after this header contains a value (coeff.) corresponding to the function tan.
+// This file was automatically generated with the command:
+// Q8.15 --tan -tan-k 0.001
+//       ^^^^^
+//
+// *Do not* make any manual changes to this file
+// File generated @ 2025-08-14 18:56:59.956051
+//
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 00000000
 0c000000

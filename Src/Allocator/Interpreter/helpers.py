@@ -139,6 +139,13 @@ def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterabl
     return sorted(to_sort, key=lambda item: (mask.get(item, float('inf')), item))
 
 
+def rename_keys(d: dict, rename_map: dict) -> None:
+    if set(rename_map.keys()).issubset(d.keys()):
+        for k, v in rename_map.items():
+            val = d.pop(k)
+            d[v] = val
+
+
 def join_regex(*regex: str, non_capture: bool = True, or_join: bool = True) -> str:
     def _increment_match(match, i: int):
         return f'\\{int(match.group(0)[1:]) + i}'

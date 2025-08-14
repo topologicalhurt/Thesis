@@ -25,12 +25,12 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 import numpy as np
 
-from collections.abc import Callable
 from typing import override
 
-from Allocator.Interpreter.dataclass import LUT, LUT_QUANT_ACC_REPORT, SIGNAL_TYPE
+from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, LUT_QUANT_ACC_REPORT, SIGNAL_TYPE
 from Allocator.Interpreter.signal_metrics import DistortionMetrics, PeriodicityMetrics
 from Allocator.Interpreter.signal_reconstructor import get_reconstructed_from_lut
+from Allocator.Interpreter.consts import LOGGER
 
 
 class LutAccMetrics(DistortionMetrics, PeriodicityMetrics):
@@ -41,18 +41,52 @@ class LutAccMetrics(DistortionMetrics, PeriodicityMetrics):
         self.quantized_table = lut.q_format.get_converted(self.lut.table)
         self.table = lut.q_format.get_float_representation(self.quantized_table)
 
-        self.full_signal = get_reconstructed_from_lut(table=self.table, table_mode=self.lut.table_mode, signal_name=self.lut.fn.__name__)
+        try:
+            self.full_signal = get_reconstructed_from_lut(table=self.table, table_mode=self.lut.table_mode,
+                                                          signal_name=self.lut.fn.__name__)
+        except NotImplementedError:
+            self.full_signal = self.table
 
-        self.full_domain = self.lut.domain_fn()
-        self.quantized_full_signal = lut.q_format.get_converted(self.full_signal)
+            LOGGER.warning(f'Failed to reconstruct signal from LUT: {self.lut.fn.__name__}. '
+                           'Mode is not supported / implemented.')
+        finally:
+            self.quantized_full_signal = lut.q_format.get_converted(self.full_signal)
+            self.full_domain = self.lut.domain_fn()
 
-        signal_type = SIGNAL_TYPE.lut_type_to_signal_type(self.lut.type)
-        super().__init__(signal=self.full_signal, signal_type=signal_type, signal_name=self.lut.fn.__name__)
+            signal_type = SIGNAL_TYPE.lut_type_to_signal_type(self.lut.type)
+            super().__init__(signal=self.full_signal, signal_type=signal_type, signal_name=self.lut.fn.__name__)
+
+    @override
+    def get_report(self,
+                   axis: np.ndarray[np.floating],
+                   oversample_factor: np.uint,
+                   dtype: np.dtype | None = None
+                   ) -> LUT_ACC_REPORT:
+        quant_acc_report, thd_acc_report = super().get_report(axis=axis, oversample_factor=oversample_factor,
+                                                              dtype=dtype)
+
+        acc_report = LUT_ACC_REPORT(quant_acc_report=quant_acc_report,
+                                    thd_acc_report=thd_acc_report,
+                                    f_name=self.lut.fn.__name__
+                                    )
+
+        self.lut.update_acc_report(acc_report)
+        return acc_report
+
+    @override
+    def get_base_report(self) -> LUT_ACC_REPORT:
+        quant_acc_report, thd_acc_report = super().get_base_report()
+        acc_report = LUT_ACC_REPORT(f_name=self.lut.fn.__name__,
+                              quant_acc_report=quant_acc_report,
+                              thd_acc_report=thd_acc_report
+                              )
+
+        self.lut.update_acc_report(acc_report)
+        return acc_report
 
     @override
     def assess_quantization_error(self,
-                        fn: Callable[..., np.floating],
                         axis: np.ndarray[np.floating],
                         oversample_factor: np.uint,
                         dtype: np.dtype | None = None) -> LUT_QUANT_ACC_REPORT | None:
-        return super().assess_quantization_error(fn=fn, axis=axis, oversample_factor=oversample_factor, dtype=dtype, q_format=self.lut.q_format)
+        return super().assess_quantization_error(fn=self.lut.fn_ref, axis=axis, oversample_factor=oversample_factor, dtype=dtype, q_format=self.lut.q_format)

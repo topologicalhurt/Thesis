@@ -39,11 +39,12 @@ import numpy as np
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from Allocator.Interpreter.dataclass import BYTEORDER, FLOAT_STR_NPMAP
+from Allocator.Interpreter.signal_metrics import DistortionMetrics
+from Allocator.Interpreter.signal_metrics import SIGNAL_TYPE
+from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
+from Allocator.Interpreter.dataclass import BYTEORDER, TRIG_DEFS
 
-from Scripts.consts import RTL_TRIG_HEX_DIR
-from Scripts.dataclass import TRIG_DEFS, TRIG_FN_DEFS
-from Scripts.generate_trig_luts import assess_lut_quantization_error
+from Scripts.consts import RTL_TRIG_HEX_DIR, TRIG_HEX_MEM_EXPECTED
 from Scripts.hex_utils import TrigLutManager
 
 
@@ -96,16 +97,12 @@ def hex_manager():
 
 
 @pytest.fixture
-def high_opt_lowp_wout_cos_domains(hex_manager: TrigLutManager):
-    # Read in all files with (function_name)_32_high_lowp name
-    domains = {m : f'{fn.__name__.lower()}_32_high_lowp.hex'
-                for (_, m), fn in zip(TRIG_DEFS.__members__.items(), TRIG_FN_DEFS.values())}
-    # Exclude cos, arccos .hex files (which are excluded by default)
-    domains = {m : hex_manager.read_lut_from_hex(file_name, FLOAT_STR_NPMAP.FLOAT32.value[1],
-                                                 target_order=BYTEORDER.NATIVE)
-                for m, file_name in domains.items()
-                if not file_name.startswith('cos') and not file_name.startswith('arccos')}
-    return domains
+def high_opt_lowp(hex_manager: TrigLutManager):
+    luts = {m : fn for m, fn in zip(TRIG_DEFS.fields(), TRIG_HEX_MEM_EXPECTED.keys())}
+    luts = {m : hex_manager.read_lut_from_hex(fn, INT_STR_NPMAP.UINT32.value[1],
+                                              target_order=BYTEORDER.NATIVE)
+                for m, fn in luts.items()}
+    return luts
 
 
 @dataclass
@@ -131,8 +128,8 @@ class ArcSinusoidLutDomains:
 
 
 @pytest.fixture
-def sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
-    domains = high_opt_lowp_wout_cos_domains
+def sinusoids(high_opt_lowp: Mapping):
+    domains = high_opt_lowp
     return SinusoidLutDomains(
         sin=ReconstructSin(domain=domains[TRIG_DEFS.SIN],
                            dtype=FLOAT_STR_NPMAP.FLOAT32.value[1]),
@@ -141,13 +138,19 @@ def sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
 
 
 @pytest.fixture
-def arc_sinusoids(high_opt_lowp_wout_cos_domains: Mapping):
-    domains = high_opt_lowp_wout_cos_domains
+def arc_sinusoids(high_opt_lowp: Mapping):
+    domains = high_opt_lowp
     return ArcSinusoidLutDomains(
         asin=ReconstructArcSin(domain=domains[TRIG_DEFS.ASIN],
                                dtype=FLOAT_STR_NPMAP.FLOAT32.value[1]),
         acos=None # TODO: implement ReconstructArcCos
     )
+
+
+@pytest.fixture
+def distortion_metrics_sinusoids_high(sinusoids: SinusoidLutDomains):
+    return DistortionMetrics(signal=sinusoids.sin.reconstruct_high(),
+                             signal_type=SIGNAL_TYPE.SIN, signal_name='sin')
 
 
 @pytest.fixture
@@ -159,14 +162,15 @@ def sinusoids_test_axis(sinusoids: SinusoidLutDomains, arc_sinusoids: ArcSinusoi
         asin=np.linspace(0, 1, arc_sinusoids.asin.size * 4),
         acos=np.linspace(0, 1, arc_sinusoids.asin.size * 4),
         atan=None
-    )
+        )
 
 
-def test_reconstruct_sin_high_32(sinusoids: SinusoidLutDomains, sinusoids_test_axis: TestDomains):
+def test_reconstruct_sin_high_32(sinusoids: SinusoidLutDomains, sinusoids_test_axis: TestDomains,
+                                 distortion_metrics_sinusoids_high: DistortionMetrics):
     reconstructed_sin = [sinusoids.sin.reconstruct_high(theta) for theta in sinusoids_test_axis.sin]
-    assess_lut_quantization_error(np.sin, reconstructed_sin, sinusoids_test_axis.sin,
+
+    distortion_metrics_sinusoids_high.assess_quantization_error(np.sin, reconstructed_sin, sinusoids_test_axis.sin,
                         oversample_factor=128,
                         type=FLOAT_STR_NPMAP.FLOAT32.value[1])
-    for a1, a2 in zip(reconstructed_sin, sinusoids_test_axis.sin):
-        print(f'{a1} |-> {a2}')
-    assert True
+
+    assert np.allclose(reconstructed_sin, sinusoids_test_axis.sin, atol=1e-5)

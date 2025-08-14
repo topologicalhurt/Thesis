@@ -27,10 +27,12 @@ import numpy as np
 import scipy as sp
 import functools
 
+from dataclasses import dataclass
 from collections.abc import Callable
 from typing import override
 
-from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat, SignalStatistic
+from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat
+from Allocator.Interpreter.signal_statistic import SignalStatistic
 
 
 # TODO:
@@ -49,19 +51,115 @@ class PeriodicityMetrics(SignalStatistic):
         _is_periodic = super().is_periodic
         return _is_periodic or self.auto_corr_period_test() > 0 and not _is_periodic
 
-    def auto_corr_period_test(self) -> np.uint:
-        """Use normalized autocorrelation to determine periodicity.
-        Return the period of the function if it is periodic, with a result of 0 indicating no periodicity.
+    @override
+    def get_report(self) -> dataclass:
+        return None
+
+    @override
+    def get_base_report(self) -> dataclass:
+        return None
+
+    def auto_corr_period_test(self,
+        min_period: np.uint | None = None,
+        max_period: np.uint | None = None,
+        prominence: np.floating | None = None,
+        prefer: np.uint = 0,
+        smooth_win: np.uint = 1) -> np.uint32:
+        """Estimate fundamental period (in samples) via autocorrelation with robust handling.
+
+        Params:
+            min_period: minimum lag to consider (defaults to 2)
+            max_period: maximum lag to consider (defaults to N//2)
+            prominence: required peak prominence in normalized ACF [0..1]. If None then the peaks will be automatically detected.
+            prefer: Indexed from 1 (for earliest valid peak), a value of i + 1 selects the ith most prominent peak.
+            A value of 0 indicates that the most dominant peak should be used. Clips to latest occuring maxima if i > N peaks.
+            smooth_win: odd window length for moving-average smoothing (<= 1 disables)
+
+        Returns:
+            period_samples (>0) if a significant post-zero-lag peak exists, else 0.
         """
 
-        # Per the np.correlate documentation, FFT isn't use to compute the convolution which is inefficient on large arrays
-        # sp.signal.correlate DOES do this, however.
-        # if self.signal.size >= 1e5:
-        #     autocorr = sp.signal.correlate(self._unbiased_signal, self._unbiased_signal, mode='same') / self.unbiased_signal_norm
-        # else:
-        #     autocorr = np.correlate(self._unbiased_signal, self._unbiased_signal, mode='same') / self.unbiased_signal_norm
+        x = np.asarray(self.unbiased_signal, dtype=np.float64)
+        if not np.all(np.isfinite(x)):
+            x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
-        return np.uint(0) # BUG: TEMP
+        n = x.size
+        if n < 4:
+            return np.uint32(0)
+
+        r_full = sp.signal.correlate(x, x, mode='full', method='fft')   # O(NlogN)
+        r = r_full[n-1:]
+
+        # Unbiased normalization (divide by N-k), then normalize so r[0] == 1 (scale invariance)
+        denom = np.arange(n, 0, -1, dtype=np.float64)
+        r /= np.maximum(denom, 1.0)
+        r0 = r[0]
+        if not np.isfinite(r0) or r0 <= 0:
+            return np.uint32(0)
+        r /= r0
+
+        # Period search bounds
+        lo = 2 if min_period is None else max(min_period, 1)
+        hi = max(2, n // 2) if max_period is None else min(max_period, n // 2)
+        if lo >= hi:
+            return np.uint32(0)
+
+        min_dist = max(1, lo // 2)
+
+        seg = r[lo:hi]
+        if seg.size == 0:
+            return np.uint32(0)
+
+        if smooth_win >= 3 and smooth_win % 2 == 1:
+            k = smooth_win
+            w = np.ones(k, dtype=np.float64) / k
+            seg = np.convolve(seg, w, mode='same')
+        elif smooth_win >= 3 and smooth_win % 2 != 1:
+            raise ValueError('Smoothing window should be odd valued.')
+
+        if prominence is None:
+            peaks, _ = sp.signal.find_peaks(seg, distance=min_dist)
+            if peaks.size == 0:
+                return np.uint32(0)
+
+            prominences = sp.signal.peak_prominences(seg, peaks)[0]
+        else:
+            pth = float(np.clip(prominence, 0.0, 1.0))
+            peaks, props = sp.signal.find_peaks(seg, prominence=pth, distance=min_dist)
+            if peaks.size == 0:
+                return np.uint32(0)
+
+            prominences = props.get('prominences', None)
+            if prominences is None or len(prominences) == 0:
+                return np.uint32(0)
+
+        if prefer == 0:
+            idx = int(np.argmax(prominences))
+        else:
+            order = np.argsort(-prominences)
+            rank = min(max(int(prefer - 1), 0), order.size - 1)
+            idx = int(order[rank])
+
+        p = int(peaks[idx])
+
+        # Parabolic interpolation for sub-sample precision
+        # I.e. Look at the peak and its two neighbors (y1, y3) and fit a parabola through (y1, y2, y3)
+        p_global = p + lo
+        if 1 <= p < (seg.size - 1):
+            y1, y2, y3 = seg[p-1], seg[p], seg[p+1]
+            denom_p = (y1 - 2.0*y2 + y3)
+            if np.isfinite(denom_p) and abs(denom_p) > 0:
+                delta = 0.5 * (y1 - y3) / denom_p
+                delta = float(np.clip(delta, -1.0, 1.0))
+                p_global_f = p + lo + delta
+            else:
+                p_global_f = float(p_global)
+        else:
+            p_global_f = float(p_global)
+
+        # Clamp and return
+        period = np.uint32(np.clip(np.rint(p_global_f), lo, hi - 1))
+        return period
 
 
 class DistortionMetrics(SignalStatistic):
@@ -70,9 +168,9 @@ class DistortionMetrics(SignalStatistic):
         super().__init__(signal=signal, signal_type=signal_type, signal_name=signal_name)
 
     @staticmethod
-    def band_power(spec, center_bin: np.float64, half_width: np.uint) -> np.float64:
+    def band_power(spec, center_bin: np.float32, half_width: np.uint32) -> np.float64:
         """Sum power around a fractional bin center over ±half_width bins."""
-        c = np.uint(np.round(center_bin))
+        c = np.uint32(np.round(center_bin))
         mag = np.abs(spec)
         lo = np.max(0, c - half_width)
         hi = np.min(mag.size - 1, c + half_width)
@@ -84,6 +182,20 @@ class DistortionMetrics(SignalStatistic):
             return np.float64(0.0), np.float64(-np.inf)
         d = np.sqrt(p_dist / p_signal)
         return np.float64(d), np.float64(20.0 * np.log10(max(d, np.finfo(np.float64).tiny)))
+
+    @override
+    def get_report(self, *args, **kwargs) -> tuple[LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT]:
+        if self.full_signal is None or self.quantized_full_signal is None:
+            return DistortionMetrics.get_base_report()
+
+        quant_acc_report = self.assess_quantization_error(*args, **kwargs)
+        thd_acc_report = self.select_distortion_metric()
+        return quant_acc_report, thd_acc_report
+
+    @override
+    @staticmethod
+    def get_base_report() -> tuple[LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT]:
+        return LUT_QUANT_ACC_REPORT(0, 0, 0, 0, []), LUT_THD_ACC_REPORT(-np.inf, 0.0, 'THD')
 
     def assess_thd(self, window_type: SIG_WINDOW_TYPE = SIG_WINDOW_TYPE.FLATTOP) -> LUT_THD_ACC_REPORT | None:
         """Assess THD.
@@ -288,7 +400,7 @@ class DistortionMetrics(SignalStatistic):
     def assess_quantization_error(self,
                         fn: Callable[..., np.float64],
                         axis: np.ndarray[np.float64],
-                        oversample_factor: np.uint,
+                        oversample_factor: np.uint32,
                         q_format: QFormat | None = None,
                         dtype: np.dtype | None = None) -> LUT_QUANT_ACC_REPORT | None:
         """ # Summary

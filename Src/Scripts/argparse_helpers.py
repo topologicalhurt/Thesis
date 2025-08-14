@@ -88,7 +88,7 @@ def str2negint(val: str) -> np.integer:
 
 
 def str2float(val: str) -> np.floating:
-    matched = re.fullmatch(r'(\d+(?:\.\d+)?)', val)
+    matched = re.fullmatch(r'^-?\d+\.\d+$', val)
     if matched is None:
         raise ExpectedFloatParseException(f'Couldn\'t parse float from {val}')
     return FLOAT(matched.group(0))
@@ -119,7 +119,7 @@ def str2float_with_atmost_n_floating_digits(val: str, n: np.uint) -> np.floating
 
 
 def str2num(val: str) -> np.floating | np.integer:
-    if val.find('.'):
+    if val.find('.') != -1:
         return str2float(val)
     return str2int(val)
 
@@ -364,6 +364,20 @@ def str2relpath(val: str, root: str = SRC_DIR, enforce_exists: bool = True) -> P
     return shallowest_match
 
 
+def str2frac(val: str, strict: bool = False) -> np.floating:
+    if strict and val.count('/') != 1:
+        raise ap.ArgumentTypeError(f'Invalid fractional value: {val}.'
+                                   ' Missing a \'/\' separator.')
+
+    split_vals = re.split(r'/', val, maxsplit=1)
+    if strict or len(split_vals) == 2:
+        num, denom = split_vals
+        num, denom = str2num(num), str2num(denom)
+        return FLOAT32(num) / FLOAT32(denom)
+
+    return FLOAT32(str2num(val))
+
+
 def str2freq(val: str, granularity: FREQ = FREQ.KHZ) -> np.uint:
     try:
         n_accepted_digits = UINT(np.log10(granularity.value))
@@ -416,6 +430,15 @@ def str2Qfixedformat(val: str) -> QFormat:
         return QFormat(val)
     except ValueError as e:
         raise ap.ArgumentTypeError(str(e))
+
+
+def str2varname(val: str) -> str:
+    val = val.strip()
+    val = re.sub(r'^\d*', '', val)                          # Remove any leading digits
+    val = re.sub(r'[^\w\d\s]', '', val)                     # Remove any non-word, non-digit characters
+    val = re.sub(r'([a-z])([A-Z])', r'\1_\2', val).lower()  # Convert camelCase to snake_case
+    val = re.sub(r'\s+', '_', val)                          # Convert spaces to _
+    return val
 
 
 def get_non_flags(parser: ap.ArgumentParser) -> Mapping[str, Any]:

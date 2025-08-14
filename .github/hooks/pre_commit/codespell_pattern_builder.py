@@ -4,7 +4,7 @@ import sys
 import argparse as ap
 import regex as re
 
-from Src.Allocator.Interpreter.helpers import join_regex
+from Allocator.Interpreter.helpers import join_regex
 
 
 CODESPELL_PATTERNS = [

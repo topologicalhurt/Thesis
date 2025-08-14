@@ -59,13 +59,13 @@ from typing import Any, assert_never
 from Allocator.Interpreter.bitfield import BITFIELD
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_TYPE
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
 from Allocator.Interpreter.lut_acc_metrics import LutAccMetrics
 from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches, quantize
 
 from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
 str2float, str2posint
-from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_MUST_HAVE_KSET, TRIG_PRECISION
+from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_MUST_HAVE_KSET
 from Scripts.hex_utils import TrigLutManager
 from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, LUT_DEFAULT_BRAM, log_wrapper
 
@@ -1019,7 +1019,7 @@ def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
 
 def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], xs: Mapping[str, np.ndarray]) -> Sequence[LUT]:
     lut_select = trig_parser.trig_opts.lut_select
-    luts_to_w = []
+    luts = []
     cmd_line_args = ' '.join(sys.argv[2:])
     for m, bit_v in zip(TRIG_DEFS.get_members(), trig_parser.TRIG_LUTS_BITFIELD.__members__.values()):
         if lut_select & bit_v.value:
@@ -1071,37 +1071,28 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
                       table_mode=trig_parser.args['table_mode'][m],
                       scale_factor=scale_factor,
                       fn=fn,
+                      fn_ref=fn_actual,
                       cmd=underline_matches(cmd_line_args, f'--{m.name.lower()}', match_all=True)
                     )
 
             acc_metrics = LutAccMetrics(lut)
-            luts_to_w.append(lut)
+            test_axis: np.ndarray[np.integer | np.floating] = domain_fn()
 
-            acc_report = None
-            if m in domains:
-                test_axis: np.ndarray[np.floating | np.integer] = domain_fn()
-                quant_acc_report = acc_metrics.assess_quantization_error(fn=fn_actual,
-                                                                         axis=test_axis,
-                                                                         oversample_factor=trig_parser.args['osf']
-                                                                         )
-
-                thd_acc_report = acc_metrics.select_distortion_metric()
-
-                acc_report = LUT_ACC_REPORT(f_name=lut.fn.__name__,
-                                            quant_acc_report=quant_acc_report,
-                                            thd_acc_report=thd_acc_report
-                                           )
+            acc_report = acc_metrics.get_report(axis=test_axis, oversample_factor=trig_parser.args['osf'],
+                                   dtype=trig_parser.args['bw'])
+            luts.append(lut)
 
             print(acc_report)
             LOGGER.info(str(acc_report))
 
-    return luts_to_w
+    return luts
 
 
 def _write_out_luts(luts: Sequence[LUT], trig_parser: _TrigArgParser) -> None:
     if not trig_parser.args['nw']:
         hexManager = TrigLutManager(trig_parser.args['dir'])
         for lut in luts:
+            hexManager.add_lut(lut)
 
             LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
                 f'Attempting to write out .hex file for {lut.fn.__name__}'

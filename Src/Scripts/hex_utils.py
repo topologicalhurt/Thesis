@@ -27,92 +27,115 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 """
 
-# TODO's
-# (1): Use the .hex header information to read from the file automatically
-
-
 import sys
 import itertools
-import datetime as dt
+import re
 import numpy as np
+import datetime as dt
 
-from typing import assert_never
+from typing import assert_never, override
+from abc import ABC
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_QUANT_ACC_REPORT
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_FN_DEFS, PREC_MODE, TABLE_MODE, QFormat
+from Allocator.Interpreter.helpers import join_regex, rename_keys, underline_matches
+
+from Scripts.argparse_helpers import str2num, str2varname, str2frac
+from Scripts.exceptions import ExpectedFloatParseException, ExpectedIntParseException
 
 from Scripts.consts import META_INFO
 
 
-class HexLutManager:
+class HexLutManager(ABC):
+    __slots__ = ('_entries', 'dir')
+
     HEADER =('// Coefficient memory for {fn}'
     '\n// ----------------------------------------------'
-    '\n//   Bits per coeff.:          {bit_width}'
-    '\n//   Q-format:                 {q_format}'
-    '\n//   Endianness.:              {endianness}'
-    '\n//   Table mode:               {table_mode}'
-    '\n//   Table size:               {table_sz}kB'
-    '\n//   LOP (level of precision): {lop}'
-    '\n//   Effective scaling factor: {scale_factor}'
-    '\n//   Measured avg. accuracy:   {avg_acc}'
-    '\n//   Min accuracy:             {min_acc}'
-    '\n//   Max accuracy:             {max_acc}'
-    '\n//   Std:                      {std}'
-    '//\n'
-    '\n// Each line contains a value (coeff.) corresponding to the function {fn}.'
-    '\n// This file was automatically generated with the command:\n{cmd}'
+    '\n//   Bits per coeff.:                {bit_width}'
+    '\n//   Q-format:                       {q_format}'
+    '\n//   Endianness.:                    {endianness}'
+    '\n//   Table mode:                     {table_mode}'
+    '\n//   Table size:                     {table_sz}kB'
+    '\n//   LOP (level of precision):       {lop}'
+    '\n//   Effective scaling factor:       {scale_factor}'
+    '\n//'
+    '\n//   Stats:'
+    '\n//'
+    '\n//   [*] Measured Quantization error [*]'
+    '\n//\t   Measured avg. accuracy:       {avg_acc}'
+    '\n//\t   Min accuracy:                 {min_acc}'
+    '\n//\t   Max accuracy:                 {max_acc}'
+    '\n//\t   Std:                          {std}'
+    '\n//'
+    '\n//   [*] Measured THD+N (Total Harmonic Distortion + noise) [*]'
+    '\n//\t   Measured avg. THD+N:          {thd_n}'
+    '\n//\t   Measured avg. THD+N (dB):     {thd_n_dB}'
+    '\n//'
+    '\n// ----------------------------------------------'
+    '\n//'
+    '\n// Each line after this header contains a value (coeff.) corresponding to the function {fn}.'
+    '\n// This file was automatically generated with the command:'
+    '\n// {cmd}'
+    '\n//'
     '\n// *Do not* make any manual changes to this file'
     '\n// File generated @ {ts}'
+    '\n//'
     '\n// Author: {author_name} {author_email}'
-    '\n//\n//'
+    '\n//'
     )
+
+    NULL_PLACEHOLDER = 'N/A'
 
     def __init__(self, dir: Path):
         self.dir = dir
-        self._fmap = {
-                'fn': 'N/A',
-                'q_format': 'N/A',
-                'bit_width': 'N/A',
-                'endianness': 'N/A',
-                'table_mode': 'N/A',
-                'table_sz': 'N/A',
-                'lop': 'N/A',
-                'scale_factor': 'N/A',
-                'avg_acc': 'N/A',
-                'min_acc': 'N/A',
-                'max_acc': 'N/A',
-                'std': 'N/A',
-                'cmd': 'N/A',
-                'ts': 'N/A',
-                'author_name': 'N/A',
-                'author_email': 'N/A'
-        }
-        self._header = self._get_header()
 
-    def _change_format_mapping(self, fmap: Mapping) -> Mapping:
-        fmap['ts'] = dt.datetime.now()
-
-        if hasattr(fmap['fn'], '__name__'):
-            fmap['fn'] = fmap['fn'].__name__
-
-        fmap['author_name'], fmap['author_email'] = META_INFO.AUTHOR_CREDENTIALS
-
-        if hasattr(fmap['endianness'], 'name'):
-            fmap['endianness'] = fmap['endianness'].name.lower()
-
-        fmap = {k: 'N/A' if v is None else v for k,v in fmap.items()} # Values with None will show 'N/A'
-        return fmap
-
-    def _get_header(self) -> str:
-        fmap = self._change_format_mapping(self._fmap)
-        header = HexLutManager.HEADER.format_map(fmap)
-        return header
+        # Internal list of managed LUT entries
+        # Each entry: { 'lut': LUT, 'fmap': Mapping, 'header': str, 'file_name': Optional[str] }
+        self._entries: list[dict] = []
 
     @property
-    def header(self) -> str:
-        return self._header
+    def luts(self) -> list[LUT] | None:
+        if not self._entries:
+            return None
+        return [entry['lut'] for entry in self._entries]
+
+    @staticmethod
+    def _get_expected_header_keys() -> set[str]:
+        expected_keys = set(('fn',))
+        lns = HexLutManager.HEADER.splitlines()
+        for ln in lns:
+            match = re.match(r'\/{2}(.+):\s*{[\w_]+}', ln)
+            if match:
+                key = str2varname(match.group(1))
+                expected_keys.add(key)
+
+        return expected_keys
+
+    @staticmethod
+    def _comment_newlines_in_format_mapping(fmap: Mapping) -> Mapping:
+        for k, v in fmap.items():
+            if not isinstance(v, str):
+                continue
+
+            lns = v.splitlines()
+            if (len_lns := len(lns)) > 1:
+                for i in range(1, len_lns):
+                    if not lns[i].startswith('//'):
+                        lns[i] = f'// {lns[i]}'
+
+            fmap[k] = '\n'.join(lns)
+
+        return fmap
+
+    @staticmethod
+    def _base_fmap() -> Mapping:
+        return {f.name: HexLutManager.NULL_PLACEHOLDER for f in fields(LUT)}
+
+    @staticmethod
+    def _make_header(fmap: Mapping) -> str:
+        return HexLutManager.HEADER.format_map(fmap)
 
     @staticmethod
     def _get_byte_order_symbol_from_sys():
@@ -162,8 +185,8 @@ class HexLutManager:
         return packed_bytes.hex()
 
     @staticmethod
-    def hex_to_dtype(hex_str: str, dtype: np.floating | np.integer,
-                      target_order: BYTEORDER = BYTEORDER.BIG) -> np.floating | np.integer:
+    def hex_to_dtype(hex_str: str, dtype: np.number,
+                      target_order: BYTEORDER = BYTEORDER.BIG) -> np.number:
         """
         Converts a raw hexadecimal string representation
         back into a numpy n-bit float or integer. Assumes the hex string is in
@@ -244,7 +267,7 @@ class HexLutManager:
         """
         return HexLutManager.hex_to_dtype(hex_str, dtype, target_order=target_order)
 
-    def _get_valid_file_path(self, file_name: str, ow: bool | None = None) -> Path:
+    def _get_valid_file_path(self, file_name: Path | str, ow: bool | None = None) -> Path:
         """# Summary
 
         Gets the file_name relative to dir IFF the full path is valid.
@@ -258,6 +281,9 @@ class HexLutManager:
         ## Returns:
             str: The absolute path to the file in the managed directory if no errors raised
         """
+        if isinstance(file_name, str):
+            file_name = Path(file_name)
+
         file_path = self.dir / file_name
         if not file_path.suffix:
             file_path = file_path.with_suffix('.hex')
@@ -268,6 +294,42 @@ class HexLutManager:
             raise FileExistsError(f'File already exists at location: {file_path}')
 
         return file_path
+
+    def _change_format_mapping(self, fmap: Mapping) -> Mapping:
+        auth_name, auth_email = META_INFO.AUTHOR_CREDENTIALS
+        to_update = {
+            'fn': fmap.get('fn').__name__ if hasattr(fmap.get('fn'), '__name__') else None,
+            'ts': dt.datetime.now(),
+            'endianness': fmap.get('endianness', '').name.lower()\
+                if hasattr(fmap.get('endianness'), 'name') else None,
+            'author_name': auth_name,
+            'author_email': auth_email
+        }
+
+        fmap = {k: HexLutManager.NULL_PLACEHOLDER if v is None else v for k,v in fmap.items()}
+        fmap.update(to_update)
+        return fmap
+
+    def _build_fmap_for_lut(self, lut: LUT, recursive: bool = False) -> Mapping:
+        m: dict = HexLutManager._base_fmap()
+
+        if recursive:
+            m.update(asdict(lut))
+        else:
+            m.update({f.name: getattr(lut, f.name) for f in fields(lut)})
+
+        m = self._change_format_mapping(m)
+        return HexLutManager._comment_newlines_in_format_mapping(m)
+
+    def add_lut(self, lut: LUT, *, recursive: bool = False, file_name: str | None = None) -> int:
+        """Add a LUT to the manager and prepare its header mapping.
+
+        Returns the index of the created entry for later reference.
+        """
+        fmap = self._build_fmap_for_lut(lut, recursive=recursive)
+        header = self._make_header(fmap)
+        self._entries.append({'lut': lut, 'fmap': fmap, 'header': header, 'file_name': file_name})
+        return len(self._entries) - 1
 
     def write_lut_to_hex(self, file_name: str, lut: LUT,
                          write_type: Callable[..., str],
@@ -288,22 +350,120 @@ class HexLutManager:
 
         lut_to_write = lut.q_format.get_converted(lut.table)
 
-        # Modify the format map based on the LUT (do a dict update)
-        if recursive:
-            self._fmap.update(**asdict(lut))
-        else:
-            self._fmap.update(**vars(lut))
+        # Build per-LUT format map and header
+        fmap = self._build_fmap_for_lut(lut, recursive=recursive)
+        header = self._make_header(fmap)
 
         file_path = self._get_valid_file_path(file_name=file_name, ow=ow)
         with open(file_path, 'w') as f:
-            f.write(self._get_header())
+            f.write(header)
             for entry in lut_to_write:
                 f.write(f'\n{write_type(entry, target_order=target_order)}')
 
-    def read_lut_from_hex(self, file_name: str, dtype: np.floating,
-                          read_type: Callable[..., np.floating | np.integer],
-                          target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.floating]:
+    def write_all(self, file_namer: Callable[[LUT, int], str],
+                  write_type: Callable[..., str],
+                  ow: bool=False,
+                  recursive: bool=False,
+                  target_order: BYTEORDER = BYTEORDER.BIG) -> None:
+        """Write all managed LUTs to hex files using the provided naming function."""
+        for idx, entry in enumerate(self._entries):
+            lut: LUT = entry['lut']
+            fname = entry.get('file_name') or file_namer(lut, idx)
+            self.write_lut_to_hex(fname, lut, write_type=write_type, ow=ow,
+                                   recursive=recursive, target_order=target_order)
+
+    def get_lut(self, index: int | None = None) -> LUT | None:
+        """Get a LUT by its index.
+        If index is None, return the most recently added LUT.
+        """
+        if index is None:
+            return self._entries[-1]['lut'] if self._entries else None
+        return self._entries[index]['lut'] if 0 <= index < len(self._entries) else None
+
+    def _parse_lut_header(self, file_path: Path | str) -> Mapping:
+        """Parse the header of a LUT file and return a mapping of its fields."""
+        fmap = {}
+        with open(file_path, 'r') as f:
+            # Get fn from last word of first line
+            fn = next(f).split()[-1]
+            fmap['fn'] = fn
+
+            header = itertools.takewhile(lambda ln: ln.startswith('//') or ln == '\n', f)
+
+            for ln in header:
+                ln = ln.lstrip('//').strip()
+                match = re.split(r'\s*:\s*', ln, maxsplit=1)
+                match_len = len(match)
+
+                if match_len == 2 and match[1].strip():
+                    # Argument (RHS) on same line as keyword (LHS)
+                    key, value = match
+                    value, key = value.strip(), key.strip()
+                elif match_len == 2:
+                    # Implies new-line separates the RHS
+                    key = match[0]
+                    next_non_empty_ln = next((match for ln in f if (match := ln.lstrip('//')).strip()), None)
+                    value = next_non_empty_ln
+                else:
+                    continue
+
+                key = str2varname(key)
+                fmap[key] = value
+
+        return fmap
+
+    def _parse_lut_header_with_checks(self, file_path: Path | str) -> Mapping:
+        fmap = self._parse_lut_header(file_path=file_path)
+
+        expected = self._get_expected_header_keys()
+        if not expected.issubset(fmap.keys()):
+            keys_not_found = expected.difference(fmap.keys())
+            keys_not_found = join_regex(*keys_not_found, non_capture=False)
+            raise ValueError(f'Not all of the expected keys were found in header of {file_path.name}.'
+                             f' The following are missing:'
+                             f'\n{underline_matches(str(list(expected)), keys_not_found,
+                                                    match_all=True, literal=False)}')
+
+        fmap = {k: v for k, v in fmap.items() if k in expected} # Drop any unexpected keys
+
+        # Rename keys to lut kwargs
+        rename_keys(fmap, {'lop_level_of_precision': 'lop',
+                           'bits_per_coeff': 'bw'})
+
+        # Map enum fields to their values, other edge cases
+        fmap['endianness'] = BYTEORDER.get_member_via_name(fmap['endianness'])
+        table_mode_type: TABLE_MODE = TABLE_MODE.get_table_mode_from_fn(fmap['fn'])
+        fmap['table_mode'] = table_mode_type.get_member_via_name(fmap['table_mode'])
+        prec_mode_type: PREC_MODE = PREC_MODE.get_prec_mode_from_fn(fmap['fn'])
+        fmap['lop'] = prec_mode_type.get_member_via_name(fmap['lop'])
+        fmap['effective_scaling_factor'] = str2frac(fmap['effective_scaling_factor'])
+        fn_class_type = LUT_FN_DEFS.get_fn_class_from_name(fmap['fn'])
+        fmap['fn'] = fn_class_type.get_member_via_name(fmap['fn'])
+        fmap['qformat'] = QFormat(fmap['qformat'])
+
+        # Parse values from remaining strings
+        for k, v in fmap.items():
+            if not isinstance(v, str):
+                continue
+
+            # Parse placeholder values as None
+            if v == HexLutManager.NULL_PLACEHOLDER:
+                fmap[k] = None
+
+            # Parse numbers (floats, integers)
+            try:
+                fmap[k] = str2num(v)
+            except (ExpectedFloatParseException, ExpectedIntParseException):
+                continue
+
+        return fmap
+
+    def read_lut_from_hex(self, file_name: Path | str, dtype: np.number,
+                          read_type: Callable[..., np.number],
+                          target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.number]:
         file_path = self._get_valid_file_path(file_name=file_name)
+        # header = self._parse_lut_header_with_checks(file_path)
+
         with open(file_path, 'r') as f:
             after_header = itertools.dropwhile(lambda ln: ln.startswith('//') or ln == '\n', f)
             data = []
@@ -317,35 +477,56 @@ class TrigLutManager(HexLutManager):
         def __init__(self, dir: Path):
             super().__init__(dir)
 
+        @override
         def _change_format_mapping(self, fmap: Mapping) -> Mapping:
-            # Handle enum fields that might be placeholder strings
-            if hasattr(fmap['lop'], 'name'):
-                fmap['lop'] = fmap['lop'].name.lower()
-            if hasattr(fmap['table_mode'], 'name'):
-                fmap['table_mode'] = fmap['table_mode'].name.lower()
+            lop = fmap.get('lop')
+            if hasattr(lop, 'name'):
+                fmap['lop'] = lop.name.lower()
 
-            # Handle acc_report field that might be placeholder
-            if isinstance(fmap.get('acc_report'), LUT_QUANT_ACC_REPORT):
-                acc_report: LUT_QUANT_ACC_REPORT = fmap.pop('acc_report')
-                fmap['avg_acc'] = f'{acc_report.avg_acc:.8f}'
-                fmap['min_acc'] = f'{acc_report.min_acc:.8f}'
-                fmap['max_acc'] = f'{acc_report.max_acc:.8f}'
-                fmap['std'] = f'{acc_report.std:.8f}'
+            table_mode = fmap.get('table_mode')
+            if hasattr(table_mode, 'name'):
+                fmap['table_mode'] = table_mode.name.lower()
 
-            if fmap['scale_factor'] != 'N/A' and fmap['scale_factor'] != 1:
-                fmap['scale_factor'] = f'1/{fmap['scale_factor']}'
+            # Expand accuracy report into flat fields
+            acc = fmap.pop('_acc_report', None)
+            if isinstance(acc, LUT_ACC_REPORT):
+                fmap.update({
+                    'avg_acc': f'{acc.quant_acc_report.avg_acc:.8f}',
+                    'min_acc': f'{acc.quant_acc_report.min_acc:.8f}',
+                    'max_acc': f'{acc.quant_acc_report.max_acc:.8f}',
+                    'std': f'{acc.quant_acc_report.std:.8f}',
+                })
 
-            super()._change_format_mapping(fmap)
-            return fmap
+                fmap.update({
+                    'thd_n': f'{acc.thd_acc_report.thd_scalar:.8f}',
+                    'thd_n_dB': f'{acc.thd_acc_report.thd_dB:.8f}',
+                })
+            else:
+                fmap.update({
+                    'avg_acc': HexLutManager.NULL_PLACEHOLDER,
+                    'min_acc': HexLutManager.NULL_PLACEHOLDER,
+                    'max_acc': HexLutManager.NULL_PLACEHOLDER,
+                    'std': HexLutManager.NULL_PLACEHOLDER,
+                })
 
-        def _get_header(self) -> str:
-            return super()._get_header()
+                fmap.update({
+                    'thd_n': HexLutManager.NULL_PLACEHOLDER,
+                    'thd_n_dB': HexLutManager.NULL_PLACEHOLDER,
+                })
 
+            sf = fmap.get('scale_factor')
+            if sf != HexLutManager.NULL_PLACEHOLDER and sf is not None and sf != 1:
+                fmap['scale_factor'] = f'1/{sf}'
+
+            return super()._change_format_mapping(fmap)
+
+        @override
         def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: BYTEORDER = BYTEORDER.BIG) -> None:
             return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.int_to_hex,
                                             ow=ow, target_order=target_order)
 
-        def read_lut_from_hex(self, file_name: str, dtype: np.floating, target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.floating]:
+        @override
+        def read_lut_from_hex(self, file_name: str, dtype: np.number, target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.number]:
             return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_int,
                                              target_order=target_order)
 
@@ -354,16 +535,16 @@ class DownSamplerLutManager(HexLutManager):
     def __init__(self, dir: Path):
         super().__init__(dir)
 
+    @override
     def _change_format_mapping(self, fmap: Mapping) -> Mapping:
         return super()._change_format_mapping(fmap)
 
-    def _get_header(self) -> str:
-        return super()._get_header()
-
-    def write_lut_to_hex(self, file_name: str, lut: LUT, ow: bool = False, target_order: BYTEORDER = BYTEORDER.BIG) -> None:
+    @override
+    def write_lut_to_hex(self, file_name: Path | str, lut: LUT, ow: bool = False, target_order: BYTEORDER = BYTEORDER.BIG) -> None:
         return super().write_lut_to_hex(file_name, lut, write_type=HexLutManager.float_to_hex,
                                         ow=ow, target_order=target_order)
 
-    def read_lut_from_hex(self, file_name: str, dtype: np.integer, target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.integer]:
+    @override
+    def read_lut_from_hex(self, file_name: Path | str, dtype: np.number, target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.number]:
         return super().read_lut_from_hex(file_name, dtype, read_type=HexLutManager.hex_to_float,
                                          target_order=target_order)

@@ -34,7 +34,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import FILTER_TYPE, TABLE_MODE, ExtendedEnum
+from Allocator.Interpreter.dataclass import FILTER_TYPE, ExtendedEnum
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,37 +96,6 @@ class TRIG_OPTS:
                 )
 
 
-class TRIG_DEFS(ExtendedEnum):
-    """# Summary
-
-    Enum storing the supported trig LUTS
-    """
-    SIN = 0
-    COS = 1
-    TAN = 2
-    ASIN = 3
-    ACOS = 4
-    ATAN = 5
-    SINC = 6
-    _SINUSOIDS = (SIN, COS)
-    _ARC_SINUSOIDS = (ASIN, ACOS)
-    _AUX = (SINC,)
-
-
-class TRIG_FN_DEFS(ExtendedEnum):
-    """# Summary
-
-    Enum storing the trig names & their corresponding functions
-    """
-    SIN = 0, np.sin
-    COS = 1, np.cos
-    TAN = 2, np.tan
-    ASIN = 3, np.arcsin
-    ACOS = 4, np.arccos
-    ATAN = 5, np.arctan
-    SINC = 6, np.sinc
-
-
 class TRIG_MUST_HAVE_KSET(ExtendedEnum):
     """# Summary
 
@@ -135,46 +104,6 @@ class TRIG_MUST_HAVE_KSET(ExtendedEnum):
     TAN = 0
     ATAN = 1
     SINC = 2
-
-
-class TRIG_OPT_MODE(TABLE_MODE):
-    """# Summary
-
-    Enum corresponding to how the trig LUT is 'folded' E.G. refer to the basic sin case
-    for an example.
-    (Using higher modes will, ostensibly, take more effort to recover the data.)
-
-    Note: there are no real advantages to not using 2 = high mode for
-    most functions.
-
-    = 0 (lowest mode - full table / complete period)
-
-    = 1 (medium mode - half table / half period)
-
-    = 2 (high mode - quarter table / quarter period)
-
-    = 3 (max mode - polynomial reconstruction if supported)
-    """
-    LOW = 0
-    MED = 1
-    HIGH = 2
-    MAX = 3
-
-
-class TRIG_PRECISION(ExtendedEnum):
-    """# Summary
-
-    Enum corresponding to how trig LUT is sized
-
-    = 0 (lowest mode - normal precision)
-
-    = 1 (medium mode - double precision)
-
-    = 2 (high mode - full precision)
-    """
-    LOWP = 0
-    MEDP = 1
-    HIGHP = 2
 
 
 class TRIG_TAN_OPTS(ExtendedEnum):

@@ -1,25 +1,36 @@
 // Coefficient memory for compact_sinc
 // ----------------------------------------------
-//   Bits per coeff.:          32
-//   Q-format:                 Q0.23
-//   Endianness.:              big
-//   Table mode:               high
-//   Table size:               2.048kB
-//   LOP (level of precision): lowp
-//   Effective scaling factor: 1/4
-//   Measured avg. accuracy:   0.00102920
-//   Min accuracy:             0.00000000
-//   Max accuracy:             0.18624210
-//   Std:                      0.00646022//
-
-// Each line contains a value (coeff.) corresponding to the function compact_sinc.
-// This file was automatically generated with the command:
-Q0.23 --sin --cos --sinc -sinc-k 0.001
-                  ^^^^^^
-// *Do not* make any manual changes to this file
-// File generated @ 2025-07-29 13:31:49.285157
-// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//   Bits per coeff.:                32
+//   Q-format:                       Q0.23
+//   Endianness.:                    big
+//   Table mode:                     high
+//   Table size:                     2.048kB
+//   LOP (level of precision):       lowp
+//   Effective scaling factor:       1/4
 //
+//   Stats:
+//
+//   [*] Measured Quantization error [*]
+//	   Measured avg. accuracy:       0.00102920
+//	   Min accuracy:                 0.00000000
+//	   Max accuracy:                 0.18624222
+//	   Std:                          0.00646022
+//
+//   [*] Measured THD+N (Total Harmonic Distortion + noise) [*]
+//	   Measured avg. THD+N:          9.07884504
+//	   Measured avg. THD+N (dB):     19.16061207
+//
+// ----------------------------------------------
+//
+// Each line after this header contains a value (coeff.) corresponding to the function compact_sinc.
+// This file was automatically generated with the command:
+// Q0.23 --sin --cos --sinc -sinc-k 0.001
+//                   ^^^^^^
+//
+// *Do not* make any manual changes to this file
+// File generated @ 2025-08-14 18:56:56.921009
+//
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 ffff7f00
 7b973c00
