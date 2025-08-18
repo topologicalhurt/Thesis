@@ -30,7 +30,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import importlib
 import enum
 import functools
-from typing import assert_never
 import scipy as sp
 import numpy as np
 import regex as re
@@ -326,13 +325,6 @@ class LUT_FN_DEFS(ExtendedEnum):
     Abstract class storing the LUT function definitions
     """
 
-    @classmethod
-    def get_fn_class_from_name(cls, name: str) -> ExtendedEnum | None:
-        for subclass in cls.__subclasses__():
-            if name in subclass:
-                return subclass
-        return None
-
 
 class TRIG_FN_DEFS(LUT_FN_DEFS):
     """# Summary
@@ -356,13 +348,6 @@ class TABLE_MODE(ExtendedEnum):
     OR a function having an entire domain that can be reconstructed from a
     subset of it's domain (E.g. arctan)
     """
-
-    @staticmethod
-    def get_table_mode_from_fn(fn: LUT_FN_DEFS) -> ExtendedEnum:
-        """Returns the table mode enum corresponding to the given LUT function."""
-        if fn in TRIG_FN_DEFS:
-            return TRIG_OPT_MODE
-        assert_never(f'{fn} is not a valid LUT_FN_DEFS member')
 
 
 class TRIG_OPT_MODE(TABLE_MODE):
@@ -394,13 +379,6 @@ class PREC_MODE(ExtendedEnum):
 
     Abstract class defining the precision modes for LUTs
     """
-
-    @staticmethod
-    def get_prec_mode_from_fn(fn: LUT_FN_DEFS) -> ExtendedEnum:
-        """Returns the prec mode enum corresponding to the given LUT function."""
-        if fn in TRIG_FN_DEFS:
-            return TRIG_PRECISION
-        assert_never(f'{fn} is not a valid LUT_FN_DEFS member')
 
 
 class TRIG_PRECISION(PREC_MODE):

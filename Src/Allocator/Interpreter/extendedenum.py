@@ -27,11 +27,17 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
+import importlib
 import regex as re
 
 from enum import Enum, EnumMeta
 from collections.abc import Sequence, Iterable
 from typing import Any, Mapping
+
+
+helpers = importlib.import_module('.helpers', 'Allocator.Interpreter')
+join_regex = helpers.join_regex
+underline_matches = helpers.underline_matches
 
 
 class _ExtendedEnumMeta(EnumMeta):
@@ -50,6 +56,24 @@ class _ExtendedEnumMeta(EnumMeta):
 
     def __str__(self):
         return str(list(self))
+
+    def _get_subclasses(self):
+        """Returns the subclasses of the current class."""
+        return [subclass for subclass in self.__subclasses__() if issubclass(subclass, self)]
+
+    def get_subclass_from_name(self, name: str):
+        """Returns the subclass corresponding to the given name."""
+        subclasses = [subclass for subclass in self._get_subclasses() if name in subclass]
+        if not subclasses:
+            return None
+
+        if len(subclasses) > 1:
+            to_match = join_regex(subclasses, non_capture=False)
+            raise ValueError(f'Ambiguous {self.__name__} subclass name: {name}.'
+                             f' Ensure that the following have unique (non-conflicting) values:'
+                             f'\n{underline_matches(str(subclasses), to_match, match_all=True, literal=False)}')
+
+        return subclasses[0]
 
 
 class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
@@ -164,13 +188,9 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
        ## Returns:
             The field corresponding to the matching enum member
         """
-        for member in cls:
-            if isinstance(member.value, Sequence):
-                if value in member.value:
-                    return member
-            else:
-                if value == member.value:
-                    return member
+        for m, v in zip(cls.get_members(), cls.values()):
+            if v == value:
+                return m
         raise ValueError(f'"{value}" is not a valid value in {cls.__name__}')
 
     @classmethod
@@ -185,7 +205,7 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
        ## Returns:
             The integer value of the matching enum member
         """
-        for member in cls:
-            if member.name.upper() == name.upper():
-                return member
+        for m, n in zip(cls.get_members(), cls.fields()):
+            if n.upper() == name.upper():
+                return m
         raise ValueError(f'"{name}" is not a valid field name in {cls.__name__}')

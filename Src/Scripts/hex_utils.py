@@ -431,14 +431,15 @@ class HexLutManager(ABC):
                            'bits_per_coeff': 'bw'})
 
         # Map enum fields to their values, other edge cases
-        fmap['endianness'] = BYTEORDER.get_member_via_name(fmap['endianness'])
-        table_mode_type: TABLE_MODE = TABLE_MODE.get_table_mode_from_fn(fmap['fn'])
+        table_mode_type: TABLE_MODE = TABLE_MODE.get_subclass_from_name(fmap['fn'])
         fmap['table_mode'] = table_mode_type.get_member_via_name(fmap['table_mode'])
-        prec_mode_type: PREC_MODE = PREC_MODE.get_prec_mode_from_fn(fmap['fn'])
+        prec_mode_type: PREC_MODE = PREC_MODE.get_subclass_from_name(fmap['fn'])
         fmap['lop'] = prec_mode_type.get_member_via_name(fmap['lop'])
         fmap['effective_scaling_factor'] = str2frac(fmap['effective_scaling_factor'])
-        fn_class_type = LUT_FN_DEFS.get_fn_class_from_name(fmap['fn'])
+        fn_class_type : LUT_FN_DEFS = LUT_FN_DEFS.get_subclass_from_name(fmap['fn'])
         fmap['fn'] = fn_class_type.get_member_via_name(fmap['fn'])
+
+        fmap['endianness'] = BYTEORDER.get_member_via_name(fmap['endianness'])
         fmap['qformat'] = QFormat(fmap['qformat'])
 
         # Parse values from remaining strings
@@ -462,6 +463,7 @@ class HexLutManager(ABC):
                           read_type: Callable[..., np.number],
                           target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.number]:
         file_path = self._get_valid_file_path(file_name=file_name)
+        # FIX: temporarily commented for now
         # header = self._parse_lut_header_with_checks(file_path)
 
         with open(file_path, 'r') as f:

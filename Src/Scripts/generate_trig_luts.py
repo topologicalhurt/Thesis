@@ -61,7 +61,7 @@ from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
 from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
 from Allocator.Interpreter.lut_acc_metrics import LutAccMetrics
-from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches, quantize
+from Allocator.Interpreter.helpers import pairwise, underline_matches, quantize
 
 from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
 str2float, str2posint
@@ -338,23 +338,27 @@ class _TrigArgParser():
 
         # Lut select selects the lut values that were selected from the command line, encoding as bitstr.
         # If no values are supplied, then generate all luts except those specified in TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT
-        lut_select = bitstr_from_enum_mask(TRIG_DEFS, None, True, *lut_mask.values())
+        lut_select = BITFIELD.bitstr_from_enum_mask(TRIG_DEFS, None, True, *lut_mask.values())
         if lut_select == 0:
             lut_select = (1 << len(lut_mask)) - 1
             if not self.args['all']:
                 lut_select ^= _TrigArgParser.TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT
 
         # This selects the lut values that *need* to be supplied from trig_opts, encoding as bitstr
-        k_mask_bitfield = bitfield_from_enum_mask(TRIG_DEFS, mask=self.k_lut_mask)
-        k_mask_bitfield = k_mask_bitfield.get_bit_str() & lut_select
+        k_mask_bitfield = BITFIELD.bitfield_from_enum_mask(TRIG_DEFS, mask=self.k_lut_mask)
+        print(k_mask_bitfield)
+        sys.exit(0)
+
+        k_mask_bitfield = k_mask_bitfield.sig & lut_select
+
 
         # This selects the lut values that *were* selected by the command line, encoding as bitstr
         lut_values_specified = [self.args[field] for field in self.k_lut_mask]
-        k_lut_select = bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *lut_values_specified)
+        k_lut_select = BITFIELD.bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *lut_values_specified)
 
         # This selects the k values that *were* selected by the command line, encoding as bitstr
         k_values_specified = [v is not None for v in self.k_fields.values()]
-        k_values_select = bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *k_values_specified)
+        k_values_select = BITFIELD.bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *k_values_specified)
 
         # Occurs IFF. no lut AND no k were supplied I.e. empty command line args or using --all
         no_k_no_vals = (k_values_select == k_lut_select == 0) and k_mask_bitfield != 0
