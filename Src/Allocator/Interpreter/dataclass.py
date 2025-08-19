@@ -432,8 +432,12 @@ class QFormat:
                                  n_frac=self.floating_part_bw)
 
     def get_converted(self, val: np.ndarray[np.float64] | np.float64) -> np.uint:
+        val = np.asarray(val, dtype=np.float64)
+        if val.size == 0:
+            raise ValueError('Cannot convert empty value to QFormat representation')
+
+        sz = val.itemsize * 8 if not isinstance(val, np.ndarray) else val[0].itemsize * 8
         uint_alias: np.unsignedinteger
-        sz = val[0].itemsize * 8 if isinstance(val, np.ndarray) else val.itemsize * 8
         _, uint_alias = INT_STR_NPMAP.get_member_via_name(f'UINT{sz}').value
         return uint_alias(self._fxp_parser(val).val)
 

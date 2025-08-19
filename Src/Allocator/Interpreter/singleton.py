@@ -103,7 +103,6 @@ class SingletonMetaSubclass(_SingletonControlMeta):
 
         # Robust frozen detection: prefer explicit flag; otherwise inherit from MRO
         cls_frozen: bool | None = getattr(cls, '__singleton_frozen__', None)
-        print(cls_frozen)
         if cls_frozen is None:
             cls_frozen = any(bool(getattr(b, '__singleton_frozen__', False)) for b in cls.__mro__[1:])
 

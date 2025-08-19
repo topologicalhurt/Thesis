@@ -463,8 +463,7 @@ class HexLutManager(ABC):
                           read_type: Callable[..., np.number],
                           target_order: BYTEORDER = BYTEORDER.NATIVE) -> Sequence[np.number]:
         file_path = self._get_valid_file_path(file_name=file_name)
-        # FIX: temporarily commented for now
-        # header = self._parse_lut_header_with_checks(file_path)
+        header = self._parse_lut_header_with_checks(file_path) # noqa: F841
 
         with open(file_path, 'r') as f:
             after_header = itertools.dropwhile(lambda ln: ln.startswith('//') or ln == '\n', f)

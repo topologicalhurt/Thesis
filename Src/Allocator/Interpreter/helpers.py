@@ -65,7 +65,7 @@ def machine_has_extended_float_support() -> bool:
 
 
 def quantize(x: np.floating, dtype: np.uint) -> np.uint:
-    return 1 << dtype(np.ceil(np.log2(x)))
+    return dtype(1 << int(np.ceil(np.log2(x))))
 
 
 def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
@@ -185,7 +185,7 @@ def underline_match(text: str, to_match: str,
 
 def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool],
                       start_index: int = 0, end_index: int | None = None,
-                      match_all: bool = False, literal: bool = True) -> str | None:
+                      match_all: bool = False, literal: bool = True, group: int = 0) -> str | None:
     """ # Summary
 
     Generates a string that underlines a regex match or matches in a given text.
@@ -198,6 +198,7 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
         end_index: The end ofthe string to search in
         match_all: Determines whether to underline every occurance of match rather than the first found.
         literal: Determines whether to match against to_match as a literal or pattern
+        group: The group to capture (ignore all others)
 
    ## Returns:
         A string containing the original text and the underline.
@@ -211,15 +212,16 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
     underlined = []
     prev_i = start_index
     if match_all or predicate_match:
+
         # Either match every pattern in to_match if it is a collection object
         # or, if it is a singular string, match that against the entire text.
         if isinstance(to_match, str):
             to_match = re.escape(to_match) if literal else to_match
         else:
-            to_match = '|'.join(re.escape(m) if literal else m for m in to_match)
+            to_match = join_regex(*to_match, or_join=True, non_capture=True)
 
         for m in re.finditer(to_match, text, pos=start_index, endpos=end_index):
-            if (match := underline_match(text, m.group(0), prev_i)) is None:
+            if (match := underline_match(text, m.group(group), prev_i)) is None:
                 continue
             i, txt = match
             underlined.extend(txt)
@@ -255,7 +257,6 @@ def underline_first_non_captured_group(groups: re.Pattern | str, string: str) ->
     j = 0                                                                               # Tracks last matches' end position
     for i, group in enumerate(groups):
         if not (match := re.match(join_regex(*groups[:i+1], or_join=False), string, partial=True)) or match.partial:
-            print(groups[:i+1])
             return f'\n{underline_matches(string, group, start_index=j, literal=False)}'
         matches.append(match.group(i+1))
         j = match.end()
