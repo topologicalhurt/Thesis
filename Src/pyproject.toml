@@ -3,7 +3,11 @@ name = "LLAC"
 version = "0.0.0a"
 
 [tool.setuptools.packages.find]
-where = ["../Src"]
+where = ["."]
 
 [tool.pytest.ini_options]
-pythonpath = "../Src"
+pythonpath = ["."]
+testpaths = [
+	"Allocator/Interpreter/tests",
+	"Scripts/tests"
+]

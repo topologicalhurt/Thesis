@@ -43,7 +43,7 @@
         #   pythonImportsCheck = [ "LLAC" ];
         # };
 
-        pythonEnv = pkgs.python313.withPackages (ps: with ps; [
+  pythonEnv = pkgs.python313.withPackages (ps: with ps; [
           # Development dependencies
           virtualenv
           setuptools
@@ -126,7 +126,6 @@
           ];
 
           shellHook = ''
-            export PYTHONPATH=${builtins.toString ./.}:$PYTHONPATH
             export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
 
@@ -135,6 +134,7 @@
             export PYTHONDONTWRITEBYTECODE=1
             export PYTHONUNBUFFERED=1
 
+            # Resolve repo root early so we can rely on it below
             export ROOT="$(git rev-parse --show-toplevel)"
             export CUR_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
@@ -155,6 +155,10 @@
             # Install the main project package in editable mode for all branches
             pip install -e "$ROOT/Src" --quiet
 
+            # Ensure working tree is importable and force pytest to use project config
+            export PYTHONPATH="$ROOT/Src:''${PYTHONPATH:-}"
+            export PYTEST_ADDOPTS="-c $ROOT/Src/pyproject.toml ''${PYTEST_ADDOPTS:-}"
+
             case "$CUR_BRANCH" in
               "research")
                   echo "Installing Python dependencies into the research virtual environment..."
@@ -172,6 +176,11 @@
             echo "LLAC development environment loaded on $CUR_BRANCH branch"
             echo "Python virtual environment activated. Python: $(which python)"
             python3 --version
+
+            run_tests() {
+              bash "$ROOT/.github/hooks/pre_commit/run_tests.sh" "$@"
+            }
+            export -f run_tests
           '';
         };
     });

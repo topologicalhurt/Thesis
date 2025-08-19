@@ -59,13 +59,13 @@ from typing import Any, assert_never
 from Allocator.Interpreter.bitfield import BITFIELD
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_TYPE
+from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
 from Allocator.Interpreter.lut_acc_metrics import LutAccMetrics
-from Allocator.Interpreter.helpers import bitfield_from_enum_mask, bitstr_from_enum_mask, pairwise, underline_matches, quantize
+from Allocator.Interpreter.helpers import join_regex, pairwise, underline_matches, quantize
 
 from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
 str2float, str2posint
-from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_MUST_HAVE_KSET, TRIG_PRECISION
+from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_MUST_HAVE_KSET
 from Scripts.hex_utils import TrigLutManager
 from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, LUT_DEFAULT_BRAM, log_wrapper
 
@@ -255,7 +255,7 @@ def main() -> None:
 
 class _TrigArgParser():
 
-    TRIG_LUTS_BITFIELD = BITFIELD(**{k : 1 for k in TRIG_DEFS.fields()}) # BitField for which trig luts get built
+    TRIG_LUTS_BITFIELD = BITFIELD(**{k : 0 for k in TRIG_DEFS.fields()}, msb_first=False) # BitField for which trig luts get built
     TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT = TRIG_LUTS_BITFIELD.COS.value | TRIG_LUTS_BITFIELD.ACOS.value | TRIG_LUTS_BITFIELD.SINC.value
     SIN_COS = TRIG_LUTS_BITFIELD.SIN.value | TRIG_LUTS_BITFIELD.COS.value
     ASIN_ACOS = TRIG_LUTS_BITFIELD.ASIN.value | TRIG_LUTS_BITFIELD.ACOS.value
@@ -274,9 +274,8 @@ class _TrigArgParser():
         self.bw_sz, self.args['bw'] = self.args['bw']
 
         self.bw_sz_bytes = self.bw_sz // 8
-        self.n_entries = self.args['bram'] // self.bw_sz_bytes                        # Num. of entries in table / lut
-        self.bw_type_int = INT_STR_NPMAP.get_member_via_value(self.bw_sz).value[1]    # Integer equiv. of bw_sz
-
+        self.n_entries = self.args['bram'] // self.bw_sz_bytes                                # Num. of entries in table / lut
+        self.bw_type_int = INT_STR_NPMAP.get_member_via_name(f'UINT{self.bw_sz}').value[1]    # Integer equiv. of bw_sz
         self.trig_opts = None
 
     @staticmethod
@@ -334,27 +333,29 @@ class _TrigArgParser():
         return self.args['auto_off'] and set(TRIG_MUST_HAVE_KSET.fields()).intersection('auto') and self.args['k'] is None
 
     def _parse_option_values(self) -> TRIG_OPTS:
-        lut_mask = {k : v for k, v in self.args.items() if k in TRIG_DEFS}    # LUTS to generate masked by boolean I.e. {'sin': True, 'cos': False ...}
+        # Build flags in the TRIG_DEFS enum order using lowercase CLI option names
+        trig_names_lower = [name.lower() for name in TRIG_DEFS.fields()]
+        lut_flags = [bool(self.args.get(name, False)) for name in trig_names_lower]
 
-        # Lut select selects the lut values that were selected from the command line, encoding as bitstr.
+        # Lut select selects the lut values that were selected from the command line, encoded as a bitstring.
         # If no values are supplied, then generate all luts except those specified in TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT
-        lut_select = bitstr_from_enum_mask(TRIG_DEFS, None, True, *lut_mask.values())
+        lut_select = BITFIELD.bitstr_from_enum_mask(*lut_flags, e=TRIG_DEFS, mask=None, msb_first=False)
         if lut_select == 0:
-            lut_select = (1 << len(lut_mask)) - 1
+            lut_select = (1 << len(trig_names_lower)) - 1
             if not self.args['all']:
                 lut_select ^= _TrigArgParser.TRIG_LUTS_TO_EXCLUDE_BY_DEFAULT
 
         # This selects the lut values that *need* to be supplied from trig_opts, encoding as bitstr
-        k_mask_bitfield = bitfield_from_enum_mask(TRIG_DEFS, mask=self.k_lut_mask)
-        k_mask_bitfield = k_mask_bitfield.get_bit_str() & lut_select
+        k_mask_cls = BITFIELD.bitfield_from_enum_mask(e=TRIG_DEFS, mask=self.k_lut_mask, msb_first=False)
+        k_mask_bitfield = k_mask_cls.sig & lut_select
 
         # This selects the lut values that *were* selected by the command line, encoding as bitstr
         lut_values_specified = [self.args[field] for field in self.k_lut_mask]
-        k_lut_select = bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *lut_values_specified)
+        k_lut_select = BITFIELD.bitstr_from_enum_mask(*lut_values_specified, e=TRIG_DEFS, mask=self.k_lut_mask, msb_first=False)
 
         # This selects the k values that *were* selected by the command line, encoding as bitstr
         k_values_specified = [v is not None for v in self.k_fields.values()]
-        k_values_select = bitstr_from_enum_mask(TRIG_DEFS, self.k_lut_mask, True, *k_values_specified)
+        k_values_select = BITFIELD.bitstr_from_enum_mask(*k_values_specified, e=TRIG_DEFS, mask=self.k_lut_mask, msb_first=False)
 
         # Occurs IFF. no lut AND no k were supplied I.e. empty command line args or using --all
         no_k_no_vals = (k_values_select == k_lut_select == 0) and k_mask_bitfield != 0
@@ -376,22 +377,28 @@ class _TrigArgParser():
             f'\n{log_wrapper.fill(text=str(self.args))}'
         ))
 
-        # Case I: Ensure that there are as many k values as trig values, if supplied
-        # Case II: Ensure that all k values are manually supplied for args specified in TRIGMUSTHAVEKSET
-        if  (k_values_select > k_lut_select and k_mask_bitfield ^ k_values_select) and not no_k_no_vals:
-            raise ap.ArgumentError(err_invoker,
-                                    'A k / threshold value was provided but the corresponding trig function was not explicitly declared:'
-                                    f'\n{underline_matches(' '.join(sys.argv[1:]), r'-\w+-k', match_all=True, literal=False)}'
-                                    '\nif LUT is to be generated.'
-                                    )
+        # Case I: Missing k for functions that require it and were requested
+        missing_mask = (k_mask_bitfield & (~k_values_select))
+        if missing_mask and not no_k_no_vals:
+            need_k_set = join_regex(*[name.lower() for name in k_mask_cls.fields()])
+            pattern = rf'--({need_k_set})\b(?!.+-\1-k)'
+            raise ap.ArgumentError(
+                err_invoker,
+                'k must be individually supplied for:'
+                f"\n{underline_matches(' '.join(sys.argv[1:]), pattern, match_all=True, literal=False, group=1)}"
+                '\nif LUT is to be generated.'
+            )
 
-        elif k_mask_bitfield ^ k_values_select and not no_k_no_vals:
-            to_underline = [v.lower() for v in self.k_lut_mask]
-            raise ap.ArgumentError(err_invoker,
-                                    'k must be individually supplied for:'
-                                    f'\n{underline_matches(' '.join(sys.argv[1:]), to_underline, match_all=True)}'
-                                    '\nif LUT is to be generated.'
-                                    )
+        # Case II: Extraneous k provided for a LUT that was not requested
+        extra_mask = (k_values_select & (~k_lut_select))
+        if extra_mask and not no_k_no_vals:
+            pattern = r'-\w+-k'
+            raise ap.ArgumentError(
+                err_invoker,
+                'A k / threshold value was provided but the corresponding trig function was not explicitly declared:'
+                f"\n{underline_matches(' '.join(sys.argv[1:]), pattern, match_all=True, literal=False)}"
+                '\nif LUT is to be generated.'
+            )
 
         return trig_opts
 
@@ -1019,7 +1026,7 @@ def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
 
 def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], xs: Mapping[str, np.ndarray]) -> Sequence[LUT]:
     lut_select = trig_parser.trig_opts.lut_select
-    luts_to_w = []
+    luts = []
     cmd_line_args = ' '.join(sys.argv[2:])
     for m, bit_v in zip(TRIG_DEFS.get_members(), trig_parser.TRIG_LUTS_BITFIELD.__members__.values()):
         if lut_select & bit_v.value:
@@ -1071,37 +1078,28 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
                       table_mode=trig_parser.args['table_mode'][m],
                       scale_factor=scale_factor,
                       fn=fn,
+                      fn_ref=fn_actual,
                       cmd=underline_matches(cmd_line_args, f'--{m.name.lower()}', match_all=True)
                     )
 
             acc_metrics = LutAccMetrics(lut)
-            luts_to_w.append(lut)
+            test_axis: np.ndarray[np.integer | np.floating] = domain_fn()
 
-            acc_report = None
-            if m in domains:
-                test_axis: np.ndarray[np.floating | np.integer] = domain_fn()
-                quant_acc_report = acc_metrics.assess_quantization_error(fn=fn_actual,
-                                                                         axis=test_axis,
-                                                                         oversample_factor=trig_parser.args['osf']
-                                                                         )
-
-                thd_acc_report = acc_metrics.select_distortion_metric()
-
-                acc_report = LUT_ACC_REPORT(f_name=lut.fn.__name__,
-                                            quant_acc_report=quant_acc_report,
-                                            thd_acc_report=thd_acc_report
-                                           )
+            acc_report = acc_metrics.get_report(axis=test_axis, oversample_factor=trig_parser.args['osf'],
+                                   dtype=trig_parser.args['bw'])
+            luts.append(lut)
 
             print(acc_report)
             LOGGER.info(str(acc_report))
 
-    return luts_to_w
+    return luts
 
 
 def _write_out_luts(luts: Sequence[LUT], trig_parser: _TrigArgParser) -> None:
     if not trig_parser.args['nw']:
         hexManager = TrigLutManager(trig_parser.args['dir'])
         for lut in luts:
+            hexManager.add_lut(lut)
 
             LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
                 f'Attempting to write out .hex file for {lut.fn.__name__}'

@@ -27,15 +27,137 @@ import numpy as np
 import scipy as sp
 import functools
 
+from dataclasses import dataclass
 from collections.abc import Callable
 from typing import override
 
-from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat, SignalStatistic
+from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat, INTERPOLATION_STRATEGY
+from Allocator.Interpreter.signal_statistic import SignalStatistic
 
 
-# TODO:
-# (1): make function using autocorr to check for periodicity
-#       - if function is known / elementary, then just use conditional check
+def parabolic_peak_refine(y: np.ndarray, i: int) -> float:
+    """Refine the index of a discrete maximum by parabolic interpolation.
+
+    Given a 1D array y and an index i (assumed near a peak), fit a parabola
+    to (i-1, i, i+1) and return the sub-sample peak location in float.
+
+    Returns the input index if neighbors aren't valid for interpolation.
+    """
+    n = y.size
+    if 1 <= i < (n - 1):
+        y1 = float(y[i - 1])
+        y2 = float(y[i])
+        y3 = float(y[i + 1])
+        denom = (y1 - 2.0 * y2 + y3)
+        if np.isfinite(denom) and abs(denom) > 0.0:
+            delta = 0.5 * (y1 - y3) / denom
+            delta = float(np.clip(delta, -1.0, 1.0))
+            return float(i) + delta
+    return float(i)
+
+
+def _acf_biased_norm(x: np.ndarray) -> np.ndarray:
+    """Biased ACF normalized to r[0] == 1 for finite, positive variance signals."""
+    n = x.size
+    r_full = sp.signal.correlate(x, x, mode='full', method='fft')
+    r = r_full[n - 1:]
+    if not np.isfinite(r[0]) or r[0] <= 0:
+        return r
+    return r / r[0]
+
+
+def _smooth_ma(arr: np.ndarray, k: int) -> np.ndarray:
+    """Centered moving-average smoothing with odd window k; k<3 returns arr."""
+    if k >= 3 and (k % 2) == 1:
+        w = np.ones(int(k), dtype=np.float64) / float(k)
+        return np.convolve(arr, w, mode='same')
+    if k >= 3 and (k % 2) != 1:
+        raise ValueError('Smoothing window should be odd valued.')
+    return arr
+
+
+def _auto_prominence(win: np.ndarray) -> float | None:
+    smax = float(np.max(win))
+    smin = float(np.min(win))
+    srange = max(smax - smin, 0.0)
+    if srange <= 0.0:
+        return None
+    return 0.1 * srange
+
+
+def _find_peaks_with_prominence(win: np.ndarray, prominence: float | None, min_dist: int) -> tuple[np.ndarray, np.ndarray]:
+    if prominence is None:
+        pth = _auto_prominence(win)
+        if pth is None:
+            return np.array([], dtype=int), np.array([], dtype=float)
+        peaks, props = sp.signal.find_peaks(win, prominence=pth, distance=max(1, int(min_dist)))
+        if peaks.size == 0:
+            return peaks, np.array([], dtype=float)
+        prominences = props.get('prominences', None)
+        if prominences is None or len(prominences) == 0:
+            return np.array([], dtype=int), np.array([], dtype=float)
+        return peaks, np.asarray(prominences)
+    else:
+        pth = float(np.clip(prominence, 0.0, 1.0))
+        peaks, props = sp.signal.find_peaks(win, prominence=pth, distance=max(1, int(min_dist)))
+        if peaks.size == 0:
+            return peaks, np.array([], dtype=float)
+        prominences = props.get('prominences', None)
+        if prominences is None or len(prominences) == 0:
+            return np.array([], dtype=int), np.array([], dtype=float)
+        return peaks, np.asarray(prominences)
+
+
+def _filter_peaks_abs(peaks: np.ndarray, w0: int, lo: int, hi: int, smooth_win: int, prominences: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    peaks_abs = peaks + int(w0)
+    guard = max(2, int(smooth_win) // 2)
+    valid_mask = (peaks_abs >= (lo + guard)) & (peaks_abs <= (hi - 1))
+    if not np.any(valid_mask):
+        return np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=float)
+    return peaks[valid_mask], peaks_abs[valid_mask], prominences[valid_mask]
+
+
+def _select_peak_index(prominences: np.ndarray, prefer: int) -> int:
+    if prominences.size == 0:
+        return -1
+    if prefer == 1:
+        return 0
+    if prefer == 0:
+        return int(np.argmax(prominences))
+    order = np.argsort(-prominences)
+    rank = min(max(int(prefer - 2), 0), order.size - 1)
+    return int(order[rank])
+
+
+def _refine_local_max(r: np.ndarray, p_abs: int, lo: int, hi: int) -> float:
+    win_lo = max(lo, p_abs - 2)
+    win_hi = min(hi - 1, p_abs + 2)
+    if win_hi > win_lo:
+        local_idx = int(np.argmax(r[win_lo:win_hi + 1]))
+        return float(win_lo + local_idx)
+    return float(p_abs)
+
+
+def _estimate_min_period_multiple(r: np.ndarray, n: int, min_period: int, lo_default: int, hi_default: int) -> np.uint32 | None:
+    """Estimate base period then return smallest integer multiple >= min_period within [lo, n-1]."""
+    lo0 = max(2, lo_default)
+    hi0 = max(lo0 + 2, min(hi_default, n // 2))
+    win0 = r[lo0:hi0]
+    if win0.size < 3:
+        return None
+    peaks0, _ = sp.signal.find_peaks(win0, distance=max(1, lo0 // 2))
+    p0_abs = int(lo0 + int(peaks0[0])) if peaks0.size > 0 else int(lo0 + int(np.argmax(win0)))
+    p0_f = parabolic_peak_refine(r, p0_abs)
+    p0_int = max(1, int(np.rint(p0_f)))
+    mp = int(min_period)
+    cand = p0_int if mp <= p0_int else int(np.ceil(mp / p0_int)) * p0_int
+    if cand <= (n - 1):
+        return np.uint32(cand)
+    k_max = (n - 1) // p0_int
+    cand2 = k_max * p0_int
+    if cand2 >= mp and cand2 >= lo0:
+        return np.uint32(cand2)
+    return None
 
 
 class PeriodicityMetrics(SignalStatistic):
@@ -49,19 +171,108 @@ class PeriodicityMetrics(SignalStatistic):
         _is_periodic = super().is_periodic
         return _is_periodic or self.auto_corr_period_test() > 0 and not _is_periodic
 
-    def auto_corr_period_test(self) -> np.uint:
-        """Use normalized autocorrelation to determine periodicity.
-        Return the period of the function if it is periodic, with a result of 0 indicating no periodicity.
+    @override
+    def get_report(self) -> dataclass:
+        return None
+
+    @override
+    def get_base_report(self) -> dataclass:
+        return None
+
+    def auto_corr_period_test(self,
+        min_period: np.uint | None = None,
+        max_period: np.uint | None = None,
+        prominence: np.floating | None = None,
+        sub_interp_method: INTERPOLATION_STRATEGY = INTERPOLATION_STRATEGY.PARABOLIC,
+        prefer: np.uint = 1,
+        smooth_win: np.uint = 1) -> np.uint32:
+        """Estimate fundamental period (in samples) via autocorrelation with robust handling.
+
+        Params:
+            min_period: minimum lag to consider (defaults to 2)
+            max_period: maximum lag to consider (defaults to N//2)
+            prominence: required peak prominence in normalized ACF [0..1]. If None then the peaks will be automatically detected.
+            prefer: Indexed from 1 (for earliest valid peak), a value of i + 1 selects the ith most prominent peak.
+            A value of 0 indicates that the most dominant peak should be used. Clips to latest occuring maxima if i > N peaks.
+            smooth_win: odd window length for moving-average smoothing (<= 1 disables)
+
+        Returns:
+            period_samples (>0) if a significant post-zero-lag peak exists, else 0.
+
+        Defaults:
+        - Start search at lo=max(2, N//64) to skip tiny-lag artifacts
+        - Prefer earliest valid peak by default (prefer=1)
+        - Optional smoothing; odd window only
         """
 
-        # Per the np.correlate documentation, FFT isn't use to compute the convolution which is inefficient on large arrays
-        # sp.signal.correlate DOES do this, however.
-        # if self.signal.size >= 1e5:
-        #     autocorr = sp.signal.correlate(self._unbiased_signal, self._unbiased_signal, mode='same') / self.unbiased_signal_norm
-        # else:
-        #     autocorr = np.correlate(self._unbiased_signal, self._unbiased_signal, mode='same') / self.unbiased_signal_norm
+        x = np.asarray(self.unbiased_signal, dtype=np.float64)
+        if not np.all(np.isfinite(x)):
+            return np.uint32(0)
 
-        return np.uint(0) # BUG: TEMP
+        n = x.size
+        if n < 4:
+            return np.uint32(0)
+
+        # Autocorrelation (one-sided), biased-normalized (no (N-k) envelope)
+        r = _acf_biased_norm(x)
+        if r.size == 0 or not np.isfinite(r[0]) or r[0] <= 0:
+            return np.uint32(0)
+
+        lo = max(2, n // 64) if min_period is None else max(int(min_period), 1)
+        hi_default = n - 1
+        hi = hi_default if max_period is None else min(int(max_period), hi_default)
+        if lo >= hi:
+            return np.uint32(0)
+
+        # If min_period is provided, estimate base period p0 and return the
+        # smallest integer multiple >= min_period aligned to p0.
+        if min_period is not None:
+            cand = _estimate_min_period_multiple(r, n, int(min_period), n // 64, n - 1)
+            if cand is not None and lo <= int(cand) <= hi_default:
+                return cand
+
+        # Work on a slightly padded window to avoid edge artifacts
+        w0 = max(0, lo - 1)
+        win = r[w0:hi]
+        if win.size == 0:
+            return np.uint32(0)
+
+        # Optional smoothing
+        win = _smooth_ma(win, int(smooth_win))
+
+        # Peak detection with (auto) prominence and min distance
+        min_dist = max(1, lo // 2)
+        peaks, prominences = _find_peaks_with_prominence(
+            win,
+            float(prominence) if prominence is not None else None,
+            min_dist
+        )
+        if peaks.size == 0 or prominences.size == 0:
+            return np.uint32(0)
+
+        # Map peaks to absolute lag and filter out near-boundary artifacts
+        peaks, peaks_abs, prominences = _filter_peaks_abs(
+            peaks, int(w0), int(lo), int(hi), int(smooth_win), prominences
+        )
+        if peaks.size == 0:
+            return np.uint32(0)
+
+        # Select according to preference
+        idx = _select_peak_index(prominences, int(prefer))
+        if idx < 0:
+            return np.uint32(0)
+
+        # Absolute-lag peak and sub-sample refinement
+        p_abs = int(peaks_abs[idx])
+        if sub_interp_method == INTERPOLATION_STRATEGY.LOCAL_REFINE:
+            period_f = _refine_local_max(r, p_abs, int(lo), int(hi))
+        elif sub_interp_method == INTERPOLATION_STRATEGY.PARABOLIC:
+            period_f = parabolic_peak_refine(r, p_abs)
+        else:
+            raise NotImplementedError(f'Sub-interpretation method ({sub_interp_method}) not implemented')
+
+        # Snap to nearest integer sample and clip
+        return np.uint32(np.clip(int(np.rint(period_f)), lo, hi - 1))
 
 
 class DistortionMetrics(SignalStatistic):
@@ -70,9 +281,9 @@ class DistortionMetrics(SignalStatistic):
         super().__init__(signal=signal, signal_type=signal_type, signal_name=signal_name)
 
     @staticmethod
-    def band_power(spec, center_bin: np.float64, half_width: np.uint) -> np.float64:
+    def band_power(spec, center_bin: np.float32, half_width: np.uint32) -> np.float64:
         """Sum power around a fractional bin center over ±half_width bins."""
-        c = np.uint(np.round(center_bin))
+        c = np.uint32(np.round(center_bin))
         mag = np.abs(spec)
         lo = np.max(0, c - half_width)
         hi = np.min(mag.size - 1, c + half_width)
@@ -84,6 +295,20 @@ class DistortionMetrics(SignalStatistic):
             return np.float64(0.0), np.float64(-np.inf)
         d = np.sqrt(p_dist / p_signal)
         return np.float64(d), np.float64(20.0 * np.log10(max(d, np.finfo(np.float64).tiny)))
+
+    @override
+    def get_report(self, *args, **kwargs) -> tuple[LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT]:
+        if self.full_signal is None or self.quantized_full_signal is None:
+            return DistortionMetrics.get_base_report()
+
+        quant_acc_report = self.assess_quantization_error(*args, **kwargs)
+        thd_acc_report = self.select_distortion_metric()
+        return quant_acc_report, thd_acc_report
+
+    @override
+    @staticmethod
+    def get_base_report() -> tuple[LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT]:
+        return LUT_QUANT_ACC_REPORT(0, 0, 0, 0, []), LUT_THD_ACC_REPORT(-np.inf, 0.0, 'THD')
 
     def assess_thd(self, window_type: SIG_WINDOW_TYPE = SIG_WINDOW_TYPE.FLATTOP) -> LUT_THD_ACC_REPORT | None:
         """Assess THD.
@@ -288,7 +513,7 @@ class DistortionMetrics(SignalStatistic):
     def assess_quantization_error(self,
                         fn: Callable[..., np.float64],
                         axis: np.ndarray[np.float64],
-                        oversample_factor: np.uint,
+                        oversample_factor: np.uint32,
                         q_format: QFormat | None = None,
                         dtype: np.dtype | None = None) -> LUT_QUANT_ACC_REPORT | None:
         """ # Summary

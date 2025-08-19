@@ -29,7 +29,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import functools
-import importlib
 import itertools
 import xxhash
 import regex as re
@@ -38,8 +37,6 @@ import numpy as np
 from typing import Any
 
 from collections.abc import Callable, Iterable, Hashable, Mapping, Sequence
-
-from Allocator.Interpreter.extendedenum import ExtendedEnum
 
 
 def combined_fast_stable_hash(data: Iterable[Hashable]) -> int:
@@ -68,7 +65,7 @@ def machine_has_extended_float_support() -> bool:
 
 
 def quantize(x: np.floating, dtype: np.uint) -> np.uint:
-    return 1 << dtype(np.ceil(np.log2(x)))
+    return dtype(1 << int(np.ceil(np.log2(x))))
 
 
 def largest_dtype_of_kind(kind: np.dtype) -> np.dtype:
@@ -139,6 +136,13 @@ def sort_relative_to(to_sort: Iterable[Any], mask: Mapping[Any, int]) -> Iterabl
     return sorted(to_sort, key=lambda item: (mask.get(item, float('inf')), item))
 
 
+def rename_keys(d: dict, rename_map: dict) -> None:
+    if set(rename_map.keys()).issubset(d.keys()):
+        for k, v in rename_map.items():
+            val = d.pop(k)
+            d[v] = val
+
+
 def join_regex(*regex: str, non_capture: bool = True, or_join: bool = True) -> str:
     def _increment_match(match, i: int):
         return f'\\{int(match.group(0)[1:]) + i}'
@@ -181,7 +185,7 @@ def underline_match(text: str, to_match: str,
 
 def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool],
                       start_index: int = 0, end_index: int | None = None,
-                      match_all: bool = False, literal: bool = True) -> str | None:
+                      match_all: bool = False, literal: bool = True, group: int = 0) -> str | None:
     """ # Summary
 
     Generates a string that underlines a regex match or matches in a given text.
@@ -194,6 +198,7 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
         end_index: The end ofthe string to search in
         match_all: Determines whether to underline every occurance of match rather than the first found.
         literal: Determines whether to match against to_match as a literal or pattern
+        group: The group to capture (ignore all others)
 
    ## Returns:
         A string containing the original text and the underline.
@@ -207,15 +212,16 @@ def underline_matches(text: str, to_match: Iterable | str | Callable[[str], bool
     underlined = []
     prev_i = start_index
     if match_all or predicate_match:
+
         # Either match every pattern in to_match if it is a collection object
         # or, if it is a singular string, match that against the entire text.
         if isinstance(to_match, str):
             to_match = re.escape(to_match) if literal else to_match
         else:
-            to_match = '|'.join(re.escape(m) if literal else m for m in to_match)
+            to_match = join_regex(*to_match, or_join=True, non_capture=True)
 
         for m in re.finditer(to_match, text, pos=start_index, endpos=end_index):
-            if (match := underline_match(text, m.group(0), prev_i)) is None:
+            if (match := underline_match(text, m.group(group), prev_i)) is None:
                 continue
             i, txt = match
             underlined.extend(txt)
@@ -251,7 +257,6 @@ def underline_first_non_captured_group(groups: re.Pattern | str, string: str) ->
     j = 0                                                                               # Tracks last matches' end position
     for i, group in enumerate(groups):
         if not (match := re.match(join_regex(*groups[:i+1], or_join=False), string, partial=True)) or match.partial:
-            print(groups[:i+1])
             return f'\n{underline_matches(string, group, start_index=j, literal=False)}'
         matches.append(match.group(i+1))
         j = match.end()
@@ -272,59 +277,6 @@ def greater_than_n_regex(n: int) -> str:
         i += 1
     result = reversed(result)
     return join_regex(fr'[1-9]\d{{{i},}}', ''.join(result))
-
-
-nptypes = importlib.import_module('.nptypes', 'Allocator.Interpreter')
-
-
-def bools2bitstr(*args: bool, in_first_msb: bool = True,
-                 offset: Iterable[np.uint] | np.uint = 0,
-                 count: bool = True) -> np.uint:
-    offset_is_iterable = isinstance(offset, Iterable)
-    args_length = len(args) - 1
-
-    result = 0
-    i = 0 # Index counting # of args if count is set
-    j = 0 # Index counting into offset if offset is an iterable
-    for a in args:
-
-        if offset_is_iterable:
-            leftshift = find_left_shift_from_iterable_offset(offset, j, i, in_first_msb=in_first_msb)
-            j += 1
-        else:
-            leftshift = find_left_shift_from_integer_offset(offset, args_length, i, in_first_msb=in_first_msb)
-
-        if count:
-            i += 1
-
-        result |= nptypes.STANDARD_NP_DTYPES.LARGEST_UINT.value(a) << leftshift
-    return result
-
-
-def find_left_shift_from_iterable_offset(offset: Iterable[int], offset_index: int, count: int = 0,
-                                         in_first_msb : bool = True) -> int:
-    bitfield_length = max(offset)
-    leftshift = offset[offset_index]
-
-    if count:
-        leftshift += count
-
-    if in_first_msb:
-        leftshift = bitfield_length - leftshift
-
-    return leftshift
-
-
-def find_left_shift_from_integer_offset(offset: int, bitfield_length: int, count: int = 0,
-                                        in_first_msb: bool = True) -> int:
-    leftshift = offset
-    if count:
-        leftshift += count
-
-    if in_first_msb:
-        leftshift = bitfield_length - leftshift
-
-    return leftshift
 
 
 def pairwise(t: Iterable) -> zip:
@@ -383,25 +335,6 @@ def reverse_bits(n: np.uint) -> int:
         result |= n & 1
         n >>= 1
     return result
-
-
-bitfield = importlib.import_module('.bitfield', 'Allocator.Interpreter')
-
-
-def bitfield_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
-                            in_first_msb: bool = True):
-    offset = e.get_members_from_mask(mask)
-    return bitfield.BITFIELD(offset=[m.value for m in offset], count=False, in_first_msb=in_first_msb,
-                    **{m.name : 1 for m in offset})
-
-
-def bitstr_from_enum_mask(e: ExtendedEnum, mask: Iterable[str] | None,
-                          in_first_msb: bool = True, *args: bool) -> int:
-    offset = e.get_members_from_mask(mask)
-    if not args:
-        args = [True] * len(offset)
-    return bools2bitstr(*args, offset=[m.value for m in offset], count=False,
-                         in_first_msb=in_first_msb)
 
 
 def tri_sign_2d(a: tuple, b: tuple, c: tuple) -> float:

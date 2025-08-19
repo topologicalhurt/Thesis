@@ -1,25 +1,36 @@
 // Coefficient memory for sinc
 // ----------------------------------------------
-//   Bits per coeff.:          64
-//   Q-format:                 Q0.52
-//   Endianness.:              big
-//   Table mode:               med
-//   Table size:               4.096kB
-//   LOP (level of precision): highp
-//   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.00102921
-//   Min accuracy:             0.00000000
-//   Max accuracy:             0.18624215
-//   Std:                      0.00646022//
-
-// Each line contains a value (coeff.) corresponding to the function sinc.
-// This file was automatically generated with the command:
-Q0.52 --sinc -sinc-k 0.001 -table-mode MED -bw 64 -prec-mode HIGHP
-      ^^^^^^
-// *Do not* make any manual changes to this file
-// File generated @ 2025-07-29 13:31:53.083583
-// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//   Bits per coeff.:                64
+//   Q-format:                       Q0.52
+//   Endianness.:                    big
+//   Table mode:                     med
+//   Table size:                     4.096kB
+//   LOP (level of precision):       highp
+//   Effective scaling factor:       1
 //
+//   Stats:
+//
+//   [*] Measured Quantization error [*]
+//	   Measured avg. accuracy:       0.00102921
+//	   Min accuracy:                 0.00000000
+//	   Max accuracy:                 0.18624215
+//	   Std:                          0.00646022
+//
+//   [*] Measured THD+N (Total Harmonic Distortion + noise) [*]
+//	   Measured avg. THD+N:          9.07884575
+//	   Measured avg. THD+N (dB):     19.16061275
+//
+// ----------------------------------------------
+//
+// Each line after this header contains a value (coeff.) corresponding to the function sinc.
+// This file was automatically generated with the command:
+// Q0.52 --sinc -sinc-k 0.001 -table-mode MED -bw 64 -prec-mode HIGHP
+//       ^^^^^^
+//
+// *Do not* make any manual changes to this file
+// File generated @ 2025-08-14 18:57:17.359076
+//
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 ffffffffffff0f00
 a31dd179ef920700

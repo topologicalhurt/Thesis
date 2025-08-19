@@ -1,25 +1,36 @@
 // Coefficient memory for tan
 // ----------------------------------------------
-//   Bits per coeff.:          64
-//   Q-format:                 Q8.44
-//   Endianness.:              big
-//   Table mode:               high
-//   Table size:               16.384kB
-//   LOP (level of precision): highp
-//   Effective scaling factor: 1
-//   Measured avg. accuracy:   0.00000002
-//   Min accuracy:             0.00000000
-//   Max accuracy:             0.00000007
-//   Std:                      0.00000002//
-
-// Each line contains a value (coeff.) corresponding to the function tan.
-// This file was automatically generated with the command:
-Q8.44 --tan -tan-k 0.001 -bw 64 -prec-mode HIGHP
-      ^^^^^
-// *Do not* make any manual changes to this file
-// File generated @ 2025-07-29 13:31:52.541923
-// Author: topologicalhurt csin0659@uni.sydney.edu.au
+//   Bits per coeff.:                64
+//   Q-format:                       Q8.44
+//   Endianness.:                    big
+//   Table mode:                     high
+//   Table size:                     16.384kB
+//   LOP (level of precision):       highp
+//   Effective scaling factor:       1
 //
+//   Stats:
+//
+//   [*] Measured Quantization error [*]
+//	   Measured avg. accuracy:       0.00000002
+//	   Min accuracy:                 0.00000000
+//	   Max accuracy:                 0.00000007
+//	   Std:                          0.00000002
+//
+//   [*] Measured THD+N (Total Harmonic Distortion + noise) [*]
+//	   Measured avg. THD+N:          0.83476946
+//	   Measured avg. THD+N (dB):     -1.56866893
+//
+// ----------------------------------------------
+//
+// Each line after this header contains a value (coeff.) corresponding to the function tan.
+// This file was automatically generated with the command:
+// Q8.44 --tan -tan-k 0.001 -bw 64 -prec-mode HIGHP
+//       ^^^^^
+//
+// *Do not* make any manual changes to this file
+// File generated @ 2025-08-14 18:57:09.960841
+//
+// Author: topologicalhurt csin0659@uni.sydney.edu.au
 //
 0000000000000000
 cf00529201000000

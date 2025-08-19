@@ -33,13 +33,13 @@ import numpy as np
 from typing import override
 from enum import Enum
 
-from Allocator.Interpreter.extendedenum import ExtendedEnum
-
-
 helpers = importlib.import_module('.helpers', 'Allocator.Interpreter')
 largest_dtype_of_kind = helpers.largest_dtype_of_kind
 machine_has_extended_float_support = helpers.machine_has_extended_float_support
 machine_has_quad_float_support = helpers.machine_has_quad_float_support
+
+extendedenum = importlib.import_module('.extendedenum', 'Allocator.Interpreter')
+ExtendedEnum = extendedenum.ExtendedEnum
 
 
 class STANDARD_NP_DTYPES(ExtendedEnum):

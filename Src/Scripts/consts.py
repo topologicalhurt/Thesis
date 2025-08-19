@@ -28,6 +28,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import importlib
+import warnings
 import sys
 import traceback
 import logging
@@ -114,16 +115,35 @@ sys.excepthook = excepthook
 
 set_logger_opts()
 
+#################################
+# WARNINGS HOOK -> LOG HANDLER  #
+#################################
+
+def warninghook(message, category, filename, lineno, file=None, line=None):
+    """Capture any warnings.warn and log it consistently via our LOGGER."""
+    header = '\n' + '=' * LOGGER_LINE_WIDTH
+    header += '\nCaptured warning:\n'
+    try:
+        formatted = warnings.formatwarning(message, category, filename, lineno, line)
+    except Exception:
+        formatted = f"{getattr(category, '__name__', str(category))}: {message} [{filename}:{lineno}]"
+    msg = header + log_wrapper.fill(formatted.strip()) + '\n' + '=' * LOGGER_LINE_WIDTH
+    LOGGER.warning(msg)
+
+# Ensure warnings are not suppressed and route them to our hook
+warnings.simplefilter('default')
+warnings.showwarning = warninghook
+
 ######################################
 # GENERAL PROGRAM / META INFO / MISC #
 ######################################
 
 def get_git_author():  # lazy to avoid circular import at module import time
-    util_helpers = importlib.import_module('util_helpers', package='Scripts')
+    util_helpers = importlib.import_module('Scripts.util_helpers')
     return util_helpers.get_git_author()
 
 def get_repo_root():   # lazy wrapper
-    util_helpers = importlib.import_module('util_helpers', package='Scripts')
+    util_helpers = importlib.import_module('Scripts.util_helpers')
     return util_helpers.get_repo_root()
 
 META_INFO = PROGRAM_META_INFO(
@@ -142,7 +162,7 @@ META_INFO = PROGRAM_META_INFO(
 
 # File paths (relative to script)
 CURRENT_DIR = Path(__file__).parent.resolve()
-RTL_DIR = (CURRENT_DIR / '../../RTL').resolve()
+RTL_DIR = META_INFO.GIT_ROOT / 'Src' / 'RTL'
 SRC_DIR = RTL_DIR.parent
 ALLOCATOR_DIR = SRC_DIR / 'Allocator'
 DEMO_DIR = SRC_DIR / 'Demo'
@@ -150,8 +170,16 @@ RESOURCES_DIR = SRC_DIR / 'Resources'
 VERIFICATION_DIR = RTL_DIR / 'Verification'
 DOCUMENT_META = RESOURCES_DIR / 'document_meta.yaml'
 RTL_IN_DIR = RTL_DIR / 'In'
-RTL_TRIG_HEX_DIR = RTL_DIR / 'Static' / 'Math'
+RTL_TRIG_HEX_DIR = RTL_DIR / 'Static' / 'Math' / 'Trig' / 'mem'
 I2S_DUPLICATE_REGISTER_HEADER_PATH = RTL_IN_DIR / 'buf_audio_in.svh'
 I2S_DUPLICATE_REGISTER_PATH = RTL_IN_DIR / 'buf_audio_in.sv'
 
 DEFAULT_VEO_LOCATION = RTL_DIR / 'Ip'
+
+##################
+# HEX MEM CONSTS #
+##################
+
+TRIG_HEX_MEM_EXPECTED = {
+    f.name: f for f in RTL_TRIG_HEX_DIR.iterdir() if f.is_file() and f.suffix == '.hex'
+}
