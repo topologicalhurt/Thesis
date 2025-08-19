@@ -50,7 +50,8 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
     def _compute_positions(n: int,
                            offset: Iterable[int] | int = 0,
                            count: bool = True,
-                           msb_first: bool = True) -> list[int]:
+                           msb_first: bool = True,
+                           preserve_order_for_iterable: bool = True) -> list[int]:
         """Compute absolute bit positions for n flags.
 
         - If offset is an int: positions are offset + i when count=True, else [offset]*n.
@@ -69,9 +70,16 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
         if not base_positions:
             return []
 
-        # If explicit absolute positions are provided (offset iterable) and count=False,
-        # do not reorder them regardless of msb_first.
-        if isinstance(offset, Iterable) and not isinstance(offset, (bytes, bytearray, str)) and not count:
+        # If explicit absolute positions are provided by the user (offset iterable) and count=False,
+        # optionally preserve that exact ordering regardless of msb_first. This preserves semantics
+        # for explicit iterable offsets like offset=[...]. When offset originated from a scalar
+        # (i.e., internally expanded), preserve_order_for_iterable should be False so msb_first applies.
+        if (
+            preserve_order_for_iterable
+            and isinstance(offset, Iterable)
+            and not isinstance(offset, (bytes, bytearray, str))
+            and not count
+        ):
             return base_positions
 
         # Otherwise, for msb_first, map the first provided name to the highest absolute position.
@@ -89,7 +97,9 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
         Each True in args sets a bit at the computed position; False leaves it clear.
         See _compute_positions for semantics of offset/count/msb_first.
         """
-        positions = BitFieldEnumMeta._compute_positions(len(args), offset=offset, count=count, msb_first=msb_first)
+        positions = BitFieldEnumMeta._compute_positions(len(args), offset=offset, count=count, msb_first=msb_first,
+                                                        preserve_order_for_iterable=True
+                                                        )
         result = 0
         for flag, pos in zip(args, positions):
             if flag:
@@ -132,16 +142,19 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
                 yield i
 
     @staticmethod
-    def _positions_from_enum_mask(members: list[Enum], flags: list[bool]) -> list[int]:
-        positions = []
-        for i, (m, flag) in enumerate(zip(members, flags)):
-            v = int(m.value)
-            if flag and v > 0:
-                positions.append(v)
-                continue
-            positions.append(i)
+    def _positions_from_enum_mask(members: list[Enum]) -> list[int]:
+        """Return absolute bit positions for members from an enum subset.
 
-        return positions
+        If member values are single-bit masks, convert to bit indices; otherwise treat
+        values as absolute positions.
+        """
+        vals = [int(m.value) for m in members]
+        if not vals:
+            return []
+        are_masks = all(v > 0 and (v & (v - 1)) == 0 for v in vals)
+        if are_masks:
+            return [int(v).bit_length() - 1 for v in vals]
+        return vals
 
     @staticmethod
     def bitstr_from_enum_mask(*args: bool, **kwargs) -> int:
@@ -158,7 +171,6 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
             msb_first = kwargs.pop('msb_first', True)
             flags = list(args)
         else:
-            # Expect at least (e, mask); msb_first optional
             if len(args) < 2:
                 raise TypeError('bitstr_from_enum_mask expected at least (e, mask), got fewer positional args')
 
@@ -172,10 +184,34 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
                 msb_first = True
                 flags = list(args[2:])
 
-
         members = e.get_members_from_mask(mask)
-        positions = BitFieldEnumMeta._positions_from_enum_mask(members, flags)
-        return BitFieldEnumMeta.bools2bitstr(*flags, offset=positions, count=False, msb_first=msb_first)
+        if not flags:
+            flags = [True] * len(members)
+
+        # Determine if enum values are masks (single-bit) or absolute positions
+        vals = [int(m.value) for m in members]
+        are_masks = len(vals) > 0 and all(v > 0 and (v & (v - 1)) == 0 for v in vals)
+
+        # Compute positions for ordering, then choose index order
+        positions = [int(v).bit_length() - 1 for v in vals] if are_masks else vals
+        if isinstance(mask, (list, tuple)):
+            order = range(len(members))
+        else:
+            order = sorted(range(len(members)), key=lambda i: positions[i], reverse=bool(msb_first))
+
+        # Build bitstring by aligning flags to the chosen order
+        result = 0
+        for flag, idx in zip(flags, order):
+            if not flag:
+                continue
+
+            v = vals[idx]
+            if are_masks:
+                result |= v
+                continue
+            result |= (1 << int(v))
+
+        return STANDARD_NP_DTYPES.LARGEST_UINT.value(result)
 
 
     def bitfield_from_enum_mask(self, *args, **kwargs):
@@ -201,9 +237,9 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
                 msb_first = True
 
         members = e.get_members_from_mask(mask)
-        positions = BitFieldEnumMeta._positions_from_enum_mask(members, [True] * len(members))
+        positions = BitFieldEnumMeta._positions_from_enum_mask(members)
         return self.__call__(offset=positions, count=False, msb_first=msb_first,
-                            **{m.name: 0 for m in members})
+                             **{m.name: 0 for m in members})
 
     @classmethod
     def _member_factory(cls,
@@ -253,7 +289,15 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
         else:
             combined = [int(offset) + int(b) for b in base_offsets]
 
-        positions = cls._compute_positions(bit_length, offset=combined, count=count, msb_first=msb_first)
+        # Preserve explicit iterable offset ordering only if the user provided an iterable offset.
+        provided_iterable_offset = isinstance(offset, Iterable) and not isinstance(offset, (bytes, bytearray, str))
+        positions = cls._compute_positions(
+            bit_length,
+            offset=combined,
+            count=count,
+            msb_first=msb_first,
+            preserve_order_for_iterable=provided_iterable_offset,
+        )
         dynamic_members: dict[str, int] = {}
         int_sig = 0
         for name, pos in zip(names, positions):
@@ -321,6 +365,7 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
                 msb_first=msb_first,
                 **kwargs
             )
+
             # Populate the enum dict with computed masks
             for k, v in members_map.items():
                 dynamic_members[k] = v

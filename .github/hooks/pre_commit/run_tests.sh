@@ -15,6 +15,6 @@ run_pytest() {
 }
 
 echo -e "\n------ RUNNING TESTS ------\n"
-# run_pytest "$@"
+run_pytest "$@"
 
 exit 0

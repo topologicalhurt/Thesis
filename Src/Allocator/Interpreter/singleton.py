@@ -23,7 +23,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
-import itertools
 import warnings
 
 from collections.abc import Hashable
@@ -68,58 +67,61 @@ class SingletonMetaSubclass(_SingletonControlMeta):
     _ctor_sig = None
 
     def __call__(cls, *args, **kwargs):
-        """ Always return the same instance per subclass;
-        __singleton_frozen__ controls whether to refresh state"""
+        """Always return the same instance per subclass; __singleton_frozen__ controls refresh."""
 
-        # Check constructor arguments are hashable
+        def _make_hashable(obj):
+            """Best-effort: turn possibly-unhashable objects into a hashable representation."""
+            if isinstance(obj, Hashable):
+                return ('H', obj)
+            dtype = getattr(obj, 'dtype', None)
+            shape = getattr(obj, 'shape', None)
+            tobytes = getattr(obj, 'tobytes', None)
+            if dtype is not None and shape is not None and callable(tobytes):
+                try:
+                    b = obj.tobytes()
+                except Exception:
+                    b = repr(obj).encode('utf-8', errors='ignore')
+                return ('ND', str(dtype), tuple(shape), hash(b))
+            if isinstance(obj, dict):
+                return ('D', tuple(sorted((k, _make_hashable(v)) for k, v in obj.items())))
+            if isinstance(obj, (list, tuple)):
+                return ('T', tuple(_make_hashable(e) for e in obj))
+            if isinstance(obj, (set, frozenset)):
+                return ('S', tuple(sorted(_make_hashable(e) for e in obj)))
+            return ('R', repr(obj))
+
+        def _sig_hash(a, kw):
+            try:
+                a_h = tuple(_make_hashable(x) for x in a)
+                kw_h = tuple(sorted((k, _make_hashable(v)) for k, v in kw.items()))
+                return hash(('SIG', a_h, kw_h))
+            except Exception:
+                return hash(('IDSIG', tuple(id(x) for x in a), tuple(sorted((k, id(v)) for k, v in kw.items()))))
+
         if cls._instance is None:
-            for a, b in itertools.zip_longest(args, kwargs.values()):
-                if not (a_is_hashable := isinstance(a, Hashable)) or not isinstance(b, Hashable):
-                    err_term = a if not a_is_hashable else b
-                    raise TypeError(f'Singleton metaclass received unsupported keyword argument: {err_term!r}. '
-                                    f'Hashable types are required.')
-
             instance = super().__call__(*args, **kwargs)
             setattr(cls, '_instance', frozenset((instance,)))
-
-            # Record construction signature
-            sig = (frozenset(args), frozenset(kwargs.items()))
-            setattr(cls, '_ctor_sig', sig)
-
+            setattr(cls, '_ctor_sig', _sig_hash(args, kwargs))
             return instance
 
-        instance = getattr(cls, '_instance', None)
-
-        if instance is None:
-            # This shouldn't trigger as cls._instance is immutable. Probably interference from GC.
+        inst_set = getattr(cls, '_instance', None)
+        if inst_set is None:
             raise ValueError(f'Expected instance {cls.__name__} to be in the singleton instance cache.')
-
-        if len(instance) != 1:
-            # This shouldn't trigger as cls._instance is immutable. Improper initialization probably occurred.
+        if len(inst_set) != 1:
             raise TypeError(f'Expected singleton instance {cls.__name__} to be unique.'
-                            f'Instead instance cache contains {list(instance)}')
+                            f'Instead instance cache contains {list(inst_set)}')
+        instance = next(iter(inst_set))
 
-        instance = next(iter(instance))
-
-        # Robust frozen detection: prefer explicit flag; otherwise inherit from MRO
         cls_frozen: bool | None = getattr(cls, '__singleton_frozen__', None)
         if cls_frozen is None:
             cls_frozen = any(bool(getattr(b, '__singleton_frozen__', False)) for b in cls.__mro__[1:])
 
         if not cls_frozen:
-            # Re-invoke the subclass __init__ to refresh attributes w/o reallocating
             cls.__init__(instance, *args, **kwargs)
         else:
-            """Frozen: ignore new args/kwargs; if they differ, warn for visibility.
-            This is a relatively expensive path, so if frozen = True for the concrete baseclass
-            it's best not to provide any new args to subclassed calls as we expect the global instance
-            to be returned from instance cache."""
-
-            new_sig = (frozenset(args), frozenset(kwargs.items()))
-            old_sig = getattr(cls, '_ctor_sig', None)
-            new_sig_hsh, old_sig_hsh = hash(new_sig), hash(old_sig) if old_sig is not None else None
-
-            if old_sig is not None and new_sig_hsh != old_sig_hsh:
+            new_sig_hsh = _sig_hash(args, kwargs)
+            old_sig_hsh = getattr(cls, '_ctor_sig', None)
+            if old_sig_hsh is not None and new_sig_hsh != old_sig_hsh:
                 warnings.warn(
                     f'{cls.__name__} is frozen; ignoring new constructor args/kwargs.'
                     '\n This may be intentional behaviour if the first subclass consumer of'
@@ -129,9 +131,7 @@ class SingletonMetaSubclass(_SingletonControlMeta):
                     'disregarding any further calls.\n'
                     f'First call hash={old_sig_hsh:X}, newest call hash={new_sig_hsh:X}\n'
                 )
-
-            # Keep the original signature
-            setattr(cls, '_ctor_sig', old_sig if old_sig is not None else new_sig)
+            setattr(cls, '_ctor_sig', old_sig_hsh if old_sig_hsh is not None else new_sig_hsh)
 
         return instance
 

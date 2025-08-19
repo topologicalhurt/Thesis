@@ -31,13 +31,133 @@ from dataclasses import dataclass
 from collections.abc import Callable
 from typing import override
 
-from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat
+from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat, INTERPOLATION_STRATEGY
 from Allocator.Interpreter.signal_statistic import SignalStatistic
 
 
-# TODO:
-# (1): make function using autocorr to check for periodicity
-#       - if function is known / elementary, then just use conditional check
+def parabolic_peak_refine(y: np.ndarray, i: int) -> float:
+    """Refine the index of a discrete maximum by parabolic interpolation.
+
+    Given a 1D array y and an index i (assumed near a peak), fit a parabola
+    to (i-1, i, i+1) and return the sub-sample peak location in float.
+
+    Returns the input index if neighbors aren't valid for interpolation.
+    """
+    n = y.size
+    if 1 <= i < (n - 1):
+        y1 = float(y[i - 1])
+        y2 = float(y[i])
+        y3 = float(y[i + 1])
+        denom = (y1 - 2.0 * y2 + y3)
+        if np.isfinite(denom) and abs(denom) > 0.0:
+            delta = 0.5 * (y1 - y3) / denom
+            delta = float(np.clip(delta, -1.0, 1.0))
+            return float(i) + delta
+    return float(i)
+
+
+def _acf_biased_norm(x: np.ndarray) -> np.ndarray:
+    """Biased ACF normalized to r[0] == 1 for finite, positive variance signals."""
+    n = x.size
+    r_full = sp.signal.correlate(x, x, mode='full', method='fft')
+    r = r_full[n - 1:]
+    if not np.isfinite(r[0]) or r[0] <= 0:
+        return r
+    return r / r[0]
+
+
+def _smooth_ma(arr: np.ndarray, k: int) -> np.ndarray:
+    """Centered moving-average smoothing with odd window k; k<3 returns arr."""
+    if k >= 3 and (k % 2) == 1:
+        w = np.ones(int(k), dtype=np.float64) / float(k)
+        return np.convolve(arr, w, mode='same')
+    if k >= 3 and (k % 2) != 1:
+        raise ValueError('Smoothing window should be odd valued.')
+    return arr
+
+
+def _auto_prominence(win: np.ndarray) -> float | None:
+    smax = float(np.max(win))
+    smin = float(np.min(win))
+    srange = max(smax - smin, 0.0)
+    if srange <= 0.0:
+        return None
+    return 0.1 * srange
+
+
+def _find_peaks_with_prominence(win: np.ndarray, prominence: float | None, min_dist: int) -> tuple[np.ndarray, np.ndarray]:
+    if prominence is None:
+        pth = _auto_prominence(win)
+        if pth is None:
+            return np.array([], dtype=int), np.array([], dtype=float)
+        peaks, props = sp.signal.find_peaks(win, prominence=pth, distance=max(1, int(min_dist)))
+        if peaks.size == 0:
+            return peaks, np.array([], dtype=float)
+        prominences = props.get('prominences', None)
+        if prominences is None or len(prominences) == 0:
+            return np.array([], dtype=int), np.array([], dtype=float)
+        return peaks, np.asarray(prominences)
+    else:
+        pth = float(np.clip(prominence, 0.0, 1.0))
+        peaks, props = sp.signal.find_peaks(win, prominence=pth, distance=max(1, int(min_dist)))
+        if peaks.size == 0:
+            return peaks, np.array([], dtype=float)
+        prominences = props.get('prominences', None)
+        if prominences is None or len(prominences) == 0:
+            return np.array([], dtype=int), np.array([], dtype=float)
+        return peaks, np.asarray(prominences)
+
+
+def _filter_peaks_abs(peaks: np.ndarray, w0: int, lo: int, hi: int, smooth_win: int, prominences: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    peaks_abs = peaks + int(w0)
+    guard = max(2, int(smooth_win) // 2)
+    valid_mask = (peaks_abs >= (lo + guard)) & (peaks_abs <= (hi - 1))
+    if not np.any(valid_mask):
+        return np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=float)
+    return peaks[valid_mask], peaks_abs[valid_mask], prominences[valid_mask]
+
+
+def _select_peak_index(prominences: np.ndarray, prefer: int) -> int:
+    if prominences.size == 0:
+        return -1
+    if prefer == 1:
+        return 0
+    if prefer == 0:
+        return int(np.argmax(prominences))
+    order = np.argsort(-prominences)
+    rank = min(max(int(prefer - 2), 0), order.size - 1)
+    return int(order[rank])
+
+
+def _refine_local_max(r: np.ndarray, p_abs: int, lo: int, hi: int) -> float:
+    win_lo = max(lo, p_abs - 2)
+    win_hi = min(hi - 1, p_abs + 2)
+    if win_hi > win_lo:
+        local_idx = int(np.argmax(r[win_lo:win_hi + 1]))
+        return float(win_lo + local_idx)
+    return float(p_abs)
+
+
+def _estimate_min_period_multiple(r: np.ndarray, n: int, min_period: int, lo_default: int, hi_default: int) -> np.uint32 | None:
+    """Estimate base period then return smallest integer multiple >= min_period within [lo, n-1]."""
+    lo0 = max(2, lo_default)
+    hi0 = max(lo0 + 2, min(hi_default, n // 2))
+    win0 = r[lo0:hi0]
+    if win0.size < 3:
+        return None
+    peaks0, _ = sp.signal.find_peaks(win0, distance=max(1, lo0 // 2))
+    p0_abs = int(lo0 + int(peaks0[0])) if peaks0.size > 0 else int(lo0 + int(np.argmax(win0)))
+    p0_f = parabolic_peak_refine(r, p0_abs)
+    p0_int = max(1, int(np.rint(p0_f)))
+    mp = int(min_period)
+    cand = p0_int if mp <= p0_int else int(np.ceil(mp / p0_int)) * p0_int
+    if cand <= (n - 1):
+        return np.uint32(cand)
+    k_max = (n - 1) // p0_int
+    cand2 = k_max * p0_int
+    if cand2 >= mp and cand2 >= lo0:
+        return np.uint32(cand2)
+    return None
 
 
 class PeriodicityMetrics(SignalStatistic):
@@ -63,7 +183,8 @@ class PeriodicityMetrics(SignalStatistic):
         min_period: np.uint | None = None,
         max_period: np.uint | None = None,
         prominence: np.floating | None = None,
-        prefer: np.uint = 0,
+        sub_interp_method: INTERPOLATION_STRATEGY = INTERPOLATION_STRATEGY.PARABOLIC,
+        prefer: np.uint = 1,
         smooth_win: np.uint = 1) -> np.uint32:
         """Estimate fundamental period (in samples) via autocorrelation with robust handling.
 
@@ -77,89 +198,81 @@ class PeriodicityMetrics(SignalStatistic):
 
         Returns:
             period_samples (>0) if a significant post-zero-lag peak exists, else 0.
+
+        Defaults:
+        - Start search at lo=max(2, N//64) to skip tiny-lag artifacts
+        - Prefer earliest valid peak by default (prefer=1)
+        - Optional smoothing; odd window only
         """
 
         x = np.asarray(self.unbiased_signal, dtype=np.float64)
         if not np.all(np.isfinite(x)):
-            x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            return np.uint32(0)
 
         n = x.size
         if n < 4:
             return np.uint32(0)
 
-        r_full = sp.signal.correlate(x, x, mode='full', method='fft')   # O(NlogN)
-        r = r_full[n-1:]
-
-        # Unbiased normalization (divide by N-k), then normalize so r[0] == 1 (scale invariance)
-        denom = np.arange(n, 0, -1, dtype=np.float64)
-        r /= np.maximum(denom, 1.0)
-        r0 = r[0]
-        if not np.isfinite(r0) or r0 <= 0:
+        # Autocorrelation (one-sided), biased-normalized (no (N-k) envelope)
+        r = _acf_biased_norm(x)
+        if r.size == 0 or not np.isfinite(r[0]) or r[0] <= 0:
             return np.uint32(0)
-        r /= r0
 
-        # Period search bounds
-        lo = 2 if min_period is None else max(min_period, 1)
-        hi = max(2, n // 2) if max_period is None else min(max_period, n // 2)
+        lo = max(2, n // 64) if min_period is None else max(int(min_period), 1)
+        hi_default = n - 1
+        hi = hi_default if max_period is None else min(int(max_period), hi_default)
         if lo >= hi:
             return np.uint32(0)
 
-        min_dist = max(1, lo // 2)
+        # If min_period is provided, estimate base period p0 and return the
+        # smallest integer multiple >= min_period aligned to p0.
+        if min_period is not None:
+            cand = _estimate_min_period_multiple(r, n, int(min_period), n // 64, n - 1)
+            if cand is not None and lo <= int(cand) <= hi_default:
+                return cand
 
-        seg = r[lo:hi]
-        if seg.size == 0:
+        # Work on a slightly padded window to avoid edge artifacts
+        w0 = max(0, lo - 1)
+        win = r[w0:hi]
+        if win.size == 0:
             return np.uint32(0)
 
-        if smooth_win >= 3 and smooth_win % 2 == 1:
-            k = smooth_win
-            w = np.ones(k, dtype=np.float64) / k
-            seg = np.convolve(seg, w, mode='same')
-        elif smooth_win >= 3 and smooth_win % 2 != 1:
-            raise ValueError('Smoothing window should be odd valued.')
+        # Optional smoothing
+        win = _smooth_ma(win, int(smooth_win))
 
-        if prominence is None:
-            peaks, _ = sp.signal.find_peaks(seg, distance=min_dist)
-            if peaks.size == 0:
-                return np.uint32(0)
+        # Peak detection with (auto) prominence and min distance
+        min_dist = max(1, lo // 2)
+        peaks, prominences = _find_peaks_with_prominence(
+            win,
+            float(prominence) if prominence is not None else None,
+            min_dist
+        )
+        if peaks.size == 0 or prominences.size == 0:
+            return np.uint32(0)
 
-            prominences = sp.signal.peak_prominences(seg, peaks)[0]
+        # Map peaks to absolute lag and filter out near-boundary artifacts
+        peaks, peaks_abs, prominences = _filter_peaks_abs(
+            peaks, int(w0), int(lo), int(hi), int(smooth_win), prominences
+        )
+        if peaks.size == 0:
+            return np.uint32(0)
+
+        # Select according to preference
+        idx = _select_peak_index(prominences, int(prefer))
+        if idx < 0:
+            return np.uint32(0)
+
+        # Absolute-lag peak and sub-sample refinement
+        p_abs = int(peaks_abs[idx])
+        if sub_interp_method == INTERPOLATION_STRATEGY.LOCAL_REFINE:
+            period_f = _refine_local_max(r, p_abs, int(lo), int(hi))
+        elif sub_interp_method == INTERPOLATION_STRATEGY.PARABOLIC:
+            period_f = parabolic_peak_refine(r, p_abs)
         else:
-            pth = float(np.clip(prominence, 0.0, 1.0))
-            peaks, props = sp.signal.find_peaks(seg, prominence=pth, distance=min_dist)
-            if peaks.size == 0:
-                return np.uint32(0)
+            raise NotImplementedError(f'Sub-interpretation method ({sub_interp_method}) not implemented')
 
-            prominences = props.get('prominences', None)
-            if prominences is None or len(prominences) == 0:
-                return np.uint32(0)
-
-        if prefer == 0:
-            idx = int(np.argmax(prominences))
-        else:
-            order = np.argsort(-prominences)
-            rank = min(max(int(prefer - 1), 0), order.size - 1)
-            idx = int(order[rank])
-
-        p = int(peaks[idx])
-
-        # Parabolic interpolation for sub-sample precision
-        # I.e. Look at the peak and its two neighbors (y1, y3) and fit a parabola through (y1, y2, y3)
-        p_global = p + lo
-        if 1 <= p < (seg.size - 1):
-            y1, y2, y3 = seg[p-1], seg[p], seg[p+1]
-            denom_p = (y1 - 2.0*y2 + y3)
-            if np.isfinite(denom_p) and abs(denom_p) > 0:
-                delta = 0.5 * (y1 - y3) / denom_p
-                delta = float(np.clip(delta, -1.0, 1.0))
-                p_global_f = p + lo + delta
-            else:
-                p_global_f = float(p_global)
-        else:
-            p_global_f = float(p_global)
-
-        # Clamp and return
-        period = np.uint32(np.clip(np.rint(p_global_f), lo, hi - 1))
-        return period
+        # Snap to nearest integer sample and clip
+        return np.uint32(np.clip(int(np.rint(period_f)), lo, hi - 1))
 
 
 class DistortionMetrics(SignalStatistic):

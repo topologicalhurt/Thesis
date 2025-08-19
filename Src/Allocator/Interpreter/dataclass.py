@@ -295,6 +295,18 @@ class SIGNAL_TYPE(Enum):
         return cls._member_map_.get(lut_type.name)
 
 
+class INTERPOLATION_STRATEGY(Enum):
+    """# Summary
+
+    Enum storing the different interpolation strategies
+    """
+    NEAREST = 0x0
+    LINEAR = 0x1
+    PARABOLIC = 0x2
+    CUBIC = 0x3
+    LOCAL_REFINE = 0xf0
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SIGNAL_METRIC:
     signal: np.ndarray[np.float64 | np.integer]
