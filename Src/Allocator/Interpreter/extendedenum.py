@@ -60,7 +60,7 @@ class _ExtendedEnumMeta(EnumMeta):
 
     def __str__(self):
         return str(list(self))
-    
+
     def _get_subclasses(self):
         """Returns the subclasses of the current class."""
         return [subclass for subclass in self.__subclasses__() if issubclass(subclass, self)]

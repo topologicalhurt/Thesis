@@ -372,6 +372,28 @@ class TRIG_FN_DEFS(LUT_FN_DEFS):
     CHEBYSHEV_ARCTAN = TRIG_DEFS.CHEBYSHEV_ARCTAN, chebyshev_arctan, np.arctan
     COMPACT_SINC = TRIG_DEFS.COMPACT_SINC, compact_sinc, np.sinc
 
+    @staticmethod
+    def format_fn_name_ref(name: str) -> str:
+        """Formats name to the reference function in TRIG_DEFS"""
+        return name.upper().replace('ARC', 'A').replace('CHEBYSHEV_', '').replace('COMPACT_', '')
+
+    @classmethod
+    def get_fn_ref_from_name(cls, name: str) -> TRIG_DEFS:
+        """Get the reference function (in TRIG_DEFS) from the given name
+
+        I.e. CHEBYSHEV_SIN -> TRIG_DEFS.SIN
+             COMPACT_SINC -> TRIG_DEFS.SINC
+             SIN -> TRIG_DEFS.SIN
+             SINC -> TRIG_DEFS.SINC
+        """
+        fn_ref = cls.get_fn_ref(name)
+        fn_ref_name = cls.format_fn_name_ref(fn_ref.__name__)
+        return TRIG_DEFS.get_member_via_name(fn_ref_name)
+
+    @classmethod
+    def get_fn_ref(cls, name: str) -> LUT_FN_DEFS:
+        return cls.get_member_via_name(name).value[2]
+
 
 class TABLE_MODE(ExtendedEnum):
     """# Summary

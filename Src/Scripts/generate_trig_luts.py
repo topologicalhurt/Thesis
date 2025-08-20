@@ -735,12 +735,7 @@ def generate_sin_cos_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_pa
             sz = quantize(sz, dtype=trig_parser.bw_type_int)
 
         match table_mode:
-            case TRIG_OPT_MODE.MAX:
-                LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(
-                    f'Max mode detected. Skipping {k.name} domain generation'
-                ))
-                continue
-            case TRIG_OPT_MODE.HIGH:
+            case TRIG_OPT_MODE.HIGH | TRIG_OPT_MODE.MAX:
                 stop = np.pi / 2
             case TRIG_OPT_MODE.MED:
                 raise NotImplementedError(f'Half table not yet supported for {k.name}')
@@ -756,8 +751,16 @@ def generate_sin_cos_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_pa
             return np.astype((stop * (np.arange(0, n_luts) + 0.5) / n_luts),
                              trig_parser.args['bw'])
 
-        domain = domain_fn(scale_factor)
-        phis[k] = (domain, functools.partial(domain_fn, scale_factor=1))
+        if table_mode == TRIG_OPT_MODE.MAX:
+            LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(f'Using Chebyshev polynomial for {k.name}'))
+
+            fn_name = TRIG_DEFS.get_members_from_pattern(rf'^CHEBYSHEV_{k.name}$')[0]
+            domain = None
+        else:
+            fn_name = k
+            domain = domain_fn(scale_factor)
+
+        phis[fn_name] = (domain, functools.partial(domain_fn, scale_factor=1))
 
 
 def generate_tan_domain(phis: Mapping[str, np.ndarray[np.floating]], trig_parser: _TrigArgParser) -> None:
@@ -973,6 +976,8 @@ def generate_sinc_domain(xs: Mapping[str, np.ndarray[np.floating]], trig_parser:
     print(msg)
 
     if table_mode >= TRIG_OPT_MODE.HIGH:
+        LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format('Using sinc compact mode'))
+
         fn_name = TRIG_DEFS.COMPACT_SINC
     else:
         fn_name = TRIG_DEFS.SINC
@@ -991,36 +996,40 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
     lut_select = trig_parser.trig_opts.lut_select
     luts = []
     cmd_line_args = ' '.join(sys.argv[2:])
+
     for m, bit_v in zip(TRIG_DEFS.get_members(), trig_parser.TRIG_LUTS_BITFIELD.get_members()):
-        match m:
-            case TRIG_DEFS.SIN | TRIG_DEFS.COS | TRIG_DEFS.TAN | TRIG_DEFS.CHEBYSHEV_SIN:
+
+        fn_name = TRIG_FN_DEFS.get_fn_ref_from_name(m.name)
+        fn_actual = TRIG_FN_DEFS.get_fn_ref(m.name)
+        match fn_name:
+            case TRIG_DEFS.SIN | TRIG_DEFS.COS | TRIG_DEFS.TAN:
                 domains = phis
             case TRIG_DEFS.ASIN | TRIG_DEFS.ACOS | TRIG_DEFS.ATAN | TRIG_DEFS.SINC | TRIG_DEFS.COMPACT_SINC:
                 domains = xs
             case _:
-                pass
+                domains = {}
 
         domain_meta = domains.get(m, None)
         if domain_meta is None:
             if bit_v.value & lut_select:
                 LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(f'member: {m.name} skipped generation. This is intended behaviour if '
-                                                                f'the specified function has multiple aliases'))
-                continue
+                                                                f'the specified function has multiple aliases. E.g. sin, chebyshev_sin'))
             continue
         domain, domain_fn = domain_meta
 
-        # fn_nominal is potentially different to fn_actual I.e. compact_sinc should be measured against sinc
-        fn_nominal = _format_fn(m, trig_parser=trig_parser)
-        fn_actual = TRIG_FN_DEFS.get_member_via_name(m.name).value[2]
+        # fn_nominal is potentially different to fn_actual
+        # I.e. compact_sinc (fn_actual) should be measured against sinc (fn_nominal)
+        fn_nominal = _format_fn(m, domain=domain, trig_parser=trig_parser)
 
         log_msg = []
-        if m in domains:
-            table = fn_nominal(domain)
+        if domain is not None:
             log_msg.append(f'\n\tDomain (first 5 values) {log_wrapper.fill(str(list(domain[:5])))}'
                             f'\n\tDomain (last 5 values) {log_wrapper.fill(str(list(domain[-5:])))}'
                             )
         else:
-            table = fn_nominal()                            # Methods that don't need a domain I.e. Chebyshev
+            print(f'Generated LUT for: {m.name}')
+
+        table = fn_nominal()
 
         lut_sz = trig_parser.bw_sz_bytes * table.size
         log_msg.append(f'\n\tGenerating {m.name} LUT...'
@@ -1032,7 +1041,6 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
         log_msg = ''.join(reversed(log_msg))
         LOGGER.info(GENERATE_TRIG_LUTS_PREFIX.format(log_msg))
 
-        # The factor that indicates mix of precision and optimisation
         scale_factor = _calculate_scale_factor(trig_parser.args['table_mode'][m], trig_parser.args['prec_mode'][m])
         fn = fn_nominal.func if isinstance(fn_nominal, functools.partial) else fn_nominal
         lut = LUT(table=table,
@@ -1054,12 +1062,13 @@ def _generate_luts(trig_parser: _TrigArgParser, phis: Mapping[str, np.ndarray], 
         acc_metrics = LutAccMetrics(lut)
         test_axis: np.ndarray[np.integer | np.floating] = domain_fn()
 
-        acc_report = acc_metrics.get_report(axis=test_axis, oversample_factor=trig_parser.args['osf'],
-                                dtype=trig_parser.args['bw'])
-        luts.append(lut)
+        if domain is not None:
+            acc_report = acc_metrics.get_report(axis=test_axis, oversample_factor=trig_parser.args['osf'],
+                                    dtype=trig_parser.args['bw'])
+            luts.append(lut)
 
-        print(acc_report)
-        LOGGER.info(str(acc_report))
+            print(acc_report)
+            LOGGER.info(str(acc_report))
 
     return luts
 
@@ -1113,26 +1122,23 @@ def _adaptive_arc_domain(sz: int, trig_parser: _TrigArgParser, hr_mult: int = 16
     return x_nodes
 
 
-def _format_fn(m: TRIG_DEFS, trig_parser: _TrigArgParser) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
+def _format_fn(m: TRIG_DEFS, domain: np.ndarray[np.floating | np.integer],
+               trig_parser: _TrigArgParser) -> Callable[[np.ndarray], np.ndarray[np.floating]]:
     """
     Return a partial function with args filled in based on trig_parser
     """
     match m:
         case TRIG_DEFS.CHEBYSHEV_SIN:
-            LOGGER.info('Using chebyshev polynomial for sin')
-
             N = chebyshev_sin_N_k(trig_parser.args['k'])
             return functools.partial(chebyshev_sin, deg=N, dtype=trig_parser.args['bw'])
         case TRIG_DEFS.COMPACT_SINC:
-            LOGGER.info('Using compact sinc function for sinc')
-
-            # Store canonical lobe only, use envelope estimation method after zero crossing
-            return functools.partial(compact_sinc, dtype=trig_parser.args['bw'])
+            return functools.partial(compact_sinc, domain, dtype=trig_parser.args['bw'])
         case _:
             pass
 
     # Default behaviour: return the function itself
-    return TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
+    fn = TRIG_FN_DEFS.get_member_via_name(m.name).value[1]
+    return functools.partial(fn, domain, dtype=trig_parser.args['bw'])
 
 
 if __name__ == '__main__':
