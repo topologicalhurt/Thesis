@@ -72,6 +72,7 @@ def test_get_subclass_from_name_unique(unique_subclasses):
 
 	assert Base.get_subclass_from_name('FOO') is SubA
 	assert Base.get_subclass_from_name('BAR') is SubB
+	
 	# Case-insensitive name lookup via __contains__ in metaclass
 	assert Base.get_subclass_from_name('foo') is SubA
 
