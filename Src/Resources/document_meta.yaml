@@ -98,6 +98,38 @@
     //'
   'module': 'ALLOCATOR'
   'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/hashable_array.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'Hashable wrapper for numpy arrays.
+
+
+    - Stores an immutable copy of the input array.
+
+    - Hash is based on a stable digest of (dtype, shape, content).
+
+    - Equality compares dtype, shape, and content equality.
+
+
+    Note: Mutating the original input after wrapping does not affect the wrapper
+
+    since an internal copy is made and marked read-only.'
+  'fname': 'hashable_array.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/helpers.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
@@ -118,12 +150,292 @@
     //'
   'module': 'ALLOCATOR'
   'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/lut_acc_metrics.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'lut_acc_metrics.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
 'Allocator/Interpreter/nptypes.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'nptypes.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/periodicity.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'periodicity.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/signal_metrics.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'signal_metrics.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/signal_reconstructor.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'signal_reconstructor.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/signal_statistic.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'signal_statistic.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/singleton.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'singleton.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/tests/auto_corr_period_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'auto_corr_period_test.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/tests/bitfield_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'bitfield_test.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/tests/extended_enum_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'extended_enum_test.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/tests/hashable_array_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'hashable_array_test.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/tests/signal_statistic_singleton_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'signal_statistic_singleton_test.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/tests/singleton_test.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'singleton_test.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/thd.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'thd.py'
+  'license_preamble': '// It is intended to be used as part of the allocator design
+    which is responsible for the soft-core, or offboard, management of the on-fabric
+    components.
+
+    // Please refer to docs/whitepaper first, which provides a complete description
+    of the project & it''s motivations.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'ALLOCATOR'
+  'separator': '------------------------------------------------------------------------'
+'Allocator/Interpreter/xilinx_name_validator.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'xilinx_name_validator.py'
   'license_preamble': '// It is intended to be used as part of the allocator design
     which is responsible for the soft-core, or offboard, management of the on-fabric
     components.
@@ -800,6 +1112,22 @@
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': 'argparse_helpers.py'
+  'license_preamble': '// It is intended to be run as a script for use with developer
+    operations, automation / task assistance or as a wrapper for the RTL code.
+
+    //
+
+    // The design is NOT COVERED UNDER ANY WARRANTY.
+
+    //'
+  'module': 'SCRIPTS'
+  'separator': '------------------------------------------------------------------------'
+'Scripts/build_dbl_clock_fft.py':
+  'author_email': 'csin0659@uni.sydney.edu.au'
+  'author_name': 'topologicalhurt'
+  'copyright_year': !!int '2025'
+  'file_description': 'N/A'
+  'fname': 'build_dbl_clock_fft.py'
   'license_preamble': '// It is intended to be run as a script for use with developer
     operations, automation / task assistance or as a wrapper for the RTL code.
 

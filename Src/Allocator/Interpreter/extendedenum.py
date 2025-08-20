@@ -28,6 +28,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 import importlib
+import numpy as np
 import regex as re
 
 from enum import Enum, EnumMeta
@@ -36,11 +37,14 @@ from typing import Any, Mapping
 
 
 helpers = importlib.import_module('.helpers', 'Allocator.Interpreter')
+combined_fast_stable_hash = helpers.combined_fast_stable_hash
+fast_stable_hash = helpers.fast_stable_hash
 join_regex = helpers.join_regex
 underline_matches = helpers.underline_matches
 
 
 class _ExtendedEnumMeta(EnumMeta):
+    """Meta class for ExtendedEnum"""
     def __contains__(self, other: Any) -> bool:
         """ # Summary
 
@@ -61,26 +65,101 @@ class _ExtendedEnumMeta(EnumMeta):
         """Returns the subclasses of the current class."""
         return [subclass for subclass in self.__subclasses__() if issubclass(subclass, self)]
 
-    def get_subclass_from_name(self, name: str):
-        """Returns the subclass corresponding to the given name."""
-        subclasses = [subclass for subclass in self._get_subclasses() if name in subclass]
-        if not subclasses:
-            return None
-
-        if len(subclasses) > 1:
-            to_match = join_regex(subclasses, non_capture=False)
-            raise ValueError(f'Ambiguous {self.__name__} subclass name: {name}.'
-                             f' Ensure that the following have unique (non-conflicting) values:'
-                             f'\n{underline_matches(str(subclasses), to_match, match_all=True, literal=False)}')
-
-        return subclasses[0]
-
 
 class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
     """# Summary
 
     Base class providing extended (common utility functions) feature set to Enum
     """
+
+    def _as_int(self, val: Any | None = None) -> int | tuple[int]:
+        if val is None:
+            val = self.value
+
+        if isinstance(val, Enum):
+            val = val.value
+
+        # Search in raw (nested) values
+        vals_to_search = [member.value for member in self.__class__.__members__.values()]
+        if val not in vals_to_search:
+            raise AttributeError(f'No value {val} found in {self.__class__.__name__}.{self.name}')
+
+        if isinstance(val, (int, np.integer)):
+            return int(val)
+
+        if isinstance(val, (list, tuple)):
+            if not all(isinstance(item, (int, np.integer)) for item in val):
+                non_digits = join_regex(*[str(item) for item in val if not isinstance(item, (int, np.integer))])
+                raise TypeError(f'{self.__class__.__name__}.{self.name} has non-integer value {val!r}; cannot compare to int.'
+                                f'\n{underline_matches(str(val), non_digits, match_all=True, literal=False)}')
+            return tuple(map(int, val))
+
+        raise TypeError(f'{self.__class__.__name__}.{self.name} has non-integer value {val!r}; cannot compare to int')
+
+    def __hash__(self):
+        val = self.value
+        if isinstance(val, (int, np.integer)):
+            val_int = self._as_int(val)
+            val_digestable = val.to_bytes(val_int.bit_length() // 8 + 1, 'big', signed=False)
+            return fast_stable_hash(val_digestable)
+
+        if isinstance(val, (Enum , tuple, list)):
+            val_tuple_int = self._as_int(val)
+            val_tuple_int = (val.to_bytes(val.bit_length() // 8 + 1, 'big', signed=False)
+                             for val in val_tuple_int)
+            return combined_fast_stable_hash(val_tuple_int)
+
+        raise TypeError(f'{self.__class__.__name__}.{self.name} has non-hashable value {self.value!r}; cannot hash')
+
+    def __int__(self) -> int:
+        return self._as_int()
+
+    def __index__(self) -> int:
+        return self._as_int()
+
+    def _other_as_int(self, other: Any):
+        if isinstance(other, (int, np.integer)):
+            return int(other)
+        if isinstance(other, Enum):
+            ov = other.value
+            if isinstance(ov, (int, np.integer)):
+                return int(ov)
+        return NotImplemented
+
+    def __eq__(self, other: Any) -> bool:
+        ov = self._other_as_int(other)
+        if ov is NotImplemented:
+            if isinstance(other, Enum):
+                return self.value == other.value
+            return False
+        return int(self) == ov
+
+    def __ne__(self, other: Any) -> bool:
+        return not self.__eq__(other)
+
+    def __lt__(self, other: Any) -> bool:
+        ov = self._other_as_int(other)
+        if ov is NotImplemented:
+            return NotImplemented
+        return int(self) < ov
+
+    def __le__(self, other: Any) -> bool:
+        ov = self._other_as_int(other)
+        if ov is NotImplemented:
+            return NotImplemented
+        return int(self) <= ov
+
+    def __gt__(self, other: Any) -> bool:
+        ov = self._other_as_int(other)
+        if ov is NotImplemented:
+            return NotImplemented
+        return int(self) > ov
+
+    def __ge__(self, other: Any) -> bool:
+        ov = self._other_as_int(other)
+        if ov is NotImplemented:
+            return NotImplemented
+        return self._as_int() >= ov
 
     @staticmethod
     def unpack(value: Any) -> Sequence:
@@ -209,3 +288,16 @@ class ExtendedEnum(Enum, metaclass=_ExtendedEnumMeta):
             if n.upper() == name.upper():
                 return m
         raise ValueError(f'"{name}" is not a valid field name in {cls.__name__}')
+
+    @classmethod
+    def get_subclass_from_name(cls, name: str):
+        """Returns the subclass corresponding to the given name."""
+        subclasses = [subclass for subclass in cls._get_subclasses() if name in subclass]
+        if not subclasses:
+            return None
+
+        if len(subclasses) > 1:
+            to_match = join_regex(subclasses, non_capture=False)
+            raise ValueError(f'Ambiguous {cls.__name__} subclass name: {name}.'
+                             f' Ensure that the following have unique (non-conflicting) values:'
+                             f'\n{underline_matches(str(subclasses), to_match, match_all=True, literal=False)}')

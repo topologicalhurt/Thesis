@@ -42,6 +42,8 @@ from fxpmath import Fxp
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.nptypes import INT_STR_NPMAP
 from Allocator.Interpreter.helpers import combined_fast_stable_hash, fast_stable_hash
+from Allocator.Interpreter.compact_sinc import compact_sinc
+from Allocator.Interpreter.chebyshev_trig import chebyshev_arccos, chebyshev_arcsin, chebyshev_arctan, chebyshev_cos, chebyshev_sin, chebyshev_tan
 
 
 class XILINX_GENERATION(ExtendedEnum):
@@ -319,13 +321,21 @@ class TRIG_DEFS(ExtendedEnum):
 
     Enum storing the supported trig LUTS
     """
-    SIN = 0
-    COS = 1
-    TAN = 2
-    ASIN = 3
-    ACOS = 4
-    ATAN = 5
-    SINC = 6
+    SIN = 0x00
+    COS = 0x01
+    TAN = 0x02
+    ASIN = 0x03
+    ACOS = 0x04
+    ATAN = 0x05
+    SINC = 0x06
+    CHEBYSHEV_SIN = 0x10
+    CHEBYSHEV_COS = 0x11
+    CHEBYSHEV_TAN = 0x12
+    CHEBYSHEV_ARCSIN = 0x13
+    CHEBYSHEV_ARCCOS = 0x14
+    CHEBYSHEV_ARCTAN = 0x15
+    COMPACT_SINC = 0x16
+
     _SINUSOIDS = (SIN, COS)
     _ARC_SINUSOIDS = (ASIN, ACOS)
     _AUX = (SINC,)
@@ -342,14 +352,47 @@ class TRIG_FN_DEFS(LUT_FN_DEFS):
     """# Summary
 
     Enum storing the trig names & their corresponding functions
+
+    COL1: enum value / key
+    COL2: the function to use on LUT
+    COL3: the reference function
     """
-    SIN = TRIG_DEFS.SIN, np.sin
-    COS = TRIG_DEFS.COS, np.cos
-    TAN = TRIG_DEFS.TAN, np.tan
-    ASIN = TRIG_DEFS.ASIN, np.arcsin
-    ACOS = TRIG_DEFS.ACOS, np.arccos
-    ATAN = TRIG_DEFS.ATAN, np.arctan
-    SINC = TRIG_DEFS.SINC, np.sinc
+    SIN = TRIG_DEFS.SIN, np.sin, np.sin
+    COS = TRIG_DEFS.COS, np.cos, np.cos
+    TAN = TRIG_DEFS.TAN, np.tan, np.tan
+    ASIN = TRIG_DEFS.ASIN, np.arcsin, np.arcsin
+    ACOS = TRIG_DEFS.ACOS, np.arccos, np.arccos
+    ATAN = TRIG_DEFS.ATAN, np.arctan, np.arctan
+    SINC = TRIG_DEFS.SINC, np.sinc, np.sinc
+    CHEBYSHEV_SIN = TRIG_DEFS.CHEBYSHEV_SIN, chebyshev_sin, np.sin
+    CHEBYSHEV_COS = TRIG_DEFS.CHEBYSHEV_COS, chebyshev_cos, np.cos
+    CHEBYSHEV_TAN = TRIG_DEFS.CHEBYSHEV_TAN, chebyshev_tan, np.tan
+    CHEBYSHEV_ARCSIN = TRIG_DEFS.CHEBYSHEV_ARCSIN, chebyshev_arcsin, np.arcsin
+    CHEBYSHEV_ARCCOS = TRIG_DEFS.CHEBYSHEV_ARCCOS, chebyshev_arccos, np.arccos
+    CHEBYSHEV_ARCTAN = TRIG_DEFS.CHEBYSHEV_ARCTAN, chebyshev_arctan, np.arctan
+    COMPACT_SINC = TRIG_DEFS.COMPACT_SINC, compact_sinc, np.sinc
+
+    @staticmethod
+    def format_fn_name_ref(name: str) -> str:
+        """Formats name to the reference function in TRIG_DEFS"""
+        return name.upper().replace('ARC', 'A').replace('CHEBYSHEV_', '').replace('COMPACT_', '')
+
+    @classmethod
+    def get_fn_ref_from_name(cls, name: str) -> TRIG_DEFS:
+        """Get the reference function (in TRIG_DEFS) from the given name
+
+        I.e. CHEBYSHEV_SIN -> TRIG_DEFS.SIN
+             COMPACT_SINC -> TRIG_DEFS.SINC
+             SIN -> TRIG_DEFS.SIN
+             SINC -> TRIG_DEFS.SINC
+        """
+        fn_ref = cls.get_fn_ref(name)
+        fn_ref_name = cls.format_fn_name_ref(fn_ref.__name__)
+        return TRIG_DEFS.get_member_via_name(fn_ref_name)
+
+    @classmethod
+    def get_fn_ref(cls, name: str) -> LUT_FN_DEFS:
+        return cls.get_member_via_name(name).value[2]
 
 
 class TABLE_MODE(ExtendedEnum):
