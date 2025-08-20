@@ -4,10 +4,3 @@ version = "0.0.0a"
 
 [tool.setuptools.packages.find]
 where = ["."]
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = [
-	"Allocator/Interpreter/tests",
-	"Scripts/tests"
-]
