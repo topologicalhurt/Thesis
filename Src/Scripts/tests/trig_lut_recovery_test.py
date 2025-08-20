@@ -39,7 +39,7 @@
 # from collections.abc import Callable, Mapping, Sequence
 # from dataclasses import dataclass
 
-# from Allocator.Interpreter.signal_metrics import DistortionMetrics
+# from Allocator.Interpreter.thd import DistortionMetrics
 # from Allocator.Interpreter.signal_metrics import SIGNAL_TYPE
 # from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
 # from Allocator.Interpreter.dataclass import BYTEORDER, TRIG_DEFS
