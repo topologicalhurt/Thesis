@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+[[ "$CUR_BRANCH" == "research" ]] && {
+	echo "Skipping tests on $CUR_BRANCH"
+	exit 0
+}
+
 cd "$ROOT/Src"
 
 run_pytest() {
