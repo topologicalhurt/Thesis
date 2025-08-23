@@ -1,0 +1,130 @@
+\chapter{Architectural Design}
+
+\section{Filter design}
+
+\subsection{Procedure for approximating Error statistics on filter kernels}
+
+\[
+\boxed{
+\begin{aligned}
+&\text{Let $f$ be a monotone function (increasing or decreasing), }
+f(x) = S = \sum_{i=1}^{n} g_i(x). \\
+&\text{Then } f(x)\text{ ``contains'' } h(x) \text{ as a term if }
+\exists j \in \{1,\dots,n\} \ \text{with } g_j(x) \equiv h(x).
+\end{aligned}
+}
+\]
+
+Define the error term as the contribution of all other indices:
+\[
+J = \{1,\dots,n\} \setminus \{j\},
+\qquad \mathbb{E}(x) = \sum_{k \in J} g_k(x).
+\]
+
+The procedure for finding an error term $\mathbb{E}(x)$ is the following:
+
+\[
+\begin{aligned}
+f^{(-n)}(x) \ \text{contains } f(x) &\implies \mathbb{E}(x) = f^{(-n)}(x) - \sgn{g_j}f(x), \\
+f^{(n)}(x) \ \text{contains } f(x) &\implies \mathbb{E}(x) = f^{(n)}(x) - \sgn{g_j}f(x).
+\end{aligned}
+\]
+
+By the Cauchy formula for repeated integration~\cite{CauchyRepeatedIntegration} we have:
+
+\[
+\begin{aligned}
+f^{(-n)}(x) &= \int_a^x \int_a^{\sigma_1} \dots \int_a^{\sigma_{n - 1}} f(\sigma_n)\,d\sigma_n \, d\sigma_{n - 1} \dots d\sigma_1 \\
+&= \frac{1}{(n - 1)!}\int_a^x (x - \sigma)^{n - 1}f(\sigma)\,d\sigma.
+\end{aligned}
+\]
+
+The \textit{Caputo fractional derivative} is constructed using Cauchy's formula, bridging definitions of $f^{(-n)}(x)$ and $f^{(n)}(x)$~\cite{Caputo1967}:
+
+\[
+{}^C D^{\nu}_a f(\sigma) = \frac{1}{\Gamma(\lceil \nu \rceil - \nu)}
+\int_a^{\sigma} \frac{f^{(\lceil\nu\rceil)}(t)}{(\sigma-t)^{\nu-\lceil\nu\rceil+1}} \, dt.
+\]
+
+\subsection*{Finding error statistics of $\mathrm{sinc}(x)$ for a LPF Design}
+
+One of the fundamental results in DSP is that the ideal window function
+\[
+w(t) = \mathrm{sinc}(t)
+\]
+in the time domain corresponds to a perfect rectangular pulse in the frequency domain~\cite{OppenheimDSP}. However, as the envelope $\tfrac{1}{x}$ decays the amplitude of $\sin(x)$ monotonically, the function has an infinite domain that is impossible to capture discretely. This implies the existence of an associated error term $\mathbb{E}(x)$ that depends on the truncation point $x$.
+
+\paragraph{Derivative of sinc}
+
+\[
+\begin{aligned}
+\frac{d}{dx} \mathrm{sinc}(x)
+&= \frac{\cos(x)}{x} - x^{-2}\sin(x)
+= \frac{x\cos(x) - \sin(x)}{x^2} \\
+&= \frac{1}{x}\cos(x) - \mathrm{sinc}(x).
+\end{aligned}
+\]
+
+Thus,
+\[
+f'(x) \text{ contains } f(x)
+\quad \implies \quad \mathbb{E}(x) = \frac{1}{x}\cos(x).
+\]
+
+\paragraph{Power series expansion of $\frac{\cos(x)}{x}$}
+
+\[
+\begin{aligned}
+\mathbb{E}(x) &= \frac{1}{x} \left|\sum_{n = 0}^{\infty} \frac{(-1)^n x^{2n}}{(2n)!}\right|
+= \left|\sum_{n = 0}^{\infty} \frac{(-1)^n x^{2n-1}}{(2n)!}\right|.
+\end{aligned}
+\]
+
+\paragraph{Discrete truncation}
+
+In practice, we require
+\[
+\mathbb{E}(x, N) \leq T \quad \text{for some } N \in \mathbb{N}, \ N \geq 1,
+\]
+where $\mathbb{E}(x, N)$ is the partial sum of $\mathbb{E}(x)$, and the choice of $0 < T < f(x)$ determines the minimum $N$ such that $\mathbb{E}(x, N)$ is bounded. Another stipulate is that $N$ is minimal \textit{W.R.T} $T$.
+
+\[
+\implies \mathbb{E}(x) = \left|\sum_{n = 0}^{N} \frac{(-1)^n x^{2n-1}}{(2n)!}\right| \leq T.
+\]
+
+\paragraph{Re-indexing with Kronecker delta}
+
+Re-indexing to $2N$, we obtain
+\[
+\sum_{k = 0}^{2N} \delta_{k \equiv 0 \, (\mathrm{mod}\,2)} \cdot \frac{(-1)^{k/2} x^{k-1}}{k!},
+\]
+which implicitly allows $E: \mathbb{R} \to \mathbb{R}$ to be re-written as
+$E: \mathbb{C} \to \mathbb{C}$ due to the introduction of the \emph{Kronecker delta}\cite{}:
+
+\[
+\begin{aligned}
+\mathbb{E}(x) &= \left|\sum_{k = 0}^{2N} \frac{1 + (-1)^k}{2} \cdot \frac{i^k x^{k - 1}}{k!}\right| \\
+&= \sum_{k=0}^{2N} \delta_{k \equiv 0 \, (\mathrm{mod}\,2)} \frac{(-1)^{k/2} x^{k-1}}{k!} \\
+&= \frac{1}{2\pi i} \oint_{|z|=1} \frac{1 + z^2}{2z}
+\sum_{k=0}^{2N} \frac{(-1)^{k/2} x^{k-1} z^{-k}}{k!} \, dz \\
+&= \frac{1}{2\pi i} \oint_{|z|=1} \frac{1 + z^2}{2z} \cdot \frac{1}{x}
+\sum_{k=0}^{2N} \frac{(ix/z)^k}{k!} \, dz.
+\end{aligned}
+\]
+
+Here, $\Im(\mathbb{E}(x))$ corresponds to the \textit{phase error} and
+$\Re(\mathbb{E}(x))$ corresponds to the \textit{quantization error}. Extending onto the complex plane requires $T \in \mathbb{C}$, expressed as $a + bi$, where $a$ is the quantization error threshold and $b$ the relative phase error threshold.
+
+\paragraph{Error bounds via alternating series test}
+
+Because $\cos(x)$ is an alternating series, we can use the alternating series error test~\cite{Rudin1976}:
+\[
+\mathbb{E}(x) \approx |\cos(x) - \cos_N(x)|.
+\]
+
+Applying Stirling’s approximation~\cite{StirlingApprox}:
+
+\[
+\mathbb{E}(x) \leq \frac{|x|^{K}}{\sqrt{2\pi K}} \left(\frac{K}{e}\right)^{K},
+\qquad K = \frac{N + 1}{2}.
+\]
