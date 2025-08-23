@@ -137,7 +137,7 @@ Can be used to store effectively $4\times$ less memory $M$ than the full period 
 
 \textbf{Note:} it is important that the recovery method $f \circ \tau(x)$ is relatively efficient / portable to an FPGA \& that the tradeoff between the computational complexity of the recovery method \& the memory gain $M$ is not necessarily linear E.g. $\tau(x) \not\propto M$. A relevant example explored later on \cite{} is the function $\arccos(x)$ which requires the computation of $\sqrt{x + 1}$ on an FPGA in order to do the lookup on the reduced domain $\arccos: [0, \frac{1}{\sqrt{2}}] \to [-1, 1]$ \\
 
-\subsection*{Group-Theoretic Interpretation}
+\subsection{Group-Theoretic Interpretation}
 The set of transformations $T$ can be understood as the action of a \emph{symmetry group} $G$ on the domain $A$. In the sine example, the relevant group is the \emph{dihedral group} $D_4$, which consists of rotations and reflections of a square \cite{armstrong1988groups, gallian2021contemporary}.
 Each $\tau \in T$ corresponds to an element of $D_4$ acting on the domain of $\sin(x)$, with reflections accounting for sign changes and rotations corresponding to translations by $\pi/2$.
 
@@ -149,7 +149,7 @@ In group-theoretic language, the prior example is invariant under the group acti
 \]
 The fundamental domain $A_0$ corresponds to a set of orbit representatives of $G$ acting on $A$, and the recovery method reconstructs the full signal from this reduced domain.
 
-\subsection*{Link to Cyclostationary Signals}
+\subsection{Link to Cyclostationary Signals}
 
 Foldable functions are naturally related to cyclostationarity. A cyclostationary signal $x(t)$ has statistics that are periodic with period $T$.\\
 
@@ -177,7 +177,7 @@ R_f(x, \Delta) = R_f(\tau(x), \Delta), \quad \forall x \in A, \ \tau \in T, \ \t
 \]
 Thus, the fundamental domain \( A_0 \) captures all statistical information of the function \( f \), analogous to how the fundamental domain in cyclostationary signal processing captures the periodic statistical properties of a signal.
 
-\subsection{Procedure to storing arbitrary signals}
+\subsection{Procedure for storing arbitrary signals}
 
 A procedure to \textit{caching} an arbitrary signal $x(t)$ is the following:
 
@@ -199,11 +199,11 @@ Methods for \textit{(1), (2) and (3)}, previously discussed and implemented, are
 
 \section{Synthesizable construction of the recovery method, $T$, for FPGA's}
 
-\subsection*{Efficient FPGA Implementation of \texorpdfstring{$\arccos(x)$}{arccos(x)} Using Quarter-Domain Folding}
+\subsection{Efficient FPGA Implementation of \texorpdfstring{$\arccos(x)$}{arccos(x)} Using 'Quarter'-Domain Folding}
 
 In previous sections, we discussed foldable functions and their use in memory-efficient lookup. In this section, we consider the case of $\arccos(x)$, which initially seems trivial but actually presents valuable insights for efficient computation on hardware.
 
-\subsubsection*{Fundamental Domain Recovery}
+\paragraph{Fundamental Domain Recovery}
 
 The key identity used for recovery from a quarter-domain representation is:
 \begin{align}
@@ -227,7 +227,7 @@ To recover the original polynomial, we add the remaining series:
 T_2 = -4 x^2 + 7x + 15.
 \]
 
-\subsubsection*{Efficient Hardware Computation}
+\paragraph{Efficient Hardware Computation}
 
 Computing the first term:
 \[
@@ -275,7 +275,7 @@ T = T << 1;
 
 \end{verbatim}
 
-\subsubsection*{Resource Analysis and Benefits}
+\paragraph{Resource Analysis and Benefits}
 
 The total cost for this third-order implementation of $\tau(x)$:
 \begin{itemize}
@@ -287,9 +287,145 @@ The total cost for this third-order implementation of $\tau(x)$:
 \paragraph{Advantages:}
 \begin{enumerate}
     \item No transcendental operations in the argument apart from the $\frac{1}{\sqrt{2}}$ multiplier, simplifying quantization.
-    \subitem quantization step can be bypassed to save a clock cycle by computing the $\arccos$ lut values along a non-linear axis I.e. according to the distribution $tau(x)$
+    \begin{itemize}
+    \item Quantization step can be bypassed to save a clock cycle
+    \item Achieved via computing the $\arccos$ lut values along a non-linear axis I.e. according to the distribution $\tau(x)$
+    \end{itemize}
     \item Only a single DSP unit is required for all multiplies if the data width allows single-cycle multiplication.
     \item No additional storage for constants required except for $\frac{1}{\sqrt{2}}$.
     \item The computation is easily pipelined.
     \item Bit-growth is predictable, scaling relative to $\deg(\tau(x))$
 \end{enumerate}
+
+\subsection{Generalizing recovery method construction technique}
+
+\paragraph{General procedure to obtain synthesizable FPGA code, given a known $T$}
+\begin{enumerate}
+	\item For some $\tau(x)$, express $\tau(x)$ with dyadic rational coefficients
+	\item Find a recursive finite factorization of $\mathbb{F}(\tau(x))$
+	\item Find and isolate shared/successive terms in $\mathbb{F}(\tau(x))$ \cite{reference_needed}
+	\item Pipeline and synthesize for target FPGA
+\end{enumerate}
+
+\subsection{Setup: Walsh basis and discrete (dyadic) synthesis}
+
+Let \(\{W_k\}_{k\ge 0}\) denote the Walsh–Paley system on \([0,1)\), an orthonormal basis of \(L^2([0,1))\) \cite{Paley1932,Fine1949,GES1991}.
+For any \(f\in L^2([0,1))\), its Walsh expansion is
+\[
+f(x) \sim \sum_{k=0}^{\infty} \widehat f(k)\, W_k(x),
+\qquad
+\widehat f(k) := \int_0^1 f(t)\,W_k(t)\,dt.
+\]
+
+Fix an integer \(m\ge 1\) and set \(N:=2^m\). Let the dyadic grid be
+\[
+x_j := \frac{j}{N},\quad j=0,1,\dots,N-1.
+\]
+Define the (vector of) samples \(y_j := f(x_j)\).
+The \emph{discrete} Walsh–Hadamard synthesis uses the \(N\times N\) Hadamard matrix \(H_N\) with entries \((H_N)_{k,j} = W_k(x_j)\in\{\pm 1\}\) (Paley ordering).
+Then the length-\(N\) coefficient vector \(c = (c_k)_{k=0}^{N-1}\) is
+\[
+c = \frac{1}{N} H_N\, y,
+\qquad \text{i.e. }
+c_k = \frac{1}{N}\sum_{j=0}^{N-1} y_j\,W_k(x_j).
+\]
+The length-\(N\) partial Walsh sum is the step function
+\[
+S_N(x) := \sum_{k=0}^{N-1} c_k\,W_k(x),
+\]
+which equals the conditional expectation of \(f\) onto the dyadic \(\sigma\)-algebra at scale \(2^{-m}\) (the average of \(f\) on each dyadic subinterval).
+
+\subsection{Forcing dyadic coefficients via dyadic sampling \& quantization}
+
+\paragraph{Step 1 (Dyadic quantizer).}
+Fix \(b\in\mathbb{N}\). Define the dyadic quantizer \(Q_b:\mathbb{R}\to 2^{-b}\mathbb{Z}\) by
+\[
+Q_b(u) := 2^{-b} \,\mathrm{round}(2^b u).
+\]
+Apply \(Q_b\) to the samples:
+\[
+\tilde y_j := Q_b\big(f(x_j)\big) \in 2^{-b}\mathbb{Z}.
+\]
+
+\paragraph{Step 2 (FWHT / discrete coefficients).}
+Compute
+\[
+\tilde c_k := \frac{1}{N}\sum_{j=0}^{N-1} \tilde y_j\, W_k(x_j).
+\]
+Since each \(\tilde y_j\) is a dyadic rational and \(W_k(x_j)\in\{\pm 1\}\), we have
+\[
+\tilde c_k \in 2^{-(b+m)}\mathbb{Z}
+\quad\Rightarrow\quad
+\tilde c_k \ \text{is dyadic},\ \ \forall k.
+\]
+Thus the \emph{quantized discrete Walsh expansion}
+\[
+\tilde S_N(x) := \sum_{k=0}^{N-1} \tilde c_k\, W_k(x)
+\]
+has \emph{dyadic} coefficients and is piecewise constant on dyadic intervals.
+
+\subsection{Worked example: $f(x)=\sin(2\pi x)$}
+
+Take \(f(x)=\sin(2\pi x)\), which has the non-dyadic Fourier series
+\(f(x)=\frac{1}{2i}\big(e^{2\pi i x}-e^{-2\pi i x}\big)\) (coefficients are not dyadic).
+Choose \(m,b\) and define
+\[
+x_j=\frac{j}{2^m},\qquad
+\tilde y_j = Q_b\big(\sin(2\pi x_j)\big).
+\]
+Compute Walsh coefficients
+\[
+\tilde c_k = 2^{-m}\sum_{j=0}^{2^m-1} \tilde y_j\, W_k\!\Big(\frac{j}{2^m}\Big)\in 2^{-(b+m)}\mathbb{Z}.
+\]
+Hence the Walsh approximation \(\tilde S_{2^m}(x)=\sum_{k=0}^{2^m-1}\tilde c_k W_k(x)\) is a \emph{dyadic series} that replaces the non-dyadic trigonometric series.
+
+\subsection*{Error decomposition and guarantees}
+
+Write three errors:
+\[
+\|f-\tilde S_N\|_{L^2}
+\le
+\underbrace{\|f - \mathbb{E}[f\,|\,\mathcal{D}_m]\|_{L^2}}_{\text{dyadic averaging error}}
+\ +\
+\underbrace{\|\mathbb{E}[f\,|\,\mathcal{D}_m]-\mathbb{E}[\tilde f\,|\,\mathcal{D}_m]\|_{L^2}}_{\text{sample quantization}}
+\ +\
+\underbrace{\|\mathbb{E}[\tilde f\,|\,\mathcal{D}_m]-\tilde S_N\|_{L^2}}_{\text{discrete vs. continuous Walsh}},
+\]
+where \(\mathcal{D}_m\) is the dyadic \(\sigma\)-algebra at scale \(2^{-m}\) and \(\tilde f\) is the function matching the quantized samples on grid points and extended piecewise constantly on each dyadic interval.
+
+\begin{itemize}
+\item (\emph{Averaging error})
+\(\mathbb{E}[f\,|\,\mathcal{D}_m]\) is the best \(L^2\)-approximation of \(f\) by functions constant on dyadic intervals.
+As \(m\to\infty\), \(\|f - \mathbb{E}[f\,|\,\mathcal{D}_m]\|_{L^2}\to 0\) (martingale convergence; see \cite[Chs.~1--2]{GES1991}).
+If \(f\) is Lipschitz with constant \(L\), then
+\[
+\|f - \mathbb{E}[f\,|\,\mathcal{D}_m]\|_{L^\infty}\le L\,2^{-m}.
+\]
+
+\item (\emph{Quantization error})
+Since \(|\tilde y_j - y_j|\le 2^{-b-1}\),
+\[
+\|\mathbb{E}[f\,|\,\mathcal{D}_m]-\mathbb{E}[\tilde f\,|\,\mathcal{D}_m]\|_{L^2}
+\ \le\ 2^{-b-1}.
+\]
+
+\item (\emph{Discrete/continuous Walsh match})
+For \(N=2^m\), the rectangle rule over dyadic intervals is \emph{exact} for Walsh atoms \(W_k\) (they are constant on each interval), hence
+\[
+\mathbb{E}[\tilde f\,|\,\mathcal{D}_m](x)
+= \sum_{k=0}^{N-1} \tilde c_k\, W_k(x)
+= \tilde S_N(x),
+\]
+so this term vanishes.
+\end{itemize}
+
+Therefore, with \(N=2^m\),
+\[
+\boxed{
+\ \ \|f-\tilde S_N\|_{L^2}
+\ \le\
+\|f - \mathbb{E}[f\,|\,\mathcal{D}_m]\|_{L^2}
+\ +\ 2^{-b-1},
+\ }
+\]
+and every coefficient \(\tilde c_k\) is dyadic: \(\tilde c_k\in 2^{-(b+m)}\mathbb{Z}\).
