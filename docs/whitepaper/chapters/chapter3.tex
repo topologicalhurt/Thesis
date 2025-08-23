@@ -99,8 +99,7 @@ x(t)\ \text{periodic} \;\implies\; x(t)\ \text{WSC (cyclostationary)}.
 The converse does not hold: cyclostationary signals need not be strictly periodic pointwise.
 For example, an amplitude-modulated process $x(t) = m(t)\cos(2\pi f_c t)$ with random data $m(t)$ can be cyclostationary with period $1/f_c$, while not being pointwise periodic.
 
-
-\section{Using WSC signals to create a cache heirarchy}
+\section{Novel combined CSP, DSP approach to creating FPGA cache heirarchies}
 
 \[
 \text{A function } f: A \to B \text{ is \emph{foldable} iff }
@@ -178,7 +177,7 @@ R_f(x, \Delta) = R_f(\tau(x), \Delta), \quad \forall x \in A, \ \tau \in T, \ \t
 \]
 Thus, the fundamental domain \( A_0 \) captures all statistical information of the function \( f \), analogous to how the fundamental domain in cyclostationary signal processing captures the periodic statistical properties of a signal.
 
-\subsection{LUT generation for arbitrary signals}
+\subsection{Procedure to storing arbitrary signals}
 
 A procedure to \textit{caching} an arbitrary signal $x(t)$ is the following:
 
@@ -197,6 +196,8 @@ A procedure to \textit{caching} an arbitrary signal $x(t)$ is the following:
 \end{enumerate}
 
 Methods for \textit{(1), (2) and (3)}, previously discussed and implemented, are the subject of extensive optimization effort. Steps \textit{(4), (5), and (6)}, however, are considerably more difficult to achieve in practice on a completely unrestricted problem domain. Indeed, this paper focuses on a subset of signal definitions that can be reliably categorized, as well as on certain elementary signals that are relatively commonplace and often appear as components within more stochastic processes.
+
+\section{Synthesizable construction of the recovery method, $T$, for FPGA's}
 
 \subsection*{Efficient FPGA Implementation of \texorpdfstring{$\arccos(x)$}{arccos(x)} Using Quarter-Domain Folding}
 
@@ -233,44 +234,62 @@ Computing the first term:
 T_1 = (x+1)(x^2+x+1)
 \]
 
-\textbf{Note} that the second term $T_2$ can be computed using precomputed values:
+(\textbf{Note} that the second term $T_2$ can be computed using precomputed values)
 \[
-T_2 = -4 x^2 + 7 x + 15 = -(x^2 << 2) + ((x+1) + 1) << 3) - (x+1)
+T_2 = -4 x^2 + 7 x + 15 = -4x^2 + 8x + 16 -(x + 1) = -(x^2 << 2) + ((x+1) + 1) << 3) - (x+1)
 \]
 
-Which can be implemented in \textbf{2 multiplications} and \textbf{2 additions} as follows:
+Which can be implemented as follows:
 
 \begin{verbatim}
-// Clock cycle 1
-t1 = x + 1;
+// Begin computation of tau(x) for arccos(x)
+// arccos in [0, 1/sqrt(2)], Q2.21 format (24 bit data-width)
 
-// Clock cycle 2
+// Clock cycle 1: compute shared terms
+t1 = x + 1;
 x_squared = x * x;
+
+// Clock cycle 2: compute T1
 t1 = t1 * (x_squared + t1);
 
-// Clock cycle 2, concurrent with T1
+// Clock cycle 2: concurrent with T1, compute T2
 t2 = -(x_squared << 2) + ((t1 + 1) << 3) - t1;
 
-result = t1 + t2;
+// Clock cycle 3: add finite-field-factorization correction term, T2, to T1
+tau = t1 + t2;
+
+// Clock cycle 4: right-shift by 4 to get sqrt(x + 1), multiply by 1/sqrt(2) term
+localparam inv_sqrt2_q = ...; // 1/sqrt(2) stored in Q2.21 format
+tau = (tau >> 4) * inv_sqrt2_q;
+\end{verbatim}
+
+\begin{verbatim}
+// Do the other required computations to get T
+
+// Clock cycle 5/6: quantization of tau(x) to indice present in BRAM, LUT lookup
+logic [23:0] T;
+acos_tau_quantize f (.tau(tau), .f(T), .clk(clk));
+
+// Clock cycle 7: final result
+T = T << 1;
+
 \end{verbatim}
 
 \subsubsection*{Resource Analysis and Benefits}
 
-The total cost for this third-order implementation:
+The total cost for this third-order implementation of $\tau(x)$:
 \begin{itemize}
-    \item 2 multiplications (for $T_1$)
-    \item 4 additions/subtractions (2 for $T_1$, 1 for $T_2$, 1 for the final sum)
-    \item 2 bit-shifts and 1 bitwise inversion
+    \item 3 multiplications (1 for shared term, 1 for $T_1$, 1 for multiplication by $\frac{1}{\sqrt{2}}$)
+    \item 6 additions/subtractions (1 for shared term, 1 for $T_1$, 3 for $T_2$, 1 for the final sum)
+    \item 4 bit-shifts and 1 bitwise inversion (sign flip)
 \end{itemize}
 
 \paragraph{Advantages:}
 \begin{enumerate}
     \item No transcendental operations in the argument apart from the $\frac{1}{\sqrt{2}}$ multiplier, simplifying quantization.
-    \item Only a single DSP unit is required if the data width allows single-cycle multiplication.
-    \item No additional storage for constants is needed.
+    \subitem quantization step can be bypassed to save a clock cycle by computing the $\arccos$ lut values along a non-linear axis I.e. according to the distribution $tau(x)$
+    \item Only a single DSP unit is required for all multiplies if the data width allows single-cycle multiplication.
+    \item No additional storage for constants required except for $\frac{1}{\sqrt{2}}$.
     \item The computation is easily pipelined.
-    \item Bit-growth is predictable, scaling relative to the highest degree of the polynomial.
+    \item Bit-growth is predictable, scaling relative to $\deg(\tau(x))$
 \end{enumerate}
-
-\paragraph{Speculative Considerations:}
-The choice of which function to compute directly, $\arcsin$ or $\arccos$, may depend on the order of the Taylor polynomial, since even- and odd-degree terms exhibit different sign structures affecting hardware implementation efficiency. Further research is warranted to identify the optimal strategy for arbitrary polynomial orders.
