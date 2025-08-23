@@ -1,1 +1,57 @@
 \chapter{Literature review}
+
+\section{Dyadicization via Mahler (binomial) expansion on \(\mathbb Z_2\)}
+
+\begin{theorem}[Mahler]
+For any continuous \(f:\mathbb Z_2\to\mathbb Q_2\), there exist unique coefficients
+\(\{a_n\}_{n\ge 0}\subset\mathbb Q_2\) with \(a_n\to 0\) in the \(2\)-adic norm such that
+\[
+f(x)=\sum_{n=0}^{\infty} a_n \binom{x}{n},\qquad
+\binom{x}{n}=\frac{x(x-1)\cdots(x-n+1)}{n!},
+\]
+and the series converges uniformly on \(\mathbb Z_2\).
+Moreover \(a_n=\Delta^n f(0)\) where \(\Delta\) is the forward difference operator.
+\end{theorem}
+
+\begin{proof}[Proof (sketch)]
+See standard expositions in \(p\)-adic analysis. The polynomials \(\binom{x}{n}\) form an orthonormal basis of \(C(\mathbb Z_2,\mathbb Q_2)\) under the sup norm, and Newton–Gregory interpolation yields the coefficients \(a_n\). Uniform convergence follows from \(a_n\to 0\) in \(\mathbb Q_2\).
+\end{proof}
+
+\begin{corollary}[Dyadic evaluation and coefficient truncation]
+Fix \(m\ge 0\) and evaluate the Mahler truncation
+\[
+S_M(x):=\sum_{n=0}^{M} a_n \binom{x}{n}
+\]
+on the dyadic grid \(x=k/2^m\) (\(0\le k\le 2^m\)). Then each \(\binom{k/2^m}{n}\) is a rational with denominator a power of \(2\); hence if the \(a_n\) are chosen in \(\mathbb Q\) with denominators a power of \(2\), every value \(S_M(k/2^m)\) is a dyadic rational. Further, the truncation error satisfies
+\[
+\|f-S_M\|_{\infty,\mathbb Z_2}\le \sup_{n>M} |a_n|_2,
+\]
+so dyadic accuracy is controlled directly by the \(2\)-adic decay of \(a_n\).
+\end{corollary}
+
+\paragraph{Remarks for hardware.}
+(i) The basis \(\binom{x}{n}\) is \emph{integer‑valued} on \(x\in\mathbb Z\), which helps cancellation of odd primes in arithmetic paths.
+(ii) If \(f\) is originally real‑analytic on \([-1,1]\), one may transfer to \(\mathbb Z_2\) by encoding inputs on a dyadic grid and using the same truncated binomial basis; the resulting polynomial has dyadic coefficients after rounding \(a_n\) to a fixed \(2^{-b}\) grid, with an a priori sup‑norm bound inherited from the Mahler tail.
+
+\section{Walsh series: dyadic orthobasis and FPGA friendliness}
+
+Let \(\{r_j\}_{j\ge 0}\) be the Rademacher functions on \([0,1)\), and define the Walsh functions (Paley ordering)
+\[
+W_k(x)=\prod_{j=0}^{\infty} r_j(x)^{k_j},
+\quad k=\sum_{j\ge 0} k_j 2^j,\ k_j\in\{0,1\}.
+\]
+Then \(\{W_k\}_{k\ge 0}\) is a complete orthonormal basis of \(L^2([0,1))\).
+For \(f\in L^2([0,1))\) its Walsh–Fourier series is
+\[
+f(x)\sim \sum_{k=0}^{\infty} \widehat f(k)\,W_k(x),
+\qquad
+\widehat f(k)=\int_0^1 f(t)\,W_k(t)\,dt.
+\]
+\paragraph{Dyadic rationality.} If \(f\) is sampled on a dyadic grid of step \(2^{-m}\) and the integrals are approximated by the exact rectangle rule on Walsh intervals, then each partial sum
+\[
+S_N(x)=\sum_{k=0}^{N-1}\widehat f(k)\,W_k(x)
+\]
+is a dyadic step function when the samples of \(f\) are dyadic rationals (the coefficients \(\widehat f(k)\) become dyadic by construction). Computation uses the fast Walsh–Hadamard transform (FWHT), i.e. a butterfly network of adds/subtracts only.
+
+\paragraph{Convergence and comparison to trigonometric series.}
+Walsh series enjoy completeness and \(L^2\) convergence analogous to Fourier series; uniform convergence holds under standard smoothness or bounded variation hypotheses adapted to dyadic intervals.
