@@ -148,6 +148,7 @@ Options:
   --force              Disregard cache and run install from scratch.
   --extra-dev-tools    Install auxiliary developer tools.
   --privilege-scripts  Apply privileging to script directories.
+  --fast-build         Avoid long build-times by skipping compilation of optional dependencies. E.g submodules distributed as source, use mainline builds etc.
   --help               Show this help message.
 EOF
     exit 0
@@ -162,6 +163,7 @@ while [[ $# -gt 0 ]]; do
         --force) PARAM_FORCE=1; shift;;
         --extra-dev-tools) INSTALL_DEV_TOOLS=1; shift;;
         --privilege-scripts) PRIVILEGE_SCRIPTS=1; shift;;
+        --fast-build) export PYTHON_ENV="python-stable"; shift;;
         --help) help_function;;
         *) help_function;;
     esac

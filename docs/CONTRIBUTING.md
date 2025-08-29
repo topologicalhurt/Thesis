@@ -1,10 +1,36 @@
 # Workflow
 
-This project uses nixOS as a development environment. To activate:
+## Developer
+
+This project uses nixOS as a development environment & dependency manager. To activate:
 
 ```shell
 nix develop
 ```
+
+The project has multiple developer environments avaliable which can be run with:
+```shell
+nix develop [.#python-stable .#python-stable-opt .#python-314 .#python-314-opt]
+```
+
+The default is _python-stable-opt_ which uses the latest stable python3 version w/ PGO.
+Because the default option is a non-mainline build a first time setup will take quite some time to compile.
+
+If you'd rather skip this & just use a pre-built binary do:
+
+```shell
+nix develop .#python-stable
+```
+
+Or if running from ```setup.sh```:
+
+```shell
+./setup.sh --fast-build
+```
+
+> [!TIP]
+> For non-mainline builds of python certain dependencies might fail because they are excluded
+> from the build. Add these to ```python-<version>-blocklist.txt```
 
 # Project structure
 
