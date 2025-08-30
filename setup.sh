@@ -7,7 +7,6 @@ PRIVILEGE_SCRIPTS=0
 
 PWD="$(pwd)"
 
-readonly VENV_DIR="${PWD}/.venv"
 readonly SETUP_CACHE="${PWD}/bin/cache"
 readonly HOOKS_DIR="${PWD}/.github/hooks"
 readonly RTL_SCRIPTS_DIR="${PWD}/Src/Scripts"
@@ -33,10 +32,10 @@ print_logo() {
     art=$(cat <<'EOF'
 ██╗     ██╗      █████╗  ██████╗    ██████╗ ██████╗  ██████╗      ██╗███████╗ ██████╗████████╗
 ██║     ██║     ██╔══██╗██╔════╝    ██╔══██╗██╔══██╗██╔═══██╗     ██║██╔════╝██╔════╝╚══██╔══╝
-██║     ██║     ███████║██║         ██████╔╝██████╔╝██║   ██║     ██║█████╗  ██║        ██║   
-██║     ██║     ██╔══██║██║         ██╔═══╝ ██╔══██╗██║   ██║██   ██║██╔══╝  ██║        ██║   
-███████╗███████╗██║  ██║╚██████╗    ██║     ██║  ██║╚██████╔╝╚█████╔╝███████╗╚██████╗   ██║   
-╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚════╝ ╚══════╝ ╚═════╝   ╚═╝                                                                          
+██║     ██║     ███████║██║         ██████╔╝██████╔╝██║   ██║     ██║█████╗  ██║        ██║
+██║     ██║     ██╔══██║██║         ██╔═══╝ ██╔══██╗██║   ██║██   ██║██╔══╝  ██║        ██║
+███████╗███████╗██║  ██║╚██████╗    ██║     ██║  ██║╚██████╔╝╚█████╔╝███████╗╚██████╗   ██║
+╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚════╝ ╚══════╝ ╚═════╝   ╚═╝
 EOF
 )
 
@@ -197,11 +196,6 @@ grep -q "experimental-features = nix-command flakes" "${NIX_CONFIG_FILE}" 2>/dev
 
 advance_progress
 
-echo "Installing dependencies with Nix..."
-nix develop --command true
-
-advance_progress
-
 privilege_script_dir() {
     local target_dir="$1"
     shift
@@ -221,14 +215,20 @@ privilege_script_dir() {
     done < <(find "${target_dir}" -type f \( "${find_args[@]}" \) -print0)
 }
 
-[[ RAN_LLAC_SETUP_SHELL == 0 || PRIVILEGE_SCRIPTS == 1 ]] && {
+[[ "$RAN_LLAC_SETUP_SHELL" == 0 || "$PRIVILEGE_SCRIPTS" == 1 ]] && {
+    echo "Privileging script directories..."
     privilege_script_dir "${HOOKS_DIR}" "*.sh"
     privilege_script_dir "${RTL_SCRIPTS_DIR}" "*.sh" "*.py"
-    sudo chmod 755 "${HOOKS_DIR}/run_hook.sh"
-    sudo chmod 755 "${PRE_COMMIT_DIR}"
-    sudo chmod 755 "${PRE_PUSH_SCRIPT}"
-    sudo chmod 644 "${PRE_COMMIT_CONFIG_YAML}"
+    [ -e "${HOOKS_DIR}/run_hook.sh" ] && sudo chmod 755 "${HOOKS_DIR}/run_hook.sh"
+    [ -d "${PRE_COMMIT_DIR}" ] && sudo chmod 755 "${PRE_COMMIT_DIR}"
+    [ -e "${PRE_PUSH_SCRIPT}" ] && sudo chmod 755 "${PRE_PUSH_SCRIPT}"
+    [ -e "${PRE_COMMIT_CONFIG_YAML}" ] && sudo chmod 644 "${PRE_COMMIT_CONFIG_YAML}"
 }
+
+advance_progress
+
+echo "Installing dependencies with Nix..."
+nix develop --command true
 
 advance_progress
 
@@ -242,7 +242,7 @@ get_os() {
     esac
 }
 
-(( RAN_LLAC_SETUP_SHELL == 0 )) && {
+[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
     case "$(get_os)" in
         "Linux")
             echo "Targeting Linux distro..."
@@ -264,12 +264,12 @@ clone_submodules() {
     done
 }
 
-[[ ! -d "${PWD}/submodules" || PARAM_FORCE == 1 ]] && {
+[[ ! -d "${PWD}/submodules" || "$PARAM_FORCE" == 1 ]] && {
     git submodule sync --recursive
     git submodule update --init --remote --recursive
     clone_submodules
 
-    (( INSTALL_DEV_TOOLS == 1 )) && {
+    [[ "$INSTALL_DEV_TOOLS" == 1 ]] && {
         echo "Installing Verilator from source..."
         unset VERILATOR_ROOT
         cd "${PWD}/submodules/verilator"
@@ -277,13 +277,13 @@ clone_submodules() {
         ./configure
         make -j "$(nproc)"
         sudo make install
-        cd "-"
+        cd - >/dev/null 2>&1 || true
     }
 }
 
 advance_progress
 
-(( RAN_LLAC_SETUP_SHELL == 0 )) && {
+[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
     git config --add safe.directory "${PWD}"
     git config --add --bool push.autoSetupRemote true
     git config core.hooksPath .github/hooks
@@ -291,22 +291,27 @@ advance_progress
 
 advance_progress
 
-pre-commit clean
+command_exists pre-commit && pre-commit clean || true
 
-(( RAN_LLAC_SETUP_SHELL == 0 )) && {
-    pre-commit install > /dev/null
-    ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${PWD}/.pre-commit-config.yaml" 2>/dev/null
+[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
+    if command_exists pre-commit; then
+        pre-commit install > /dev/null || true
+        ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${PWD}/.pre-commit-config.yaml" 2>/dev/null || true
+    fi
 }
 
 advance_progress
 
-(( RAN_LLAC_SETUP_SHELL == 0 )) && {
+[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
     mkdir -p "${SETUP_CACHE}"
     touch "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE"
 }
 
 advance_progress
 
-deactivate
+# only deactivate if available (avoid command not found when no venv)
+if command -v deactivate >/dev/null 2>&1 || declare -F deactivate >/dev/null 2>&1; then
+    deactivate || true
+fi
 echo "Setup complete"
 exit 0

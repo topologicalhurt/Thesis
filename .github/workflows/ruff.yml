@@ -18,7 +18,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip
         pip3 install ruff
-    - name: Analysing the code with ruff
+    - name: Results
       run: |
-        TARGETS=$(git ls-files '^\b\w+(?<!test)\.py\b$' | grep -v '\.ipynb$')
+        TARGETS=$(git ls-files | grep -oP '.+[^//]\w+\.py$' | grep -v 'test\.py$')
         ruff check $TARGETS --output-format=github

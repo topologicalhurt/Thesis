@@ -6,13 +6,20 @@
 <div align="center">
 
 <a id="logo"></a>
-<img width="738" alt="image" src="https://github.com/topologicalhurt/Thesis/blob/main/docs/imgs/logo.png?raw=true"/>
+<img alt="image" src="https://github.com/topologicalhurt/Thesis/blob/main/docs/resources/imgs/logo.png?raw=true"/>
 
 </div>
 
+# Abstract
+
+Field-programmable gate arrays (FPGAs) offer unprecedented parallelism and low latency for real-time audio processing. However, FPGA toolchains typically perform static compilation and mapping of fixed designs. In practice, audio signals and user-defined module graphs vary over time, presenting an opportunity to predictively reconfigure the FPGA fabric. In this thesis, I propose an operator-theoretic and state-space analysis framework that models DSP modules as dynamical systems, using observables and custom signal correlation metrics to forecast workload and adjust resource allocation. Unlike conventional flows, this approach can anticipate the evolving demands of a modular audio effect chain (including nonlinear modules) and remap kernels (e.g. heavy multipliers or trigonometric units) onto LUTs, DSP slices, or BRAMs in accordance to resource demands. Expected contributions include: (1) an analytical model of audio DSP modules grounded in operator theory (Koopman embeddings) and state-space representations; (2) coherent metrics of signal interaction for resource tuning; and (3) a prototype toolchain enabling runtime FPGA optimization in an accessible form. This work bridges a gap between control-theoretic modeling and FPGA architecture, offering audio engineers and embedded developers a more adaptive FPGA DSP platform that can improve throughput, support complex nonlinear & stochastic audio effects and enable massive real-time parallelisation.
+
+> [!NOTE]
+> This README is not a substitute for the whitepaper / thesis included under ```docs```. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
+
 # Nature of this project
 
-This repository is completely covered by the GPL V3.0 license & thus completely open-source. Everything detailed in this ```README.MD``` and the thesis **![whitepaper](docs/whitepaper/thesis.pdf)** is included within the project including:
+This repository is completely covered by the GPL V3.0 license & thus completely open-source. Everything detailed in this ```README.MD``` and the thesis **![whitepaper](docs/whitepaper/thesis.pdf)** is distributed as part of the open source version of the project while a commercially available implementation is separately maintained [here](<placeholder>).
 
 - Intelligent '_hardware scheduling_' capabilities (see: the **![abstract](#abstract)**)
   - **Dynamic optimisations** Anything at all related to optimising the fabric, including (but not limited to): resource allocation; clocking; rearranging, compositing, modifying signal chains into equivalent constructs; routing. This includes both the RTL & softcore design.
@@ -21,29 +28,21 @@ This repository is completely covered by the GPL V3.0 license & thus completely 
   - **Static architecture** Anything required as part of a barebones description or that could be called bootstrapping the ```whitepaper```. For example, mixing utilities, input demultiplexing, channel routing, kernel management, protocols _etc..._
   - **Xilinx support** Full coverage for the ![supported](#Requirements) Xilinx architectures.
 - Research & documentation
-  - **Theory** Any & all theory behind this project (what makes it tick) under ```Docs```. Note that this is continuously evolving like the rest of the project & not just a rehashing of the whitepaper.
+  - **Theory** Any & all theory behind this project included under ```Docs```.
 
 What is **NOT** included as open-source or as part of this project:
-  - **Presets or functionality for the audio kernels / cores** I.e. think of the dynamically reconfigurable cores (kernels) as an _emulator_ but without a _bios_ supplied.
-    In this case, the '_bios_' is any actual fx or synthesis ability. A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing
-    correctly with the rest of the architecture & implementing primitive operations / hardware calls that make it **possible, convenient & extensible** to leverage actual
-    functionality.
-  - **Some static architecture** I.e. some more advanced mixing, channel routing & CODEC possibilities.
-  - **Inter-product differentiation** Differentiation in the Xilinx product line (like, for example, leveraging URAM on Ultrascale devices to avoid going to DDR)
-  - **Webserver** hosted by the soft-core
-  - **GUI**
-  - **Advanced / \*some\* quality of life functionalities** T.B.D
-  - **Any PCB / design schematics**
+  - **Presets or functionality for the audio kernels / cores** You can think of the dynamically reconfigurable cores (audio kernels) as an _emulator_ that ships without a _bios_ supplied.
+
+    See: "A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing correctly with the rest of the architecture & implementing primitive operations / hardware calls, making it **possible, convenient, robust & extensible** to leverage any actual synthesis capability."
+
+  - **Some static architecture** I.e. some niche mixing, channel routing & CODEC possibilities aren't included
+
+  - **Inter-product differentiation** FPGA product line's are treated unilaterally & device specific optimisations are ignored
+
+Also... **GUI**, **Any PCB / design schematics** & [more](<placeholder>)
 
 > [!IMPORTANT]
 > In other words, if you are looking for a commercially realized version of this project head over to: <placeholder> which is maintained & run as part of a separate commercial endeavour by [@topologicalhurt](https://github.com/topologicalhurt)
-
-# Abstract
-<a id="abstract"></a>
-<img width="738" alt="image" src="https://github.com/user-attachments/assets/5120e3a0-d098-4a57-b702-7936305145d4"/>
-
-> [!NOTE]
-> This README is not a substitute for the whitepaper / thesis included under ```docs```. That is the real 'jumping off' point for the project: it's motivations, it's context, it's design & it's theoretical underpinnings. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
 
 # LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
 

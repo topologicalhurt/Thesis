@@ -10,14 +10,15 @@ repos:
 
       - id: ruff
         name: ruff
-        entry: /bin/bash -c "ruff check --fix $(git ls-files '*.py')"
+        entry: .github/hooks/ruff.sh
         language: script
         pass_filenames: false
+        verbose: true
 
       - id: verilator-lint
         name: verilator-lint
         description: Runs verilator to lint System Verilog designs
-        entry: .github/hooks/pre_commit/verilator.sh
+        entry: .github/hooks/verilator.sh
         language: script
         pass_filenames: false
         verbose: true

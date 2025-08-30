@@ -8,7 +8,7 @@ This project uses nixOS as a development environment & dependency manager. To ac
 nix develop
 ```
 
-The project has multiple developer environments avaliable which can be run with:
+The project has multiple developer environments available which can be run with:
 ```shell
 nix develop [.#python-stable .#python-stable-opt .#python-314 .#python-314-opt]
 ```
