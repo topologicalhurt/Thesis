@@ -2,10 +2,9 @@
 Test module for ICCAD 2004 paper-based polynomial CSE implementation.
 Tests the exact algorithms from the paper: kernel extraction, KCM formation, and optimization.
 """
-
-import numpy as np
 import pytest
 import math
+import numpy as np
 
 from Allocator.Interpreter.polynomial_cse_iccad import (
     MatrixRow,
