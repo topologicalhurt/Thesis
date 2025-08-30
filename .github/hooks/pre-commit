@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-INSTALL_PYTHON="$ROOT/.venv/bin/python3"
+INSTALL_PYTHON="$VENV_DIR/bin/python3"
 ARGS=(hook-impl --config=.pre-commit-config.yaml --hook-type=pre-commit)
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

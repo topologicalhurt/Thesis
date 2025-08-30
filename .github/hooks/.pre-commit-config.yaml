@@ -10,20 +10,21 @@ repos:
 
       - id: ruff
         name: ruff
-        entry: /bin/bash -c "source .venv/bin/activate && ruff check --fix $(git ls-files '*.py')"
+        entry: .github/hooks/ruff.sh
         language: script
         pass_filenames: false
+        verbose: true
 
       - id: verilator-lint
         name: verilator-lint
         description: Runs verilator to lint System Verilog designs
-        entry: .github/hooks/pre_commit/verilator.sh
+        entry: .github/hooks/verilator.sh
         language: script
         pass_filenames: false
         verbose: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
       - id: check-json

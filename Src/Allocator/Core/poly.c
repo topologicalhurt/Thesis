@@ -1,0 +1,43 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+
+static inline double cse_Polynomial_Sin_Deg7(float x) {
+  double xd = (double)x;
+  double z = xd * xd;
+  double t = fma(-1.9841269841269841e-4, z, 8.3333333333333332e-3);
+  t = fma(t, z, -1.6666666666666666e-1);
+  t = fma(t, z, 1.0);
+  return xd * t;
+}
+
+
+static inline double cse_Polynomial_Sin_Deg9(float x) {
+  double xd = (double)x;
+  double z = xd * xd;
+  double t = fma(2.7557319223985893e-06, z, -1.9841269841269841e-4);
+  t = fma(t, z, 8.3333333333333332e-3);
+  t = fma(t, z, -1.6666666666666666e-1);
+  t = fma(t, z, 1.0);
+  return xd * t;
+}
+
+
+static inline double cse_Polynomial_SqrtX1_Deg3(float x) {
+  double xd = (double)x;
+  double t = fma(6.25e-2, xd, -1.25e-1);
+  t = fma(t, xd, 5.0e-1);
+  t = fma(t, xd, 1.0);
+  return t;
+}
+
+
+static inline double cse_Polynomial_Cos_Deg6(float x) {
+  double xd = (double)x;
+  double z = xd * xd;
+  double t = fma(-1.3888888888888889e-3, z, 4.1666666666666664e-2);
+  t = fma(t, z, -5.0e-1);
+  t = fma(t, z, 1.0);
+  return t;
+}

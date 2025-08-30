@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
     - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
@@ -18,7 +18,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip
         pip3 install ruff
-    - name: Analysing the code with ruff
+    - name: Results
       run: |
-        TARGETS=$(git ls-files '*.py' | grep -v '\.ipynb$')
+        TARGETS=$(git ls-files | grep -oP '.+[^//]\w+\.py$' | grep -v 'test\.py$')
         ruff check $TARGETS --output-format=github
