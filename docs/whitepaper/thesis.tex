@@ -1,0 +1,71 @@
+%------------------------ Preamble and bibliography resources
+\documentclass[12pt,oneside]{book}
+\input{frontmatter/preamble}
+\usepackage{style/title}[PhD]
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amsthm}
+\usepackage{thmtools}
+
+\DeclareMathOperator{\sgn}{sgn}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+
+%\makenomenclature
+
+\addbibresource{bibliography.bib}
+
+%------------------------ Main Document --------------------------
+\begin{document}
+
+	%-------------- Information For The Title Page
+	\title{FPGA based Hardware Scheduling approach for optimising DSP pipelines}
+	\author{Connor Sinclair}
+	\date{2025}
+	\degree{Bachelor of Software Engineering (Hons.)}
+	\supervisor[1]{Dr. Philip Leong}
+	\school{Engineering}
+
+	%-------------- Front Matter
+	\frontmatter
+	\maketitle
+	\declaration
+
+	\include{frontmatter/abstract}
+	\include{frontmatter/acknowledgments}
+
+	%-------------- Table of contents
+	\cleardoublepage
+	\phantomsection \pdfbookmark[0]{Contents}{Contents}
+	\tableofcontents
+	\addcontentsline{toc}{chapter}{\listfigurename}
+	\listoffigures
+	\addcontentsline{toc}{chapter}{\listtablename}
+	\listoftables
+
+	%\include{frontmatter/nomenclature}
+	%\printnomenclature
+
+	%-------------- Chapters
+	\cleardoublepage
+	\mainmatter
+	\include{chapters/chapter1}
+	\include{chapters/chapter2}
+	\include{chapters/chapter3}
+	\include{chapters/chapter4}
+	\include{chapters/chapter5}
+
+	%-------------- Appendices
+	\cleardoublepage
+	\appendix
+	\include{appendices/appendix1}
+
+	%-------------- Bibliography
+	\cleardoublepage
+	\phantomsection
+	\addcontentsline{toc}{chapter}{Bibliography}
+	\printbibliography
+
+\end{document}
