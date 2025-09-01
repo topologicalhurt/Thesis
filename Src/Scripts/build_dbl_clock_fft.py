@@ -29,6 +29,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
+import shutil
 import subprocess
 import sys
 
@@ -55,8 +56,9 @@ def main():
 
         # Go to the directory and run make
         print(f'Attempting to build {target_make_path}...')
+        make_exe = shutil.which('make')
         result = subprocess.run(
-            ['make'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, cwd=target_make_path
+            [make_exe], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, cwd=target_make_path
         )
         print('--- Build Output ---')
         print(result.stdout)
