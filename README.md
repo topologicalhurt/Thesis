@@ -17,45 +17,6 @@ Field-programmable gate arrays (FPGAs) offer unprecedented parallelism and low l
 > [!NOTE]
 > This README is not a substitute for the whitepaper / thesis included under ```docs```. This is more of a 'lax' / casual description of how the project is structured and what someone can expect from it.
 
-# Nature of this project
-
-This repository is completely covered by the GPL V3.0 license & thus completely open-source. Everything detailed in this ```README.MD``` and the thesis **![whitepaper](docs/whitepaper/thesis.pdf)** is distributed as part of the open source version of the project while a commercially available implementation is separately maintained [here](<placeholder>).
-
-- Intelligent '_hardware scheduling_' capabilities (see: the **![abstract](#abstract)**)
-  - **Dynamic optimisations** Anything at all related to optimising the fabric, including (but not limited to): resource allocation; clocking; rearranging, compositing, modifying signal chains into equivalent constructs; routing. This includes both the RTL & softcore design.
-  - **Soft-core analysis / algorithms** Anything responsible for managing the fabric & indicating where optimisations are possible, interfacing with vendor software, running scripts, compiling modules _etc..._ Essentially, anything required to be run on a soft-core that the fabric is contingent upon
-- System architecture
-  - **Static architecture** Anything required as part of a barebones description or that could be called bootstrapping the ```whitepaper```. For example, mixing utilities, input demultiplexing, channel routing, kernel management, protocols _etc..._
-  - **Xilinx support** Full coverage for the ![supported](#Requirements) Xilinx architectures.
-- Research & documentation
-  - **Theory** Any & all theory behind this project included under ```Docs```.
-
-What is **NOT** included as open-source or as part of this project:
-  - **Presets or functionality for the audio kernels / cores** You can think of the dynamically reconfigurable cores (audio kernels) as an _emulator_ that ships without a _bios_ supplied.
-
-    See: "A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing correctly with the rest of the architecture & implementing primitive operations / hardware calls, making it **possible, convenient, robust & extensible** to leverage any actual synthesis capability."
-
-  - **Some static architecture** I.e. some niche mixing, channel routing & CODEC possibilities aren't included
-
-  - **Inter-product differentiation** FPGA product line's are treated unilaterally & device specific optimisations are ignored
-
-Also... **GUI**, **Any PCB / design schematics** & [more](<placeholder>)
-
-> [!IMPORTANT]
-> In other words, if you are looking for a commercially realized version of this project head over to: <placeholder> which is maintained & run as part of a separate commercial endeavour by [@topologicalhurt](https://github.com/topologicalhurt)
-
-# LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
-
-LLAC started as a research project for low-latency user defined audio cores. It targets the AMD [Xilinx](https://github.com/xilinx) platform, specifically the [PYNQ](https://github.com/Xilinx/PYNQ) platform. The project has the following goals:
-
-1. **Allow for highly parallel FX, synthesis, mixing, filtering possibilities etc...** should exploit superior multi-channel processing capabilities offered by FPGA's
-2. **Minimise the resource & time intensiveness of [kernels](#Kernels) as much as possible** (but not to the detriment of fidelity unless otherwise specified)
-3. **Minimise latency, maximise throughput of kernels as much as possible**
-4. **Emulate modern audio synthesis hardware as much as possible** (specifically, in regard to the fact that the analogue characteristics of kernel's should be as close to their hardware siblings as possible - just in the form of a low-level RTL system rather than an ASIC or Soft Core.)
-5. **Allow for extensible IO options**
-6. **Allow for the platform to be user-configurable, with low-barrier to entry** in a way not offered by un-extensible, non-reusable & non-configurable platforms.
-7. **Allow for the design to be as predictive as possible, and as un-reactive as possible**
-
 ## Install
 
 The ```setup.sh``` script is designed as a 'one-shot' method to install all needed dependencies, with full-support for the docker & NIX os.
@@ -75,6 +36,42 @@ curl -L https://raw.githubusercontent.com/topologicalhurt/Thesis/main/setup.sh |
 ## Using the docker
 
 Run the docker with ```docker compose up```
+
+# Nature of this project
+
+This repository is completely covered by the GPL V3.0 license & thus completely open-source. Everything detailed in this ```README.MD``` and the thesis **![whitepaper](docs/whitepaper/thesis.pdf)** is distributed as part of the open source version of the project while a commercially available implementation is separately maintained [here](<placeholder>).
+
+You can think of the dynamically reconfigurable cores (audio kernels) as an _emulator_ that ships without a _bios_ supplied.
+
+    See: "A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing correctly with the rest of the architecture & implementing primitive operations / hardware calls, making it **possible, convenient, robust & extensible** to leverage any actual synthesis capability."
+
+See the full feature diff between this repo & the commercially maintained version of the project [here](<placeholder>)
+
+## What this repo has:
+
+- Intelligent '_hardware scheduling_' capabilities (see: the **![abstract](#abstract)**)
+  - **Dynamic optimisations** Anything at all related to optimising the fabric, including (but not limited to): resource allocation; clocking; rearranging, compositing, modifying signal chains into equivalent constructs; routing. This includes both the RTL & softcore design.
+  - **Soft-core analysis / algorithms** Anything responsible for managing the fabric & indicating where optimisations are possible, interfacing with vendor software, running scripts, compiling modules _etc..._ Essentially, anything required to be run on a soft-core that the fabric is contingent upon
+- System architecture
+  - **Static architecture** Anything required as part of a barebones description or that could be called bootstrapping the ```whitepaper```. For example, mixing utilities, input demultiplexing, channel routing, kernel management, protocols _etc..._
+  - **Xilinx support** Full coverage for the ![supported](#Requirements) Xilinx architectures.
+- Research & documentation
+  - **Theory** Any & all theory behind this project included under ```Docs```.
+
+> [!IMPORTANT]
+> In other words, if you are looking for a commercially realized version of this project head over to: <placeholder> which is maintained & run as part of a separate commercial endeavour by [@topologicalhurt](https://github.com/topologicalhurt)
+
+# LLAC (Low Latency Audio Core dynamic allocator, platform & architecture for FPGA's)
+
+LLAC started as a research project for low-latency user defined audio cores. It targets the AMD [Xilinx](https://github.com/xilinx) platform, specifically the [PYNQ](https://github.com/Xilinx/PYNQ) platform. The project has the following goals:
+
+1. **Allow for highly parallel FX, synthesis, mixing, filtering possibilities etc...** should exploit superior multi-channel processing capabilities offered by FPGA's
+2. **Minimise the resource & time intensiveness of [kernels](#Kernels) as much as possible** (but not to the detriment of fidelity unless otherwise specified)
+3. **Minimise latency, maximise throughput of kernels as much as possible**
+4. **Emulate modern audio synthesis hardware as much as possible** (specifically, in regard to the fact that the analogue characteristics of kernel's should be as close to their hardware siblings as possible - just in the form of a low-level RTL system rather than an ASIC or Soft Core.)
+5. **Allow for extensible IO options**
+6. **Allow for the platform to be user-configurable, with low-barrier to entry** in a way not offered by un-extensible, non-reusable & non-configurable platforms.
+7. **Allow for the design to be as predictive as possible, and as un-reactive as possible**
 
 ## FPGA based system architecture overview
 ___
