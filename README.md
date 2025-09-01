@@ -43,17 +43,18 @@ This repository is completely covered by the GPL V3.0 license & thus completely 
 
 You can think of the dynamically reconfigurable cores (audio kernels) as an _emulator_ that ships without a _bios_ supplied.
 
-    See: "A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing correctly with the rest of the architecture & implementing primitive operations / hardware calls, making it **possible, convenient, robust & extensible** to leverage any actual synthesis capability."
+**See**: 
+> "A kernel is purely a _processing abstraction_ which can be programmed & uploaded to the fabric, interfacing correctly with the rest of the architecture & implementing primitive operations / hardware calls, making it **possible, convenient, robust & extensible** to leverage any actual synthesis capability."
 
 See the full feature diff between this repo & the commercially maintained version of the project [here](<placeholder>)
 
-## What this repo has:
+## What this repo contains:
 
-- Intelligent '_hardware scheduling_' capabilities (see: the **![abstract](#abstract)**)
-  - **Dynamic optimisations** Anything at all related to optimising the fabric, including (but not limited to): resource allocation; clocking; rearranging, compositing, modifying signal chains into equivalent constructs; routing. This includes both the RTL & softcore design.
-  - **Soft-core analysis / algorithms** Anything responsible for managing the fabric & indicating where optimisations are possible, interfacing with vendor software, running scripts, compiling modules _etc..._ Essentially, anything required to be run on a soft-core that the fabric is contingent upon
+- Intelligent <mark>hardware scheduling</mark> capabilities:
+  - **Dynamic optimisations** Anything at all related to optimising the fabric, including (but not limited to): _intelligent resource allocation; rearranging, compositing, modifying signal chains into equivalent constructs; routing._
+  - **Off-fabric analysis / algorithms** Anything responsible for managing, analyzing or making inferences about the fabric, including (but not limited to): _algorithms for load balancing; reflections / dynamically generated code (RTL or otherwise); interfacing with vendor software; running scripts; compiling modules; servicing interrupts & decoding information from AXI or DMA_
 - System architecture
-  - **Static architecture** Anything required as part of a barebones description or that could be called bootstrapping the ```whitepaper```. For example, mixing utilities, input demultiplexing, channel routing, kernel management, protocols _etc..._
+  - **Static architecture** Anything yet unmentioned that could be called bootstrapping the ```whitepaper``` to achieve a barebones demo. For example: _basic codecs; mixing utilities; input demultiplexing; channel routing; audio protocols _etc..._
   - **Xilinx support** Full coverage for the ![supported](#Requirements) Xilinx architectures.
 - Research & documentation
   - **Theory** Any & all theory behind this project included under ```Docs```.
