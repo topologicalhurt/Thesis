@@ -9,8 +9,8 @@ import numpy as np
 
 from operator import itemgetter
 from dataclasses import dataclass
+from typing import assert_never
 from collections.abc import Sequence, Set
-from enum import Enum
 from Allocator.Interpreter.extendedenum import ExtendedEnum
 
 from Allocator.Interpreter.helpers import join_regex
@@ -43,12 +43,12 @@ class CodeTarget(ExtendedEnum):
     - SV: Emit SystemVerilog (stub for now).
     """
 
-    PYTHON = "python"
-    C = "c"
-    SV = "sv"
-    
+    PYTHON = 'python'
+    C = 'c'
+    SV = 'sv'
+
     @classmethod
-    def coerce(cls, target: "CodeTarget | str") -> "CodeTarget":
+    def coerce(cls, target: 'CodeTarget | str') -> 'CodeTarget':
         """Accept Enum or string (case-insensitive) and return a CodeTarget; default PYTHON."""
         if isinstance(target, cls):
             return target
@@ -71,18 +71,18 @@ class EvalScheme(ExtendedEnum):
         HORNER/ESTRIN/even-odd factoring.
     """
 
-    PAPER = "paper"
-    HORNER = "horner"
-    ESTRIN = "estrin"
-    AUTO = "auto"
-    
+    PAPER = 'paper'
+    HORNER = 'horner'
+    ESTRIN = 'estrin'
+    AUTO = 'auto'
+
     @classmethod
-    def coerce(cls, scheme: "EvalScheme | str") -> "EvalScheme":
+    def coerce(cls, scheme: 'EvalScheme | str') -> 'EvalScheme':
         """Accept Enum or string (including aliases ICCAD/KCM) and return EvalScheme; default AUTO."""
         if isinstance(scheme, cls):
             return scheme
         s = str(scheme).upper()
-        alias = {"ICCAD": "PAPER", "KCM": "PAPER"}
+        alias = {'ICCAD': 'PAPER', 'KCM': 'PAPER'}
         s = alias.get(s, s)
         if s in cls:
             return cls.get_member_via_name(s)
@@ -95,16 +95,13 @@ class CoefStyle(ExtendedEnum):
     Members:
     - C_INDEX: Use c1..cN (descending power order) that map to coefs[0..N-1].
     - S_POWER: Use S{power} symbols (signed), mapped to the coefficient of x^power.
-    - S_POWER_ABS: Like S_POWER but S{power} refers to |coefficient|; signs are
-        explicitly injected in the generated expressions (useful for PAPER style).
     """
 
-    C_INDEX = "c_index"
-    S_POWER = "s_power"
-    S_POWER_ABS = "s_power_abs"
-    
+    C_INDEX = 'c_index'
+    S_POWER = 's_power'
+
     @classmethod
-    def coerce(cls, style: "CoefStyle | str") -> "CoefStyle":
+    def coerce(cls, style: 'CoefStyle | str') -> 'CoefStyle':
         """Accept Enum or string and return CoefStyle; default C_INDEX."""
         if isinstance(style, cls):
             return style
@@ -382,7 +379,7 @@ class ICCADOptimizer:
             M.add_term(1 if c > 0 else -1, exp, term_id=i)
         return M
 
-    def optimize_polynomial_univariate(self, coeffs: Sequence[float], var_name: str = 'x', scheme: "EvalScheme | str" = EvalScheme.PAPER) -> tuple[list[str], dict[str, float]]:
+    def optimize_polynomial_univariate(self, coeffs: Sequence[float], var_name: str = 'x', scheme: 'EvalScheme | str' = EvalScheme.PAPER) -> tuple[list[str], dict[str, float]]:
         """Generate straight-line evaluation code.
 
         scheme:
@@ -634,44 +631,49 @@ class ICCADOptimizer:
                          assign_coefs: bool = False,
                          coef_style: CoefStyle | str = CoefStyle.C_INDEX,
                          embed_coefs: Sequence[float] | None = None,
-                         coefs_var_name: str = "COEFS") -> str:
+                         coefs_var_name: str = 'COEFS') -> str:
         """Emit Python code for the polynomial evaluator."""
         deg = n_coefs - 1
         style = CoefStyle.coerce(coef_style)
 
         header: list[str] = []
         if embed_coefs is not None:
-            # Pre-abs if ABS style to avoid runtime cost
-            ec = [float(abs(c)) for c in embed_coefs] if style is CoefStyle.S_POWER_ABS else [float(c) for c in embed_coefs]
-            header.append(f"{coefs_var_name} = np.array([" + ", ".join(f"{v:.17g}" for v in ec) + "], dtype=np.float64)")
+            ec = [float(c) for c in embed_coefs]
+            header.append(f"{coefs_var_name} = np.array([" + ', '.join(f"{v:.17g}" for v in ec) + '], dtype=np.float64)')
 
         lines = header + [f"def optimized_polynomial_deg{deg}(x: np.floating) -> np.floating:"]
 
         if assign_coefs:
-            src_name = coefs_var_name if embed_coefs is not None else "coefs"
-            if style is CoefStyle.S_POWER or style is CoefStyle.S_POWER_ABS:
+            src_name = coefs_var_name if embed_coefs is not None else 'coefs'
+            if style is CoefStyle.S_POWER:
                 for i in range(n_coefs):
                     p = deg - i
                     lines.append(f"S{p} = {src_name}[{i}]")
-            else:
+            elif style is CoefStyle.C_INDEX:
                 for i in range(n_coefs):
                     lines.append(f"c{i+1} = {src_name}[{i}]")
+            else:
+                assert_never(style)
+
             lines.append('')
         else:
             # Inline replace tokens using embedded array (if present)
             text = '\n'.join(body_lines)
-            src_name = coefs_var_name if embed_coefs is not None else "coefs"
+            src_name = coefs_var_name if embed_coefs is not None else 'coefs'
             if style is CoefStyle.C_INDEX:
                 def repl_c(m: re.Match) -> str:
                     idx = int(m.group(1)) - 1
                     return f"{src_name}[{idx}]"
                 text = re.sub(r'\bc(\d+)\b', repl_c, text)
-            else:
+            elif style is CoefStyle.S_POWER:
                 def repl_s(m: re.Match) -> str:
                     p = int(m.group(1))
-                    i = deg - p
-                    return f"{src_name}[{i}]"
+                    idx = deg - p
+                    return f"{src_name}[{idx}]"
                 text = re.sub(r'\bS(\d+)\b', repl_s, text)
+            else:
+                assert_never(style)
+
             body_lines = text.split('\n')
 
         lines.extend(body_lines)
@@ -682,68 +684,50 @@ class ICCADOptimizer:
                          assign_coefs: bool = False,
                          coef_style: CoefStyle | str = CoefStyle.C_INDEX,
                          embed_coefs: Sequence[float] | None = None) -> str:
-        """Emit C code for the polynomial evaluator (static inline function).
-
-        Uses fabs() for S_POWER_ABS when not pre-absorbed at embed time.
-        """
+        """Emit C code for the polynomial evaluator (static inline function)."""
         deg = n_coefs - 1
         style = CoefStyle.coerce(coef_style)
 
         # Prepare body text with replacements or variable assignments
         c_prelude: list[str] = []
-        need_fabs = (style is CoefStyle.S_POWER_ABS)
 
         # If embedding coefs for C, define a static const array inside the function
         if embed_coefs is not None:
-            ec = [float(abs(c)) for c in embed_coefs] if style is CoefStyle.S_POWER_ABS else [float(c) for c in embed_coefs]
+            ec = [float(c) for c in embed_coefs]
             c_prelude.append(
-                "  static const double coefs[" + str(n_coefs) + "] = { " + ", ".join(f"{v:.17g}" for v in ec) + " };"
+                '  static const double coefs[' + str(n_coefs) + '] = { ' + ', '.join(f"{v:.17g}" for v in ec) + ' };'
             )
-            # We no longer need fabs if ABS handled at embed time
-            if style is CoefStyle.S_POWER_ABS:
-                need_fabs = False
 
         # Decide coefficient materialization strategy
         if assign_coefs:
             if style is CoefStyle.C_INDEX:
                 for i in range(n_coefs):
                     c_prelude.append(f"  const double c{i+1} = coefs[{i}];")
-            elif style is CoefStyle.S_POWER_ABS:
-                if embed_coefs is not None:
-                    for i in range(n_coefs):
-                        p = deg - i
-                        c_prelude.append(f"  const double S{p} = coefs[{i}];")
-                else:
-                    need_fabs = True
-                    for i in range(n_coefs):
-                        p = deg - i
-                        c_prelude.append(f"  const double S{p} = fabs(coefs[{i}]);")
-            else:  # S_POWER signed
+            elif style is CoefStyle.S_POWER:  # S_POWER signed
                 for i in range(n_coefs):
                     p = deg - i
                     c_prelude.append(f"  const double S{p} = coefs[{i}];")
+            else:
+                assert_never(style)
+
             c_body_lines = list(body_lines)
         else:
             # Inline replace tokens directly with coefs[...] (and fabs for ABS)
             text = '\n'.join(body_lines)
             if style is CoefStyle.C_INDEX:
-                def repl_c2(m: re.Match) -> str:
+                def repl_c(m: re.Match) -> str:
                     idx = int(m.group(1)) - 1
                     return f"coefs[{idx}]"
-                text = re.sub(r'\bc(\d+)\b', repl_c2, text)
-            elif style is CoefStyle.S_POWER_ABS:
-                need_fabs = True
-                def repl_s2(m: re.Match) -> str:
+                text = re.sub(r'\bc(\d+)\b', repl_c, text)
+            elif style is CoefStyle.S_POWER:
+                def repl_s(m: re.Match) -> str:
                     p = int(m.group(1))
-                    i = deg - p
-                    return f"fabs(coefs[{i}])"
-                text = re.sub(r'\bS(\d+)\b', repl_s2, text)
+                    idx = deg - p
+                    return f"coefs[{idx}]"
+                text = re.sub(r'\bS(\d+)\b', repl_s, text)
             else:
-                def repl_s3(m: re.Match) -> str:
-                    p = int(m.group(1))
-                    i = deg - p
-                    return f"coefs[{i}]"
-                text = re.sub(r'\bS(\d+)\b', repl_s3, text)
+                assert_never(style)
+
             c_body_lines = text.split('\n')
 
         # Collect temporaries to declare (lhs vars in assignments other than y)
@@ -755,32 +739,32 @@ class ICCADOptimizer:
                     temps.append(lhs)
 
         # Build C function
-        includes = ["#include <stddef.h>"] + (["#include <math.h>"] if need_fabs else [])
+        includes = ['#include <stddef.h>', '#include <math.h>']
         header = [
             *includes,
             f"static inline double optimized_polynomial_deg{deg}(double x) {{"
         ]
         decls = [f"  double {v};" for v in temps]
-        decls.append("  double y;")
+        decls.append('  double y;')
 
         body = [f"  {ln};" if not ln.strip().endswith(';') else f"  {ln}" for ln in c_body_lines]
-        footer = ["  return y;", "}"]
+        footer = ['  return y;', '}']
 
-        return '\n'.join(header + (["\n".join(c_prelude)] if c_prelude else []) + decls + body + footer)
+        return '\n'.join(header + (['\n'.join(c_prelude)] if c_prelude else []) + decls + body + footer)
 
     def generate_sv_code(self, body_lines: list[str], n_coefs: int,
                          assign_coefs: bool = False,
                          coef_style: CoefStyle | str = CoefStyle.C_INDEX,
                          embed_coefs: Sequence[float] | None = None) -> str:
         """Emit SystemVerilog code (stub)."""
-        return ""
+        return ''
 
     def generate_code(self, body_lines: list[str], n_coefs: int,
                       assign_coefs: bool = False,
                       coef_style: CoefStyle | str = CoefStyle.C_INDEX,
                       target: CodeTarget | str = CodeTarget.PYTHON,
                       embed_coefs: Sequence[float] | None = None,
-                      coefs_var_name: str = "COEFS") -> str:
+                      coefs_var_name: str = 'COEFS') -> str:
         """Dispatch to the appropriate code generator based on CodeTarget enum.
 
         coef_style: see CoefStyle for options and semantics.
@@ -790,12 +774,12 @@ class ICCADOptimizer:
             return self.generate_py_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs, coefs_var_name)
         if tgt is CodeTarget.C:
             return self.generate_c_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
-        
+
         # SV or default
         return self.generate_sv_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
 
 
-def optimize_polynomial_iccad(poly: np.poly1d, var_name: str = 'x', scheme: "EvalScheme | str" = EvalScheme.PAPER) -> tuple[str, dict]:
+def optimize_polynomial_iccad(poly: np.poly1d, var_name: str = 'x', scheme: 'EvalScheme | str' = EvalScheme.PAPER) -> tuple[str, dict]:
     """Public API: generate code for a univariate polynomial using a scheme.
 
     Currently emits C by default with embedded coefficients for maximum performance.
@@ -805,7 +789,7 @@ def optimize_polynomial_iccad(poly: np.poly1d, var_name: str = 'x', scheme: "Eva
     code_lines, _ = opt.optimize_polynomial_univariate(poly.coefficients.tolist(), var_name=var_name, scheme=eval_scheme)
     n = len(poly.coefficients.tolist())
     # Select coefficient style based on scheme
-    coef_style = (CoefStyle.S_POWER_ABS
+    coef_style = (CoefStyle.S_POWER
                   if eval_scheme is EvalScheme.PAPER
                   else CoefStyle.C_INDEX)
     code = opt.generate_code(code_lines, n_coefs=n, assign_coefs=False, coef_style=coef_style, target=CodeTarget.C, embed_coefs=poly.coefficients.tolist())
