@@ -7,6 +7,7 @@ def load_libs(libs: list[str]) -> list[ctypes.CDLL]:
     here = Path(__file__).parent
     loaded_libs = []
     for candidate in libs:
+
         # Try loading from build path first, then system path
         build_path = here / 'build' / candidate
         if build_path.exists():
@@ -16,8 +17,9 @@ def load_libs(libs: list[str]) -> list[ctypes.CDLL]:
                 pass
             finally:
                 continue
+
         try:
-            loaded_libs.append(ctypes.CDLL(candidate))
+            loaded_libs.append(ctypes.CDLL(str(candidate)))
         except OSError:
             pass
 

@@ -9,6 +9,7 @@ from .polywrap import (
     poly_sin_deg9,
     poly_sqrtx1_deg3,
     poly_cos_deg6,
+    poly_cos_deg12,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     'poly_sin_deg9',
     'poly_sqrtx1_deg3',
     'poly_cos_deg6',
+    'poly_cos_deg12',
 ]

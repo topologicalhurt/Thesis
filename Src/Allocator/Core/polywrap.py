@@ -14,17 +14,17 @@ _libs = load_libs(['libpoly.so'])
 _lib = _libs[0]
 
 # Define signatures
-_lib.poly_sin_deg7.argtypes = [c_float]
-_lib.poly_sin_deg7.restype = c_double
-
-_lib.poly_sin_deg9.argtypes = [c_float]
-_lib.poly_sin_deg9.restype = c_double
-
-_lib.poly_sqrtx1_deg3.argtypes = [c_float]
-_lib.poly_sqrtx1_deg3.restype = c_double
-
-_lib.poly_cos_deg6.argtypes = [c_float]
-_lib.poly_cos_deg6.restype = c_double
+_FUNC_NAMES = [
+    'poly_sin_deg7',
+    'poly_sin_deg9',
+    'poly_cos_deg12',
+    'poly_sqrtx1_deg3',
+    'poly_cos_deg6',
+]
+for _name in _FUNC_NAMES:
+    _fn = getattr(_lib, _name)
+    _fn.argtypes = [c_float]
+    _fn.restype = c_double
 
 
 def poly_sin_deg7(x: float) -> float:
@@ -43,9 +43,14 @@ def poly_cos_deg6(x: float) -> float:
     return float(_lib.poly_cos_deg6(c_float(x)))
 
 
+def poly_cos_deg12(x: float) -> float:
+    return float(_lib.poly_cos_deg12(c_float(x)))
+
+
 __all__ = [
     'poly_sin_deg7',
     'poly_sin_deg9',
     'poly_sqrtx1_deg3',
     'poly_cos_deg6',
+    'poly_cos_deg12',
 ]
