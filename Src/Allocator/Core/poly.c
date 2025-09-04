@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "poly.h"
 
 
 static inline double cse_Polynomial_Sin_Deg7(float x) {
@@ -41,3 +42,10 @@ static inline double cse_Polynomial_Cos_Deg6(float x) {
   t = fma(t, z, 1.0);
   return t;
 }
+
+
+// For ctypes/cffi usage.
+double poly_sin_deg7(float x) { return cse_Polynomial_Sin_Deg7(x); }
+double poly_sin_deg9(float x) { return cse_Polynomial_Sin_Deg9(x); }
+double poly_sqrtx1_deg3(float x) { return cse_Polynomial_SqrtX1_Deg3(x); }
+double poly_cos_deg6(float x) { return cse_Polynomial_Cos_Deg6(x); }
