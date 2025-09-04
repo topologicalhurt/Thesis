@@ -5,7 +5,8 @@ from Allocator.Core import (
     poly_sin_deg7,
     poly_sin_deg9,
     poly_sqrtx1_deg3,
-    poly_cos_deg6
+    poly_cos_deg6,
+    poly_cos_deg12,
 )
 
 
@@ -62,9 +63,24 @@ if __name__ == '__main__':
     print(code5)
     print(stats5)
 
+    # Example 6: cos(x) taylor series degree 12
+    p_cos_d12 = np.poly1d([
+        1.0/factorial(12), 0.0,
+        -1.0/factorial(10), 0.0,
+         1.0/factorial(8), 0.0,
+        -1.0/factorial(6), 0.0,
+         1.0/factorial(4), 0.0,
+         -1.0/2, 0.0,
+         1.0
+    ])
+    code6, stats6 = optimize_polynomial_iccad(p_cos_d12)
+    print(code6)
+    print(stats6)
+
     # Verify against ctypes bindings
     print('\n[*] Printing results... [*]')
     print(f'sin_deg7: {poly_sin_deg7(np.pi / 4)}')
     print(f'sin_deg9: {poly_sin_deg9(np.pi / 4)}')
     print(f'sqrtx1_deg3: {poly_sqrtx1_deg3(-0.5)}')
     print(f'cos_deg6: {poly_cos_deg6(np.pi / 4)}')
+    print(f'cos_deg12: {poly_cos_deg12(np.pi / 4)}')

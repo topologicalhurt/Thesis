@@ -44,8 +44,22 @@ static inline double cse_Polynomial_Cos_Deg6(float x) {
 }
 
 
+static inline double cse_Polynomial_Cos_Deg12(float x) {
+  double xd = (double)x;
+  double z = xd * xd;
+  double t = fma(2.08767569878681e-09, z, -2.7557319223985888e-07);
+  t = fma(t, z, 2.4801587301587302e-05);
+  t = fma(t, z, -1.3888888888888889e-03);
+  t = fma(t, z, 4.1666666666666664e-02);
+  t = fma(t, z, -5.0e-1);
+  t = fma(t, z, 1.0);
+  return t;
+}
+
+
 // For ctypes/cffi usage.
 double poly_sin_deg7(float x) { return cse_Polynomial_Sin_Deg7(x); }
 double poly_sin_deg9(float x) { return cse_Polynomial_Sin_Deg9(x); }
 double poly_sqrtx1_deg3(float x) { return cse_Polynomial_SqrtX1_Deg3(x); }
 double poly_cos_deg6(float x) { return cse_Polynomial_Cos_Deg6(x); }
+double poly_cos_deg12(float x) { return cse_Polynomial_Cos_Deg12(x); }
