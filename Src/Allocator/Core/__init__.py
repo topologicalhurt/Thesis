@@ -1,10 +1,9 @@
 """Allocator.Core package
 
-Python-facing wrappers for the native polynomial evaluators live in polywrap.
-Import functions directly from this package for convenience.
+Python-facing wrappers for the native c implementation of various core algorithms.
 """
 
-from .polywrap import (
+from Allocator.Core.libs.poly.polywrap import (
     poly_sin_deg7,
     poly_sin_deg9,
     poly_sqrtx1_deg3,

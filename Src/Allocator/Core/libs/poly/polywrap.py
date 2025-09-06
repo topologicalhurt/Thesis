@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from ctypes import c_float, c_double
 
-from Allocator.Core.loadlib import load_libs
+from Allocator.Core.libs.loadlib import load_libs
 
 
 _libs = load_libs(['libpoly.so'])
