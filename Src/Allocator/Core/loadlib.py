@@ -15,15 +15,10 @@ def load_libs(libs: list[str]) -> list[ctypes.CDLL]:
                 loaded_libs.append(ctypes.CDLL(str(build_path)))
             except OSError:
                 pass
-            finally:
-                continue
 
         try:
             loaded_libs.append(ctypes.CDLL(str(candidate)))
         except OSError:
-            pass
-
-    if not loaded_libs:
-        raise OSError(f'Could not load all of {libs}; tried searching in build path and system path.')
+            raise OSError(f'Could not load all of {libs}; tried searching for {candidate} in build path and system path.')
 
     return loaded_libs
