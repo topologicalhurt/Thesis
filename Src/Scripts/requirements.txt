@@ -5,7 +5,7 @@ ipywidgets==8.1.7
 keyring==25.6.0
 matplotlib==3.10.3
 numpy==2.3.0
-pytest==8.3.5
+pytest==8.4.2
 PyYAML==6.0.2
 redis==6.4.0
 regex==2025.7.34
