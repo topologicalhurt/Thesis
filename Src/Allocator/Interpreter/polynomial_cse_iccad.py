@@ -1,18 +1,46 @@
 """
-Polynomial optimization utilities with a matrix-based representation (ICCAD 2004 compatible)
+------------------------------------------------------------------------
+Filename: 	polynomial_cse_iccad.py
+
+Project:	LLAC, intelligent hardware scheduler targeting common audio signal chains.
+
+For more information see the repository: https://github.com/topologicalhurt/Thesis
+
+Purpose:	Polynomial optimization utilities with a matrix-based representation (ICCAD 2004 compatible)
 plus practical univariate evaluators (Horner/Estrin).
+
+Author: topologicalhurt csin0659@uni.sydney.edu.au
+
+------------------------------------------------------------------------
+Copyright (C) 2025, LLAC project LLC
+
+This file is a part of the ALLOCATOR module
+It is intended to be used as part of the allocator design which is responsible for the soft-core, or offboard, management of the on-fabric components.
+Please refer to docs/whitepaper first, which provides a complete description of the project & it's motivations.
+
+The design is NOT COVERED UNDER ANY WARRANTY.
+
+LICENSE:     GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+As defined by GNU GPL 3.0 https://www.gnu.org/licenses/gpl-3.0.html
+
+A copy of this license is included at the root directory. It should've been provided to you
+Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
+------------------------------------------------------------------------
 """
 from __future__ import annotations
 
 import re
+import networkx as nx
 import numpy as np
 
+from enum import Enum, auto
+from functools import cache
 from operator import itemgetter
 from dataclasses import dataclass
 from typing import assert_never
 from collections.abc import Sequence, Set
-from Allocator.Interpreter.extendedenum import ExtendedEnum
 
+from Allocator.Interpreter.extendedenum import ExtendedEnum
 from Allocator.Interpreter.helpers import join_regex
 
 
@@ -111,6 +139,12 @@ class CoefStyle(ExtendedEnum):
         return cls.C_INDEX
 
 
+class SIMD(Enum):
+    """SIMD targets for optional vectorized emission annotations."""
+    NONE = auto()
+    AVX512 = auto()
+
+
 class PolynomialMatrix:
     """Matrix representation of an SOP polynomial.
 
@@ -154,7 +188,8 @@ class PolynomialMatrix:
 
 class ICCADOptimizer:
     def __init__(self):
-        self.coefficient_map: dict[str, float] = {}
+        self.coefficient_map = {}
+        self._simd_gencounter = 0   # Unique counter for SIMD codegen symbols to avoid redeclarations across stages
 
 
     # Kernel extraction (concise, functional)
@@ -551,6 +586,7 @@ class ICCADOptimizer:
         lines: list[str] = [f"x1 = {x}", 'x2 = x1*x1']
         pow_vars = {1: 'x1', 2: 'x2'}
 
+        @cache
         def pow_var(p: int) -> str:
             if p in pow_vars:
                 return pow_vars[p]
@@ -568,7 +604,8 @@ class ICCADOptimizer:
             lines.append(f"x{p} = {pow_vars[k]}*{vr}")
             pow_vars[p] = f"x{p}"
             return pow_vars[p]
-
+        
+        @cache
         def estrin_block(idx_list: Sequence[int], base_pow: int = 1) -> str:
             m = len(idx_list)
             if m == 0:
@@ -627,11 +664,217 @@ class ICCADOptimizer:
 
         return simplified
 
-    def generate_py_code(self, body_lines: list[str], n_coefs: int,
-                         assign_coefs: bool = False,
-                         coef_style: CoefStyle | str = CoefStyle.C_INDEX,
-                         embed_coefs: Sequence[float] | None = None,
-                         coefs_var_name: str = 'COEFS') -> str:
+    def _convert_lines_to_simd(self, lines: list[str], target: SIMD = SIMD.AVX512) -> list[str]:
+        """Annotate per-stage lines with AVX-512 FMAs packed by common operand.
+
+        Looks for lines of form 'lhs = fma(a, b, c)' and groups those sharing the
+        same 'b' into packs of up to 8 lanes (double). Emits a single fmadd
+        comment per pack, then preserves all original scalar lines and order.
+        """
+        if target is not SIMD.AVX512:
+            raise NotImplementedError('Only AVX512 is implemented')
+
+        assign_pat = re.compile(r"^\s*([A-Za-z_]\w*)\s*=\s*(.+)$")
+        fma_pat = re.compile(r"^fma\(\s*(?P<a>.+?)\s*,\s*(?P<b>.+?)\s*,\s*(?P<c>.+?)\s*\)\s*$")
+
+        # Parse entries and track original indices
+        entries: list[tuple[int, str, str, str, str]] = []  # (idx, lhs, a, b, c)
+        for idx, ln in enumerate(lines):
+            m = assign_pat.match(ln)
+            if not m:
+                continue
+            lhs, rhs = m.group(1), m.group(2).strip()
+            fm = fma_pat.match(rhs)
+            if fm:
+                a = fm.group('a').strip()
+                b = fm.group('b').strip()
+                c = fm.group('c').strip()
+                entries.append((idx, lhs, a, b, c))
+
+        # Group by common b operand
+        groups: dict[str, list[tuple[int, str, str, str]]] = {}
+        for idx, lhs, a, b, c in entries:
+            groups.setdefault(b, []).append((idx, lhs, a, c))
+
+        # Build code to insert at the earliest line index of each group
+        inserts_at: dict[int, list[str]] = {}
+        drop_indices: set[int] = set()
+
+        def chunk(seq, n):
+            for i in range(0, len(seq), n):
+                yield seq[i:i + n]
+
+        def pad_eight(values: list[str]) -> list[str]:
+            v = list(values)
+            while len(v) < 8:
+                v.append('0.0')
+            return v[:8]
+
+    # Use a global, monotonically-increasing id to ensure unique symbol names across calls
+        for common, group in groups.items():
+            if len(group) < 2:
+                continue  # skip singletons
+
+            # Sort by original order for stable packing and mark to drop
+            group_sorted = sorted(group, key=lambda t: t[0])
+            first_idx = group_sorted[0][0]
+            lines_for_group: list[str] = []
+
+            for ch in chunk(group_sorted, 8):
+                ls = [lhs for (idx, lhs, _, _) in ch]
+                as_ = pad_eight([a for (_, _, a, _) in ch])
+                cs_ = pad_eight([c for (_, _, _, c) in ch])
+                lanes = ', '.join(ls)
+                lines_for_group.append(f"// avx512 fmadd pack: common={common} -> lanes {lanes}")
+                pack_id = self._simd_gencounter
+                self._simd_gencounter += 1
+                lines_for_group.append(f"__m512d __simd_va{pack_id} = _mm512_setr_pd({', '.join(as_)});")
+                lines_for_group.append(f"__m512d __simd_vc{pack_id} = _mm512_setr_pd({', '.join(cs_)});")
+                lines_for_group.append(f"__m512d __simd_vx{pack_id} = _mm512_set1_pd({common});")
+                lines_for_group.append(f"__m512d __simd_vout{pack_id} = _mm512_fmadd_pd(__simd_va{pack_id}, __simd_vx{pack_id}, __simd_vc{pack_id});")
+                lines_for_group.append(f"double __simd_pack{pack_id}[8];")
+                lines_for_group.append(f"_mm512_storeu_pd(__simd_pack{pack_id}, __simd_vout{pack_id});")
+                for lane, lhs in enumerate(ls):
+                    lines_for_group.append(f"{lhs} = __simd_pack{pack_id}[{lane}];")
+
+            inserts_at[first_idx] = lines_for_group
+            # Mark all indices in this group to drop (they are replaced)
+            for idx, *_ in group:
+                drop_indices.add(idx)
+
+        # Emit original lines with inserts placed at calculated positions; drop replaced scalars
+        out: list[str] = []
+        for idx, ln in enumerate(lines):
+            if idx in inserts_at:
+                out.extend(inserts_at[idx])
+            if idx in drop_indices:
+                continue
+            out.append(ln)
+        return out
+
+    def _parallelize(self, body_lines: list[str]) -> list[str]:
+        """Reorder assignments into parallel stages using a dependency DAG.
+
+        - Nodes: assignment LHS variables (dN, y, etc.).
+        - Edge dep->lhs if lhs depends on dep on its RHS.
+        - Output: non-assignment lines first (unchanged), then staged assignments.
+        """
+
+        assign_pat = re.compile(r'^\s*([A-Za-z_]\w*)\s*=\s*(.+)$')
+        id_pat = re.compile(r'\b([A-Za-z_]\w*)\b')
+
+        assignments: list[tuple[str, str]] = []
+        non_assign: list[str] = []
+        for ln in body_lines:
+            m = assign_pat.match(ln)
+            if m:
+                lhs = m.group(1)
+                assignments.append((lhs, ln))
+            else:
+                non_assign.append(ln)
+
+        if len(assignments) < 2:
+            return body_lines
+
+        lhs_vars = [lhs for lhs, _ in assignments]
+        lhs_set = set(lhs_vars)
+
+        G = nx.DiGraph()
+        G.add_nodes_from(lhs_vars)
+
+        for lhs, ln in assignments:
+            m = assign_pat.match(ln)
+            rhs = m.group(2) if m else ''
+            rhs_ids = set(id_pat.findall(rhs))
+            for dep in rhs_ids:
+                if dep in lhs_set and dep != lhs:
+                    G.add_edge(dep, lhs)
+
+        try:
+            topo = list(nx.topological_sort(G))
+        except nx.NetworkXUnfeasible:
+            return body_lines
+
+        try:
+            generations = list(nx.algorithms.dag.topological_generations(G))
+        except Exception:
+            generations = [topo]
+
+        line_by_lhs = {lhs: ln for lhs, ln in assignments}
+
+        new_lines: list[str] = []
+        new_lines.extend(non_assign)
+
+        stage_num = 0
+        for gen in generations:
+            stage = list(gen)
+            stage.sort(key=lambda v: lhs_vars.index(v))
+            if stage:
+                new_lines.append(f"// ---- stage {stage_num} ----")
+                stage_lines = [line_by_lhs[v] for v in stage if v in line_by_lhs]
+                stage_lines = self._convert_lines_to_simd(stage_lines, target=SIMD.AVX512)
+                new_lines.extend(stage_lines)
+                stage_num += 1
+
+        return new_lines if new_lines else body_lines
+
+    def _inject_fma(self, body_lines: list[str]) -> list[str]:
+        """Rewrite patterns of the form a*b +/- c into fma(a,b,c) for C backends.
+
+        Supported shapes (whitespace-agnostic, one assignment per line):
+          lhs = a*b + c
+          lhs = a*b - c
+          lhs = c + a*b
+          lhs = c - a*b
+        Lines already containing 'fma(' are left unchanged.
+        """
+        # Regexes are deliberately simple and local (no semicolons in body_lines).
+        pat_ab_c = re.compile(r"^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>[^+\-]+?)\s*(?P<op>[+-])\s*(?P<c>.+?)\s*$")
+        pat_c_ab = re.compile(r"^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<c>.+?)\s*(?P<op>[+-])\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>.+?)\s*$")
+
+        out: list[str] = []
+        for ln in body_lines:
+            s = ln.strip()
+
+            # Skip non-assignments or lines already using fma
+            if 'fma(' in s or '=' not in s:
+                out.append(ln)
+                continue
+
+            m = pat_ab_c.match(s)
+            if m:
+                lhs = m.group('lhs')
+                a = m.group('a').strip()
+                b = m.group('b').strip()
+                op = m.group('op')
+                c = m.group('c').strip()
+                if op == '+':
+                    out.append(f"{lhs} = fma({a}, {b}, {c})")
+                else:  # a*b - c
+                    out.append(f"{lhs} = fma({a}, {b}, -({c}))")
+                continue
+
+            m = pat_c_ab.match(s)
+            if m:
+                lhs = m.group('lhs')
+                c = m.group('c').strip()
+                op = m.group('op')
+                a = m.group('a').strip()
+                b = m.group('b').strip()
+                if op == '+':
+                    out.append(f"{lhs} = fma({a}, {b}, {c})")
+                else:  # c - a*b
+                    out.append(f"{lhs} = fma(-({a}), {b}, {c})")
+                continue
+
+            out.append(ln)
+        return out
+    
+    def generate_python_code(self, body_lines: list[str], n_coefs: int,
+                             assign_coefs: bool = False,
+                             coef_style: CoefStyle | str = CoefStyle.C_INDEX,
+                             embed_coefs: Sequence[float] | None = None,
+                             coefs_var_name: str = 'coefs') -> str:
         """Emit Python code for the polynomial evaluator."""
         deg = n_coefs - 1
         style = CoefStyle.coerce(coef_style)
@@ -683,7 +926,9 @@ class ICCADOptimizer:
     def generate_c_code(self, body_lines: list[str], n_coefs: int,
                          assign_coefs: bool = False,
                          coef_style: CoefStyle | str = CoefStyle.C_INDEX,
-                         embed_coefs: Sequence[float] | None = None) -> str:
+                         embed_coefs: Sequence[float] | None = None,
+                         inject_fmas: bool = True,
+                         parallelize: bool = True) -> str:
         """Emit C code for the polynomial evaluator (static inline function)."""
         deg = n_coefs - 1
         style = CoefStyle.coerce(coef_style)
@@ -712,7 +957,7 @@ class ICCADOptimizer:
 
             c_body_lines = list(body_lines)
         else:
-            # Inline replace tokens directly with coefs[...] (and fabs for ABS)
+            # Inline replace tokens directly with coefs[...]
             text = '\n'.join(body_lines)
             if style is CoefStyle.C_INDEX:
                 def repl_c(m: re.Match) -> str:
@@ -730,16 +975,35 @@ class ICCADOptimizer:
 
             c_body_lines = text.split('\n')
 
+        # Inject FMAs & parallelize where profitable
+        if inject_fmas:
+            c_body_lines = self._inject_fma(c_body_lines)
+        
+        if parallelize:
+            c_body_lines = self._parallelize(c_body_lines)
+
         # Collect temporaries to declare (lhs vars in assignments other than y)
         temps: list[str] = []
+        assign_pat_decl = re.compile(r'^\s*([A-Za-z_]\w*)\s*=')
         for ln in c_body_lines:
-            if '=' in ln:
-                lhs = re.split(r'\s*=\s*', ln)[0].strip()
-                if lhs and lhs != 'y' and lhs not in temps:
-                    temps.append(lhs)
+            # ignore comments and only accept identifier LHS
+            m = assign_pat_decl.match(ln)
+            if not m:
+                continue
+
+            lhs = m.group(1)
+            if lhs and lhs != 'y' and lhs not in temps:
+                temps.append(lhs)
 
         # Build C function
-        includes = ['#include <stddef.h>', '#include <math.h>']
+        fma_used = any('fma(' in ln for ln in c_body_lines)
+        avx_used = any('_mm512_' in ln for ln in c_body_lines)
+
+        includes = ['#include <stddef.h>'] 
+        if fma_used:
+            includes.append('#include <math.h>')
+        if avx_used:
+            includes.append('#include <immintrin.h>')
         header = [
             *includes,
             f"static inline double optimized_polynomial_deg{deg}(double x) {{"
@@ -747,7 +1011,11 @@ class ICCADOptimizer:
         decls = [f"  double {v};" for v in temps]
         decls.append('  double y;')
 
-        body = [f"  {ln};" if not ln.strip().endswith(';') else f"  {ln}" for ln in c_body_lines]
+        body = [
+            f"  {ln};" if (not ln.strip().endswith(';') and not ln.lstrip().startswith('//'))
+            else f"  {ln}"
+            for ln in c_body_lines
+        ]
         footer = ['  return y;', '}']
 
         return '\n'.join(header + (['\n'.join(c_prelude)] if c_prelude else []) + decls + body + footer)
@@ -771,7 +1039,8 @@ class ICCADOptimizer:
         """
         tgt = CodeTarget.coerce(target)
         if tgt is CodeTarget.PYTHON:
-            return self.generate_py_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs, coefs_var_name)
+            return self.generate_python_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs, coefs_var_name)
+        
         if tgt is CodeTarget.C:
             return self.generate_c_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
 
