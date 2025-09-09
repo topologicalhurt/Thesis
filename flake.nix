@@ -45,7 +45,7 @@
 
         python314Opt = python314.override {
           enableOptimizations = true;
-          # enableGIL = false;
+          enableGIL = false;
           reproducibleBuild = false;
         };
 
@@ -122,6 +122,44 @@
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
           export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
 
+          # Specify library prefixes for GMP/MPFR/MPC via pkg-config
+          # These are needed to build riscv-gnu-toolchain from source
+
+          GMP_PREFIX=$(pkg-config --variable=prefix gmp 2>/dev/null || true)
+          MPFR_PREFIX=$(pkg-config --variable=prefix mpfr 2>/dev/null || true)
+          MPC_PREFIX=$(pkg-config --variable=prefix mpc 2>/dev/null || pkg-config \
+          --variable=prefix libmpc 2>/dev/null || true)
+
+          # Pass these prefixes to riscv-gnu-toolchain's configure script
+          # Commented out for now since it seems to find them automatically
+
+          # CONFIG_EXTRA=""
+          # [ -n "$GMP_PREFIX" ] && CONFIG_EXTRA="$CONFIG_EXTRA --with-gmp=$GMP_PREFIX"
+          # [ -n "$MPFR_PREFIX" ] && CONFIG_EXTRA="$CONFIG_EXTRA --with-mpfr=$MPFR_PREFIX"
+          # [ -n "$MPC_PREFIX" ] && CONFIG_EXTRA="$CONFIG_EXTRA --with-mpc=$MPC_PREFIX"
+          # export CONFIG_EXTRA
+
+          # # Help the build system find headers/libs when prefixes are non-standard
+          # CPATH_PREFIX=""
+          # [ -n "$GMP_PREFIX" ] && CPATH_PREFIX="$CPATH_PREFIX$GMP_PREFIX/include:"
+          # [ -n "$MPFR_PREFIX" ] && CPATH_PREFIX="$CPATH_PREFIX$MPFR_PREFIX/include:"
+          # [ -n "$MPC_PREFIX" ] && CPATH_PREFIX="$CPATH_PREFIX$MPC_PREFIX/include:"
+          # if [ -n "$CPATH" ]; then
+          #   export CPATH="$CPATH_PREFIX$CPATH"
+          # else
+          #   export CPATH="$CPATH_PREFIX"
+          # fi
+
+          # LIBRARY_PATH_PREFIX=""
+          # [ -n "$GMP_PREFIX" ] && LIBRARY_PATH_PREFIX="$LIBRARY_PATH_PREFIX$GMP_PREFIX/lib:"
+          # [ -n "$MPFR_PREFIX" ] && LIBRARY_PATH_PREFIX="$LIBRARY_PATH_PREFIX$MPFR_PREFIX/lib:"
+          # [ -n "$MPC_PREFIX" ] && LIBRARY_PATH_PREFIX="$LIBRARY_PATH_PREFIX$MPC_PREFIX/lib:"
+          # if [ -n "$LIBRARY_PATH" ]; then
+          #   export LIBRARY_PATH="$LIBRARY_PATH_PREFIX$LIBRARY_PATH"
+          # else
+          #   export LIBRARY_PATH="$LIBRARY_PATH_PREFIX"
+          # fi
+
           # Decide on venv suffix based on optimization flag
           OPT_SUFFIX=""
           if [ "''${PY_IS_OPT:-0}" = "1" ]; then
@@ -175,12 +213,17 @@
 
             # Build tools
             stdenv.cc.cc.lib zlib zlib-ng gcc gnumake pkg-config autoconf automake libtool m4 bison flex
+            cmake ninja libmpc mpfr gmp
 
             # Graphics (tested: all of these should be optional)
             glib libGL fontconfig wayland libxkbcommon freetype dbus libsForQt5.wrapQtAppsHook
 
+            # Networking
+            libslirp 
+
             # System dependencies
             git curl cacert gnupg coreutils-full ccache perl act docker docker-compose
+            gawk texinfo gperf expat zlib xz lzip unzip patchutils gperf
 
             # Git dependencies
             pre-commit codespell
@@ -190,7 +233,9 @@
             pkgs.darwin.apple_sdk.frameworks.CoreServices
             pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
           ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ sudo ];
+          ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            # Linux specific packages
+          ];
 
           # Expose for the shellHook to consume
           inherit ldLibPath;

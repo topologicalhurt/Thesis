@@ -1,20 +1,16 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -euo pipefail
 
+# Command line parameters
 PARAM_FORCE=0
 INSTALL_DEV_TOOLS=0
 PRIVILEGE_SCRIPTS=0
+FAST_BUILD=0
 
 PWD="$(pwd)"
 
-readonly SETUP_CACHE="${PWD}/bin/cache"
-readonly HOOKS_DIR="${PWD}/.github/hooks"
-readonly RTL_SCRIPTS_DIR="${PWD}/Src/Scripts"
-readonly PRE_COMMIT_CONFIG_YAML="${PWD}/.github/hooks/.pre-commit-config.yaml"
-readonly PRE_COMMIT_DIR="${PWD}/.github/hooks/pre_commit"
-readonly PRE_PUSH_SCRIPT="${PWD}/.github/hooks/pre-push"
-
-readonly RAN_LLAC_SETUP_SHELL=$([ "${PARAM_FORCE}" -eq 0 ] && [ -f "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
+# These are required for setup on HOST. Try to keep as minimal as possible.
+readonly HOST_REQUIREMENTS=('sudo' 'git' 'curl' 'python3')
 readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
 
 # ANSI color codes
@@ -27,6 +23,16 @@ readonly BLUE='\033[0;34m'
 readonly PURPLE='\033[0;35m'
 readonly MAGENTA='\033[1;35m'
 readonly RESET='\033[0m'
+
+get_os() {
+    case "$(uname -s)" in
+        Linux*) echo "Linux";;
+        Darwin*) echo "Mac";;
+        FreeBSD*) echo "FreeBSD";;
+        CYGWIN*|MINGW*|MSYS_NT*) echo "Windows";;
+        *) echo "UNKNOWN:$(uname -s)";;
+    esac
+}
 
 print_logo() {
     art=$(cat <<'EOF'
@@ -69,9 +75,8 @@ print_license() {
     This program comes with ABSOLUTELY NO WARRANTY; for details type --help license_warranty
     This is free software, and you are welcome to redistribute it
     under certain conditions; type --help license_conditions for details.
-    """
-
-    echo """    This program is free software: you can redistribute it and/or modify
+    
+    This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
@@ -101,7 +106,7 @@ ProgressBar() {
     local left_str
     left_str=$(printf "%${num_left}s" "")
 
-    printf "\rProgress : [${done_str// /#}${left_str// /-}] ${progress_percent}%%"
+    printf "\rProgress : [${done_str// /#}${left_str// /-}] ${progress_percent}%%\n"
 }
 
 advance_progress() {
@@ -134,48 +139,175 @@ while [[ $# -gt 0 ]]; do
         --force) PARAM_FORCE=1; shift;;
         --extra-dev-tools) INSTALL_DEV_TOOLS=1; shift;;
         --privilege-scripts) PRIVILEGE_SCRIPTS=1; shift;;
-        --fast-build) export PYTHON_ENV="python-stable"; shift;;
+        --fast-build) 
+            export FAST_BUILD=1
+            export PYTHON_ENV="python-stable"
+        shift;;
         --help) help_function;;
         *) help_function;;
     esac
 
 done
 
-readonly TOTAL_STEPS=10
+if [[ $EUID -ne 0 ]]; then
+    echo -e "${YELLOW}Warning: This script performs actions that require elevated privileges.${RESET}\n"
+    echo "Options: Inspect and run steps manually, run inside a privileged container,"
+    echo "or allow this script to restart itself under sudo."
+    echo
+    read -r -n 1 -p "Elevate and re-run as root via sudo? [y/N]: " response; echo
+    if [[ ! $response =~ ^[Yy]$ ]]; then
+        echo -e "${RED}Aborting: root privileges required for automatic setup.${RESET}"
+        exit 1
+    fi
+fi
+
+readonly TOTAL_STEPS=8
 _progress=0
 ProgressBar 0 ${TOTAL_STEPS}
+
+devsh() {
+    # Helper: run a command inside the dev shell (nix develop). If already
+    # in a nix shell, just run it in bash with login semantics.
+    if [ -z "${IN_NIX_SHELL:-}" ]; then
+        nix develop --command bash -lc "$*" || {
+                echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
+                exit 1
+            }
+    else
+        bash -lc "$*" || {
+                echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
+                exit 1
+            }
+    fi
+}
+
+PACKAGES_HOST_REQUIREMENTS=""
+
+install_host_packages_linux() {
+    for package in "${HOST_REQUIREMENTS[@]}"; do
+        if ! dpkg-query -W -f='${db:Status-Status}\n' "$package" 2>/dev/null \
+        | grep -q '^installed$'; then
+            PACKAGES_HOST_REQUIREMENTS="$PACKAGES_HOST_REQUIREMENTS $package"
+        fi
+    done
+
+    if [ -n "$PACKAGES_HOST_REQUIREMENTS" ]; then
+        echo "Installing host packages: $PACKAGES_HOST_REQUIREMENTS"
+        sudo apt-get -y install $PACKAGES_HOST_REQUIREMENTS >/dev/null 2>&1 || {
+            echo -e "${RED}Error: Failed to install host packages: $PACKAGES_HOST_REQUIREMENTS${RESET}"
+            exit 1
+        }
+        echo -e "${CYAN}Host packages installed successfully.${RESET}\n"
+    fi
+}
+
+install_host_packages_darwin() {
+    for package in "${HOST_REQUIREMENTS[@]}"; do
+        if ! brew list "$package" >/dev/null 2>&1; then
+            PACKAGES_HOST_REQUIREMENTS="$PACKAGES_HOST_REQUIREMENTS $package"
+        fi
+    done
+
+    if [ -n "$PACKAGES_HOST_REQUIREMENTS" ]; then
+        echo "Installing host packages: $PACKAGES_HOST_REQUIREMENTS"
+        brew install $PACKAGES_HOST_REQUIREMENTS >/dev/null 2>&1 || {
+            echo -e "${RED}Error: Failed to install host packages: $PACKAGES_HOST_REQUIREMENTS${RESET}"
+            exit 1
+        }
+        echo -e "${CYAN}Host packages installed successfully.${RESET}\n"
+    fi
+}
+
+case "$(get_os)" in
+    "Linux")
+        distribution=$(cat /etc/*-release | grep -oP '(?<=^NAME=")[^"]+')
+        kernel=$(uname -r | grep -oP '^[\d.]+')
+
+        # Manage system dependencies with apt-get
+        command_exists apt-get || {
+            echo -e "${RED}Error: Unsupported Linux distro ${distribution}.\n"
+            echo "Only Debian-based distros with apt-get are supported.${RESET}"
+            exit 1
+        }
+        echo "Targeting Linux distro ${distribution} on kernel ${kernel}"; echo
+
+        sudo apt-get -y update > /dev/null 2>&1 && sudo apt-get -y upgrade > /dev/null 2>&1
+        install_host_packages_linux
+
+        command_exists docker && sudo usermod -aG docker "${USER}"
+    ;;
+    "Mac")
+        echo "Targeting macOS / Darwin platform"; echo
+
+        # Manage system dependencies with Homebrew
+        command_exists brew || {
+            /bin/bash -c "$(curl -fsSL \
+            https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >/dev/null 2>&1
+        }
+        brew update > /dev/null 2>&1
+
+        install_host_packages_darwin
+        ;;
+    "FreeBSD") echo "Targeting FreeBSD platform"; echo;;
+    "Windows") echo "Windows is not supported. Aborting setup."; exit 1;;
+esac
 
 git rev-parse --git-dir > /dev/null 2>&1 || {
     REPO_NAME=$(basename "${GIT_REPO_URL}" .git)
     echo "Not a git repository. Cloning '${REPO_NAME}'..."
     [ -d "${REPO_NAME}" ] && {
-        echo "Error: Directory '${REPO_NAME}' already exists. Aborting."
+        echo -e "${RED}Error: Directory '${REPO_NAME}' already exists. Aborting.${RESET}"
         exit 1
     }
     git clone "${GIT_REPO_URL}" --depth 1
-    cd "$PWD/$REPO_NAME"
+    cd "$ROOT/$REPO_NAME"
 }
+
+. "$PWD/.env.shared"
+
+readonly SUBMODULE_BIN="$ROOT/bin"
+readonly SETUP_CACHE="${ROOT}/bin/cache"
+readonly HAS_RUN_SETUP_SHELL=$([ "${PARAM_FORCE}" -eq 0 ] && \
+[ -f "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE" ] && echo 1 || echo 0)
+readonly HOOKS_DIR="${ROOT}/.github/hooks"
+readonly RTL_SCRIPTS_DIR="${ROOT}/Src/Scripts"
+readonly PRE_COMMIT_CONFIG_YAML="${ROOT}/.github/hooks/.pre-commit-config.yaml"
+readonly PRE_COMMIT_DIR="${ROOT}/.github/hooks/pre_commit"
+readonly PRE_PUSH_SCRIPT="${ROOT}/.github/hooks/pre-push"
 
 advance_progress
 
 install_nix() {
-    echo "Nix not found. Installing Nix..."
-    (curl -L https://nixos.org/nix/install | sh) >/dev/null 2>&1
+    if [[ $EUID -eq 0 ]]; then
+        echo "Nix not found. Installing Nix (multi-user daemon)..."
+        su - "${SUDO_USER}" -c 'curl -fsSL https://nixos.org/nix/install | sh -s -- --daemon --yes'
+    else
+        echo "Nix not found. Installing Nix..."
+        curl -fsSL https://nixos.org/nix/install | sh -s -- --daemon --yes
+    fi
 }
 
 source_nix_profile() {
-    set +u
-    if [ -f "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" ]; then
-        source "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
-    elif [ -f "${HOME}/.nix-profile/etc/profile.d/nix.sh" ]; then
-        source "${HOME}/.nix-profile/etc/profile.d/nix.sh"
+
+    if [[ "$(get_os)" == "Linux" ]]; then
+        nix_profiles=("/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" "/etc/profile.d/nix-daemon.sh" "/etc/profile.d/nix.sh")
     else
-        echo "Warning: Could not find the Nix profile script to source."
-        echo "You may need to manually add Nix to your shell's environment."
-        return 1
+        nix_profiles=("/opt/homebrew/etc/profile.d/nix.sh")
     fi
+
+    set +u
+
+    for profile in "${nix_profiles[@]}"; do
+            if [ -f "$profile" ]; then
+                . "$profile"
+                return 0
+            fi
+    done
+
+    echo -e "${YELLOW}Warning: Could not find the Nix profile script to source."
+    echo -e "You may need to manually add Nix to your shell's environment.${RESET}"
     set -u
-    echo "Successfully sourced nix profile"
+    return 1
 }
 
 source_nix_profile >/dev/null 2>&1 || true
@@ -215,7 +347,7 @@ privilege_script_dir() {
     done < <(find "${target_dir}" -type f \( "${find_args[@]}" \) -print0)
 }
 
-[[ "$RAN_LLAC_SETUP_SHELL" == 0 || "$PRIVILEGE_SCRIPTS" == 1 ]] && {
+[[ "$HAS_RUN_SETUP_SHELL" == 0 || "$PRIVILEGE_SCRIPTS" == 1 ]] && {
     echo "Privileging script directories..."
     privilege_script_dir "${HOOKS_DIR}" "*.sh"
     privilege_script_dir "${RTL_SCRIPTS_DIR}" "*.sh" "*.py"
@@ -228,90 +360,196 @@ privilege_script_dir() {
 advance_progress
 
 echo "Installing dependencies with Nix..."
-nix develop --command true
-
-advance_progress
-
-get_os() {
-    case "$(uname -s)" in
-        Linux*) echo "Linux";;
-        Darwin*) echo "Mac";;
-        FreeBSD*) echo "FreeBSD";;
-        CYGWIN*|MINGW*|MSYS_NT*) echo "Windows";;
-        *) echo "UNKNOWN:$(uname -s)";;
-    esac
+nix develop --command true > /dev/null 2>&1 || {
+    echo -e "${RED}Error: Failed to enter the Nix dev shell. Aborting setup.${RESET}"
+    exit 1
 }
-
-[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
-    case "$(get_os)" in
-        "Linux")
-            echo "Targeting Linux distro..."
-            command_exists docker && sudo usermod -aG docker "${USER}"
-            ;;
-        "Mac") echo "Targeting MacOS / Darwin platform";;
-        "FreeBSD") echo "Targeting FreeBSD platform";;
-        "Windows") echo "Windows is not supported. Aborting setup."; exit 1;;
-    esac
-}
+echo -e "${CYAN}Nix dependencies installed successfully.${RESET}\n"
 
 advance_progress
 
 clone_submodules() {
+
+    local recursion_depth
+    if [[ "$FAST_BUILD" == 1 ]]; then
+        recursion_depth=1
+    else
+        recursion_depth=2
+    fi
+
     git config -f .gitmodules --get-regexp '^submodule\..*\.url' | while read -r key url; do
         path="$(git config -f .gitmodules "${key/.url/.path}")"
-        echo "Cloning ${url} -> ${path}"
-        git clone --recurse-submodules --depth 1 "${url}" "${path}"
+
+        [[ "$PARAM_FORCE" == 1 ]] && {
+            echo "Removing existing submodule path: ${path}"
+            sudo rm -rf "${path}"
+        }
+
+        echo "Cloning ${url} -> ${path} (this may take a while)..."
+
+        [[ -d "${path}" ]] && {
+            echo -e "${YELLOW}Warning: Submodule path ${path} already exists. Skipping clone.${RESET}\n"
+            continue
+        }
+
+        git clone --recurse-submodules --depth $recursion_depth "${url}" "${path}" > /dev/null 2>&1 || {
+            echo -e "${RED}Error: Failed to clone submodule ${url} into ${path}.${RESET}"
+            exit 1
+        }
+        echo -e "${CYAN}Submodule ${path} cloned successfully.${RESET}\n"
     done
+
+    echo -e "${CYAN}All submodules cloned successfully.${RESET}\n"
 }
 
-[[ ! -d "${PWD}/submodules" || "$PARAM_FORCE" == 1 ]] && {
-    git submodule sync --recursive
-    git submodule update --init --remote --recursive
+[[ "$HAS_RUN_SETUP_SHELL" == 1 ]] && {
+    git submodule sync --recursive > /dev/null
+    git submodule update --init --remote --recursive > /dev/null
     clone_submodules
-
-    [[ "$INSTALL_DEV_TOOLS" == 1 ]] && {
-        echo "Installing Verilator from source..."
-        unset VERILATOR_ROOT
-        cd "${PWD}/submodules/verilator"
-        autoconf
-        ./configure
-        make -j "$(nproc)"
-        sudo make install
-        cd - >/dev/null 2>&1 || true
-    }
 }
 
 advance_progress
 
-[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
-    git config --add safe.directory "${PWD}"
-    git config --add --bool push.autoSetupRemote true
-    git config core.hooksPath .github/hooks
-}
+[[ "$INSTALL_DEV_TOOLS" == 1 ]] && {
 
-advance_progress
-
-command_exists pre-commit && pre-commit clean || true
-
-[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
-    if command_exists pre-commit; then
-        pre-commit install > /dev/null || true
-        ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${PWD}/.pre-commit-config.yaml" 2>/dev/null || true
+    if [[ "$PARAM_FORCE" == 1 ]]; then
+        echo "Removing existing installations..."
+        sudo rm -rf $SUBMODULE_BIN >/dev/null 2>&1 || true
     fi
+
+    echo "Installing Verilator from source (this will take a while)..."
+        devsh '
+            set -euo pipefail
+            unset VERILATOR_ROOT
+            cd "$ROOT/submodules/verilator"
+            autoconf
+            
+            [[ -z "${VERILATOR_PREFIX:-}" ]] && {
+                VERILATOR_PREFIX="$ROOT/bin/verilator"
+            }
+
+            mkdir -p "$VERILATOR_PREFIX"
+            ./configure --prefix="$VERILATOR_PREFIX" > /dev/null || {
+                echo -e "'${RED}'Error: Verilator configure failed. Aborting.'${RESET}'"
+                exit 1
+            }
+
+            make -j "$CORES" install > /dev/null || {
+                    echo -e "'${RED}'Error: Verilator build failed. Aborting.'${RESET}'"
+                    exit 1
+            }
+        '
+
+    export PATH="$VERILATOR_PREFIX/bin:${PATH}"
+    echo -e "\n${CYAN}Verilator successfully compiled from source."
+    echo "Version: $(verilator --version | head -n1)${RESET}"; echo
+
+    echo "Installing riscv-gnu-toolchain from source (this will take a while)..."
+        devsh '
+            set -euo pipefail
+            cd "$ROOT/submodules/riscv-gnu-toolchain"
+
+            [[ -n "${CONFIG_EXTRA:=}" ]] && {
+                echo "Using configure extras: ${CONFIG_EXTRA}"
+            }
+
+            # GCC configure will fail if LIBRARY_PATH includes the current directory
+            # Sanitize by unsetting it for this build.
+            [[ -n "${LIBRARY_PATH:-}" ]] && {
+                unset LIBRARY_PATH
+            }
+
+            # Prevent host CFLAGS/CXXFLAGS leaking into target builds
+            for v in CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET CFLAGS CXXFLAGS CPPFLAGS LDFLAGS; do
+                if [ -n "${!v:-}" ]; then
+                    unset "$v"
+                fi
+            done
+
+            [[ -z "${RISCV_INSTALL_PREFIX:-}" ]] && {
+                RISCV_INSTALL_PREFIX="$ROOT/bin/riscv"
+            }
+
+            # Bare-metal (newlib) toolchain for RV32GC ILP32D
+            mkdir -p "$RISCV_INSTALL_PREFIX"
+            ./configure --prefix="$RISCV_INSTALL_PREFIX" --with-arch=rv32gc --with-abi=ilp32d \
+            --with-isa-spec=2.2 --with-languages=c $CONFIG_EXTRA > /dev/null || {
+                echo -e "'${RED}'Error: riscv-gnu-toolchain configure failed. Aborting.'${RESET}'"
+                exit 1
+            }
+
+            # Clean previous partial builds to ensure flags/toolchain changes take effect
+            rm -rf build-gcc-newlib-stage1 build-newlib build-newlib-nano stamps/build-newlib* \
+            build-newlib/riscv32-unknown-elf/newlib || true
+
+            # Build the bootstrap cross-compiler first (target name is build-gcc1)
+            make -j "$CORES" build-gcc1 > /dev/null || {
+                echo -e "'${RED}'Error: bootstrap GCC (stage1) build failed.'${RESET}'"
+                exit 1
+            }
+
+            # Prefer the installed cross driver wrapper for target compiler
+            TARGET_CC="riscv32-unknown-elf-gcc"
+            TARGET_CXX="riscv32-unknown-elf-g++"
+
+            # Force newlib to use the cross-compiler by setting CC_FOR_TARGET/CXX_FOR_TARGET
+            # (honored by the riscv-gnu-toolchain newlib build via environment).
+            CC_FOR_TARGET="$TARGET_CC" CXX_FOR_TARGET="$TARGET_CXX" \
+            make -j "$CORES" V=1 newlib > /dev/null || {
+                echo -e "'${RED}'Error: riscv-gnu-toolchain build failed. Aborting.'${RESET}'"
+                exit 1
+            }
+
+            [[ "$FAST_BUILD" == 1 ]] && {
+                echo "Skipping QEMU build as --fast-build was set."; echo
+                exit 0
+            }
+
+            # Optional: build QEMU simulator (not required for the toolchain itself)
+            make -j "$CORES" build-sim SIM=qemu > /dev/null || {
+                    echo -e "'${YELLOW}'Warning: QEMU build failed. Continuing without QEMU support.'${RESET}'\n"
+            }
+        '
+
+    export PATH="$RISCV_INSTALL_PREFIX/bin:${PATH}"
+    sudo ln -sfn "$RISCV_INSTALL_PREFIX" /opt/riscv > /dev/null || true
+    echo -e "\n${CYAN}RISC-V GNU Toolchain successfully compiled from source."
+    echo " Version: $(riscv32-unknown-elf-gcc --version | head -n1)${RESET}"; echo
 }
 
 advance_progress
 
-[[ "$RAN_LLAC_SETUP_SHELL" == 0 ]] && {
+[[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
+    # Configure git for the repository
+    git config --local --add safe.directory "${ROOT}"
+    git config --local --add --bool push.autoSetupRemote true
+    git config --local core.hooksPath .github/hooks
+    git config --local init.defaultBranch main
+    git config --local pull.rebase true
+}
+
+[[ "$PARAM_FORCE" == 1 ]] && {
+    devsh '
+        pre-commit clean > /dev/null 2>&1 || true
+    '
+}
+
+[[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
+    devsh '
+        pre-commit install > /dev/null 2>&1 || {
+            echo -e "'${RED}'Error: pre-commit install failed. Aborting.'${RESET}'"
+            exit 1
+        }
+        ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${ROOT}/.pre-commit-config.yaml" > /dev/null || true
+    '
+}
+
+[[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
     mkdir -p "${SETUP_CACHE}"
     touch "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE"
 }
 
 advance_progress
 
-# only deactivate if available (avoid command not found when no venv)
-if command -v deactivate >/dev/null 2>&1 || declare -F deactivate >/dev/null 2>&1; then
-    deactivate || true
-fi
-echo "Setup complete"
+echo -e "${GREEN}Setup complete!${RESET}\n"
 exit 0
