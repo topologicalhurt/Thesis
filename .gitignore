@@ -16,7 +16,6 @@
 
 bin/
 /.pre-commit-config.yaml
-submodules/
 
 ##################
 #     PYTHON     #
