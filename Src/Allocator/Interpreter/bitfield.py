@@ -340,8 +340,7 @@ class BitFieldEnumMeta(_ExtendedEnumMeta):
         return hash(self) == hash(other)
 
     def __iter__(self):
-        for field, value, pos in zip(self.fields(), self.values(), self.enumerate_bit_positions()):
-            yield field, value, pos
+        yield from zip(self.fields(), self.values(), self.enumerate_bit_positions())
 
     def __call__(cls, offset: Iterable[int] | int = 0, count: bool = True, msb_first: bool = True,
                  *args, **kwargs):
