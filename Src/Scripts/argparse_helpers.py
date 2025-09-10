@@ -28,12 +28,12 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import ast
+import re
 import operator
 import collections
 import itertools
 import argparse as ap
 import numpy as np
-import regex as re
 
 from collections.abc import Mapping
 from pathlib import Path

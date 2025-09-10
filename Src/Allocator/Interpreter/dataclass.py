@@ -30,9 +30,9 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import importlib
 import enum
 import functools
+import re
 import scipy as sp
 import numpy as np
-import regex as re
 
 from collections.abc import Callable
 from dataclasses import InitVar, dataclass, field

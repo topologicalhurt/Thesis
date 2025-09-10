@@ -111,7 +111,7 @@ import pandas
 ...
 # Aliased imports third (3rd)
 import numpy as np
-import regex as re
+import scipy as sp
 ...
 # Notice the linebreak!
 

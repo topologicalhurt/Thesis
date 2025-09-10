@@ -28,8 +28,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 import importlib
+import re
 import numpy as np
-import regex as re
 
 from enum import Enum, EnumMeta
 from collections.abc import Sequence, Iterable

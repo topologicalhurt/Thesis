@@ -29,9 +29,9 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import functools
+import re
 import itertools
 import xxhash
-import regex as re
 import numpy as np
 
 from typing import Any

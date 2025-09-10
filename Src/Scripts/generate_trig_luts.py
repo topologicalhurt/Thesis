@@ -46,9 +46,9 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import collections
+import re
 import sys
 import functools
-import regex as re
 import argparse as ap
 import numpy as np
 import scipy as sp

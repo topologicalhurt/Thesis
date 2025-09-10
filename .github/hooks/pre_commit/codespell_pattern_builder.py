@@ -2,7 +2,7 @@
 
 import sys
 import argparse as ap
-import regex as re
+import re
 
 
 CODESPELL_PATTERNS = [
