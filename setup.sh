@@ -10,7 +10,8 @@ FAST_BUILD=0
 PWD="$(pwd)"
 
 # These are required for setup on HOST. Try to keep as minimal as possible.
-readonly HOST_REQUIREMENTS=('sudo' 'git' 'curl' 'python3')
+readonly HOST_REQUIREMENTS_DEB=('sudo' 'git' 'curl' 'python3')
+readonly HOST_REQUIREMENTS_DARWIN=('git' 'curl' 'python3')
 readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
 
 # ANSI color codes
@@ -184,10 +185,10 @@ devsh() {
 PACKAGES_HOST_REQUIREMENTS=""
 
 install_host_packages_linux() {
-    for package in "${HOST_REQUIREMENTS[@]}"; do
+    for package in "${HOST_REQUIREMENTS_DEB[@]}"; do
         if ! dpkg-query -W -f='${db:Status-Status}\n' "$package" 2>/dev/null \
         | grep -q '^installed$'; then
-            PACKAGES_HOST_REQUIREMENTS="$PACKAGES_HOST_REQUIREMENTS $package"
+            PACKAGES_HOST_REQUIREMENTS="$PACKAGES_HOST_REQUIREMENTS_DEB $package"
         fi
     done
 
@@ -202,7 +203,7 @@ install_host_packages_linux() {
 }
 
 install_host_packages_darwin() {
-    for package in "${HOST_REQUIREMENTS[@]}"; do
+    for package in "${HOST_REQUIREMENTS_DARWIN[@]}"; do
         if ! brew list "$package" >/dev/null 2>&1; then
             PACKAGES_HOST_REQUIREMENTS="$PACKAGES_HOST_REQUIREMENTS $package"
         fi
@@ -280,19 +281,24 @@ advance_progress
 install_nix() {
     if [[ $EUID -eq 0 ]]; then
         echo "Nix not found. Installing Nix (multi-user daemon)..."
-        su - "${SUDO_USER}" -c 'curl -fsSL https://nixos.org/nix/install | sh -s -- --daemon --yes'
+        su - "${SUDO_USER}" -c 'curl -fsSL https://nixos.org/nix/install | bash -s -- --daemon --yes' > /dev/null 2>&1
     else
         echo "Nix not found. Installing Nix..."
-        curl -fsSL https://nixos.org/nix/install | sh -s -- --daemon --yes
+        curl -fsSL https://nixos.org/nix/install | bash -s > /dev/null 2>&1
     fi
 }
 
 source_nix_profile() {
-
+    local nix_profiles=()
     if [[ "$(get_os)" == "Linux" ]]; then
-        nix_profiles=("/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" "/etc/profile.d/nix-daemon.sh" "/etc/profile.d/nix.sh")
+        nix_profiles=("/nix/var/nix/profiles/default/etc/profile.d/nix.sh" "/etc/profile.d/nix.sh")
     else
-        nix_profiles=("/opt/homebrew/etc/profile.d/nix.sh")
+        # Annoyingly, on darwin the Nix profile may be mounted on a separate volume
+        diskutil list | grep -q "Nix Store" && {
+            nix_vol="$(mount | grep "Nix Store" | awk '{print $3"/var/nix/profiles/default/etc/profile.d/nix.sh"}')"
+        }
+        nix_profiles=("/opt/homebrew/etc/profile.d/nix.sh" "/nix/var/nix/profiles/default/etc/profile.d/nix.sh" $nix_vol
+         "~/.nix-profile/etc/profile.d/nix.sh" "/etc/profile.d/nix.sh")
     fi
 
     set +u
@@ -300,6 +306,17 @@ source_nix_profile() {
     for profile in "${nix_profiles[@]}"; do
             if [ -f "$profile" ]; then
                 . "$profile"
+
+                # On darwin, if the expected path location is matched add nix to PATH
+                # activating the profile doesn't seem to add nix to the PATH correctly (likely due to zshrc differences)
+                command_exists nix || {
+                    if [[ "$(get_os)" == "Mac" && "$profile" == "/nix/var/nix/profiles/default"* ]]; then
+                        export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+                    else
+                        echo -e "${YELLOW}Warning: Nix profile script found at unexpected location: ${profile}."
+                        echo -e "You will need to manually add Nix to your shell's environment.${RESET}"
+                    fi
+                }
                 return 0
             fi
     done
@@ -402,7 +419,8 @@ clone_submodules() {
     echo -e "${CYAN}All submodules cloned successfully.${RESET}\n"
 }
 
-[[ "$HAS_RUN_SETUP_SHELL" == 1 ]] && {
+[[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
+    rm -rf .git/submodules "$ROOT/submodules" || true
     git submodule sync --recursive > /dev/null
     git submodule update --init --remote --recursive > /dev/null
     clone_submodules
@@ -441,6 +459,7 @@ advance_progress
         '
 
     export PATH="$VERILATOR_PREFIX/bin:${PATH}"
+    sudo ln -sfn "$VERILATOR_PREFIX" /opt/verilator > /dev/null || true
     echo -e "\n${CYAN}Verilator successfully compiled from source."
     echo "Version: $(verilator --version | head -n1)${RESET}"; echo
 
@@ -473,7 +492,7 @@ advance_progress
             # Bare-metal (newlib) toolchain for RV32GC ILP32D
             mkdir -p "$RISCV_INSTALL_PREFIX"
             ./configure --prefix="$RISCV_INSTALL_PREFIX" --with-arch=rv32gc --with-abi=ilp32d \
-            --with-isa-spec=2.2 --with-languages=c $CONFIG_EXTRA > /dev/null || {
+            --with-isa-spec=2.2 --with-cmodel=medany --with-languages=c $CONFIG_EXTRA > /dev/null || {
                 echo -e "'${RED}'Error: riscv-gnu-toolchain configure failed. Aborting.'${RESET}'"
                 exit 1
             }
@@ -536,6 +555,10 @@ advance_progress
 
 [[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
     devsh '
+        [[ -f /etc/bash_completion ]] && {
+            . /etc/bash_completion
+        }
+
         pre-commit install > /dev/null 2>&1 || {
             echo -e "'${RED}'Error: pre-commit install failed. Aborting.'${RESET}'"
             exit 1
