@@ -39,7 +39,7 @@ clean:
 
 # RISC-V cross-compile (override toolchain prefix if needed)
 # For bare-metal/embedded, do not use -shared or -fPIC; build a static library or object.
-RISCV_PREFIX     ?= riscv64-unknown-elf
+RISCV_PREFIX     ?= riscv32-unknown-elf
 RISCV_AR         ?= $(RISCV_PREFIX)-ar
 RISCV_CC         ?= $(RISCV_PREFIX)-gcc
 RISCV_CFLAGS     ?= -O3 -std=c11 -Wall -Wextra -Werror -MMD -MP

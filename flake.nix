@@ -82,14 +82,16 @@
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
           export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
 
-          # Resolve FAST_BUILD once: prefer runtime env, fall back to Nix-evaluated default
           FAST_BUILD="''${FAST_BUILD:-${fastBuildDefaultStr}}"
           export FAST_BUILD
 
           show_last_line_inplace="''${SHOW_LAST_LINE_INPLACE:-${show_last_line_inplace}}"
           export show_last_line_inplace
 
-          # Load project environment (prefer direct source over direnv to avoid recursion)
+          export PATH="$VERILATOR_PREFIX/bin:$PATH"
+          export PATH="$RISCV_INSTALL_PREFIX/bin:$PATH"
+
+          # Load project environment
           $PWD="$(pwd)"
           if [ -f "$PWD/.env.shared" ]; then
             . "$PWD/.env.shared"
@@ -97,7 +99,6 @@
             . "./.env.shared"
           fi
 
-          # Validate ROOT now that we've attempted to set it
           [[ -z "${ROOT:-}" ]] && {
             echo "ERROR: ROOT environment variable is not set. Ensure .env.shared is present."
             return 1
