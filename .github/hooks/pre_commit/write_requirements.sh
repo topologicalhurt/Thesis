@@ -52,7 +52,7 @@ process_requirements() {
 }
 
 [ "$CUR_BRANCH" == "research" ] || {
-    source "$VENV_DIR/bin/activate"
+    . "$VENV_DIR/bin/activate"
 
     # Process Allocator requirements
     ALLOCATOR_PATH="$ROOT/Src/Allocator"

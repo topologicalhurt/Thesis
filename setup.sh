@@ -5,16 +5,17 @@ set -euo pipefail
 PARAM_FORCE=0
 INSTALL_DEV_TOOLS=0
 PRIVILEGE_SCRIPTS=0
+UPDATE_SUBMODULES=0
 FAST_BUILD=0
-
-PWD="$(pwd)"
+SKIP_SUBMODULE_SYNC=1
 
 # These are required for setup on HOST. Try to keep as minimal as possible.
 readonly HOST_REQUIREMENTS_DEB=('sudo' 'git' 'curl' 'python3')
-readonly HOST_REQUIREMENTS_DARWIN=('git' 'curl' 'python3')
-readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
+readonly HOST_REQUIREMENTS_DARWIN=('git' 'curl' 'python3' 'awk' 'grep')
 
-# ANSI color codes
+# ANSI codes
+readonly ITALICS='\033[3m'
+readonly BOLD='\033[1m'
 readonly RED='\033[0;31m'
 readonly ORANGE='\033[0;33m'
 readonly YELLOW='\033[1;33m'
@@ -24,6 +25,11 @@ readonly BLUE='\033[0;34m'
 readonly PURPLE='\033[0;35m'
 readonly MAGENTA='\033[1;35m'
 readonly RESET='\033[0m'
+
+readonly GIT_REPO_URL="https://github.com/topologicalhurt/Thesis.git"
+readonly TOTAL_STEPS=8
+
+PWD="$(pwd)"
 
 get_os() {
     case "$(uname -s)" in
@@ -76,7 +82,7 @@ print_license() {
     This program comes with ABSOLUTELY NO WARRANTY; for details type --help license_warranty
     This is free software, and you are welcome to redistribute it
     under certain conditions; type --help license_conditions for details.
-    
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -114,6 +120,68 @@ advance_progress() {
     let _progress++ || true; ProgressBar ${_progress} ${TOTAL_STEPS}
 }
 
+show_last_line_inplace() {
+    # Usage: some_command 2>&1 | show_last_line_inplace "[prefix] "
+    # - Rewrites the same terminal line with the most recent line from stdin.
+    # - If stdout isn't a TTY, it falls back to a plain passthrough (cat), unless FORCE_INLINE_OUTPUT=1.
+    local raw_prefix="${1-}"
+    local bold_on=$'\033[1m'
+    local bold_off=$'\033[22m'
+    local italics=$'\033[3m'
+    local reset=$'\033[0m'
+
+    # If not a TTY and not forced, passthrough without ANSI to preserve logs
+    if [[ ! -t 1 && -z "${FORCE_INLINE_OUTPUT:-}" ]]; then
+        cat
+        return 0
+    fi
+
+    trap 'printf "\n"' INT TERM
+
+    # Determine terminal width (fallback to 80)
+    local cols=80
+    if [[ -n "${COLUMNS:-}" ]]; then
+        cols=${COLUMNS}
+    elif command -v tput >/dev/null 2>&1; then
+        cols=$(tput cols 2>/dev/null || echo 80)
+    fi
+
+    local line disp
+    while IFS= read -r line; do
+        # Use the last segment after any carriage-return updates
+        disp="${line##*$'\r'}"
+        local max_len=$(( cols > 1 ? cols - 1 : 1 ))
+        local len_prefix=${#raw_prefix}
+
+        printf '\r\033[J'
+        if [[ -n "$raw_prefix" && $len_prefix -lt $max_len ]]; then
+            # Show full prefix in bold if it fits, then truncate message if needed
+            local avail=$(( max_len - len_prefix ))
+            local msg="$disp"
+            if (( ${#msg} > avail )); then
+                local keep=$(( avail > 3 ? avail - 3 : avail ))
+                msg="...${msg: -$keep}"
+            fi
+            printf '%s%s%s%s%s' "$italics" "$bold_on" "$raw_prefix" "$bold_off" "${msg}${reset}"
+        else
+            # Prefix doesn't fit or is empty: show tail of combined text
+            local combined
+            if [[ -n "$raw_prefix" ]]; then
+                combined="$raw_prefix$disp"
+            else
+                combined="$disp"
+            fi
+            if (( ${#combined} > max_len )); then
+                local keep=$(( max_len > 3 ? max_len - 3 : max_len ))
+                combined="...${combined: -$keep}"
+            fi
+            printf '%s%s%s' "$italics" "$combined" "$reset"
+        fi
+    done
+    printf '\n'
+}
+export -f show_last_line_inplace 2>/dev/null || true
+
 print_logo
 print_license
 
@@ -126,6 +194,8 @@ Options:
   --extra-dev-tools    Install auxiliary developer tools.
   --privilege-scripts  Apply privileging to script directories.
   --fast-build         Avoid long build-times by skipping compilation of optional dependencies. E.g submodules distributed as source, use mainline builds etc.
+  --update-submodules  Force update and re-clone of git submodules.
+  --submodule-sync     'git submodule sync' step (only needed if .gitmodules URLs changed).
   --help               Show this help message.
 EOF
     exit 0
@@ -137,12 +207,24 @@ command_exists() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --force) PARAM_FORCE=1; shift;;
-        --extra-dev-tools) INSTALL_DEV_TOOLS=1; shift;;
-        --privilege-scripts) PRIVILEGE_SCRIPTS=1; shift;;
-        --fast-build) 
+        --force)
+            PARAM_FORCE=1
+        shift;;
+        --extra-dev-tools)
+            INSTALL_DEV_TOOLS=1
+        shift;;
+        --privilege-scripts)
+            PRIVILEGE_SCRIPTS=1
+        shift;;
+        --fast-build)
             export FAST_BUILD=1
             export PYTHON_ENV="python-stable"
+        shift;;
+        --update-submodules)
+            UPDATE_SUBMODULES=1
+        shift;;
+        --submodule-sync)
+            SKIP_SUBMODULE_SYNC=0
         shift;;
         --help) help_function;;
         *) help_function;;
@@ -162,7 +244,6 @@ if [[ $EUID -ne 0 ]]; then
     fi
 fi
 
-readonly TOTAL_STEPS=8
 _progress=0
 ProgressBar 0 ${TOTAL_STEPS}
 
@@ -295,7 +376,7 @@ source_nix_profile() {
     else
         # Annoyingly, on darwin the Nix profile may be mounted on a separate volume
         diskutil list | grep -q "Nix Store" && {
-            nix_vol="$(mount | grep "Nix Store" | awk '{print $3"/var/nix/profiles/default/etc/profile.d/nix.sh"}')"
+            nix_vol="$(mount | grep 'Nix Store' | awk '{print $3"/var/nix/profiles/default/etc/profile.d/nix.sh"}')"
         }
         nix_profiles=("/opt/homebrew/etc/profile.d/nix.sh" "/nix/var/nix/profiles/default/etc/profile.d/nix.sh" $nix_vol
          "~/.nix-profile/etc/profile.d/nix.sh" "/etc/profile.d/nix.sh")
@@ -372,6 +453,8 @@ privilege_script_dir() {
     [ -d "${PRE_COMMIT_DIR}" ] && sudo chmod 755 "${PRE_COMMIT_DIR}"
     [ -e "${PRE_PUSH_SCRIPT}" ] && sudo chmod 755 "${PRE_PUSH_SCRIPT}"
     [ -e "${PRE_COMMIT_CONFIG_YAML}" ] && sudo chmod 644 "${PRE_COMMIT_CONFIG_YAML}"
+
+    echo -e "${CYAN}Script directories privileged successfully.${RESET}\n"
 }
 
 advance_progress
@@ -387,42 +470,74 @@ advance_progress
 
 clone_submodules() {
 
-    local recursion_depth
+    local _recursion_depth
     if [[ "$FAST_BUILD" == 1 ]]; then
-        recursion_depth=1
+        _recursion_depth=1
     else
-        recursion_depth=2
+        _recursion_depth=2
     fi
 
     git config -f .gitmodules --get-regexp '^submodule\..*\.url' | while read -r key url; do
         path="$(git config -f .gitmodules "${key/.url/.path}")"
 
-        [[ "$PARAM_FORCE" == 1 ]] && {
+        if [[ "$PARAM_FORCE" == 1 ]]; then
             echo "Removing existing submodule path: ${path}"
             sudo rm -rf "${path}"
-        }
-
-        echo "Cloning ${url} -> ${path} (this may take a while)..."
+        else
+            echo -e "${YELLOW}Warning: Skipping removal of existing submodule path ${path}. Use --force to re-clone.${RESET}"
+        fi
 
         [[ -d "${path}" ]] && {
             echo -e "${YELLOW}Warning: Submodule path ${path} already exists. Skipping clone.${RESET}\n"
             continue
         }
 
-        git clone --recurse-submodules --depth $recursion_depth "${url}" "${path}" > /dev/null 2>&1 || {
+        echo "Cloning ${url} -> ${path} (this may take a while)..."
+
+        # On some large submodules (e.g riscv-gnu-toolchain) limit recursion depth to avoid extremely long clone times
+        local recursion_depth=$_recursion_depth
+        case "$path" in
+            "submodules/riscv-gnu-toolchain")
+                recursion_depth=1
+            ;;
+            *) : ;;
+        esac
+
+        # Stream concise, single-line progress; speed up via shallow+filtered clone and parallel submodules
+        if ! git clone \
+            --recurse-submodules \
+            --shallow-submodules \
+            --filter=blob:none \
+            --jobs "${CORES:-8}" \
+            --progress \
+            --depth "$recursion_depth" "${url}" "${path}" \
+            2>&1 | tr '\r' '\n' | show_last_line_inplace "[clone] "; then
             echo -e "${RED}Error: Failed to clone submodule ${url} into ${path}.${RESET}"
             exit 1
-        }
+        fi
         echo -e "${CYAN}Submodule ${path} cloned successfully.${RESET}\n"
     done
 
     echo -e "${CYAN}All submodules cloned successfully.${RESET}\n"
 }
 
-[[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
-    rm -rf .git/submodules "$ROOT/submodules" || true
-    git submodule sync --recursive > /dev/null
-    git submodule update --init --remote --recursive > /dev/null
+[[ "$HAS_RUN_SETUP_SHELL" == 0 || "$UPDATE_SUBMODULES" == 1 ]] && {
+    sudo rm -rf .git/submodules
+
+    echo "Updating git submodules..."; echo
+
+    git submodule deinit --all --force 2>&1 | show_last_line_inplace "[submodule deinit] " || true
+    if [[ "$SKIP_SUBMODULE_SYNC" == 0 ]]; then
+        git submodule sync --recursive 2>&1 | show_last_line_inplace "[submodule sync] " || true
+    else
+        echo "[submodule sync] skipped by flag"
+    fi
+    git -c protocol.version=2 submodule update --init --recursive \
+        --depth 1 --jobs "${CORES:-8}" --recommend-shallow --filter=blob:none \
+        2>&1 | show_last_line_inplace "[submodule update] " || true
+
+    echo -e "${CYAN}Git submodules updated successfully.${RESET}\n"
+
     clone_submodules
 }
 
@@ -430,38 +545,63 @@ advance_progress
 
 [[ "$INSTALL_DEV_TOOLS" == 1 ]] && {
 
-    if [[ "$PARAM_FORCE" == 1 ]]; then
+    [[ "$PARAM_FORCE" == 1 ]] && {
         echo "Removing existing installations..."
-        sudo rm -rf $SUBMODULE_BIN >/dev/null 2>&1 || true
-    fi
+        sudo rm -rf $SUBMODULE_BIN > /dev/null 2>&1 || true
+    }
+
+    # Temporarily enable FAST_BUILD for compilation of optional dependencies to skip
+    # unnecessary nix shell hooks
+    old_fast_build=$FAST_BUILD
+    export FAST_BUILD=1
 
     echo "Installing Verilator from source (this will take a while)..."
         devsh '
             set -euo pipefail
+
             unset VERILATOR_ROOT
             cd "$ROOT/submodules/verilator"
-            autoconf
-            
+            autoconf 2>&1 | show_last_line_inplace "[autoconf] "
+
             [[ -z "${VERILATOR_PREFIX:-}" ]] && {
                 VERILATOR_PREFIX="$ROOT/bin/verilator"
             }
 
             mkdir -p "$VERILATOR_PREFIX"
-            ./configure --prefix="$VERILATOR_PREFIX" > /dev/null || {
-                echo -e "'${RED}'Error: Verilator configure failed. Aborting.'${RESET}'"
-                exit 1
-            }
+            if ! ./configure --prefix="$VERILATOR_PREFIX" 2>&1 | show_last_line_inplace "[configure] "; then
 
-            make -j "$CORES" install > /dev/null || {
-                    echo -e "'${RED}'Error: Verilator build failed. Aborting.'${RESET}'"
-                    exit 1
-            }
+                [[ "${VERILATOR_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                    echo "Warning: Verilator configure failed. Soft failing."
+                    exit 0
+                }
+
+                echo "Error: Verilator configure failed. Aborting."
+                exit 1
+            fi
+
+            if ! make -j "$CORES" install 2>&1 | show_last_line_inplace "[make] "; then
+
+                [[ "${VERILATOR_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                    echo "Warning: Verilator build failed. Soft failing."
+                    exit 0
+                }
+
+                echo "Error: Verilator build failed. Aborting."
+                exit 1
+            fi
         '
 
     export PATH="$VERILATOR_PREFIX/bin:${PATH}"
-    sudo ln -sfn "$VERILATOR_PREFIX" /opt/verilator > /dev/null || true
-    echo -e "\n${CYAN}Verilator successfully compiled from source."
-    echo "Version: $(verilator --version | head -n1)${RESET}"; echo
+
+    if ! command_exists verilator; then
+        echo -e "${YELLOW}Warning: Verilator couldn't be added to PATH."
+        echo    " this doesn't neccesserily mean that the installation failed."
+        echo -e " You may need to manually add ${VERILATOR_PREFIX}/bin to your PATH.${RESET}"
+    else
+        sudo ln -sfn "$VERILATOR_PREFIX" /opt/verilator > /dev/null || true
+        echo -e "\n${CYAN}Verilator successfully compiled from source."
+        echo -e "Version: $(verilator --version | head -n1)${RESET}\n"
+    fi
 
     echo "Installing riscv-gnu-toolchain from source (this will take a while)..."
         devsh '
@@ -491,21 +631,28 @@ advance_progress
 
             # Bare-metal (newlib) toolchain for RV32GC ILP32D
             mkdir -p "$RISCV_INSTALL_PREFIX"
-            ./configure --prefix="$RISCV_INSTALL_PREFIX" --with-arch=rv32gc --with-abi=ilp32d \
-            --with-isa-spec=2.2 --with-cmodel=medany --with-languages=c $CONFIG_EXTRA > /dev/null || {
-                echo -e "'${RED}'Error: riscv-gnu-toolchain configure failed. Aborting.'${RESET}'"
+            if ! ./configure --prefix="$RISCV_INSTALL_PREFIX" --with-arch=rv32gc --with-abi=ilp32d \
+            --with-isa-spec=2.2 --with-cmodel=medany --with-languages=c $CONFIG_EXTRA 2>&1 \
+            | show_last_line_inplace "[configure] "; then
+
+                [[ "${RISCV_GNU_TOOLCHAIN_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                    echo "Warning: riscv-gnu-toolchain configure failed. Soft failing."
+                    exit 0
+                }
+
+                echo "Error: riscv-gnu-toolchain configure failed. Aborting."
                 exit 1
-            }
+            fi
 
             # Clean previous partial builds to ensure flags/toolchain changes take effect
-            rm -rf build-gcc-newlib-stage1 build-newlib build-newlib-nano stamps/build-newlib* \
+            sudo rm -rf build-gcc-newlib-stage1 build-newlib build-newlib-nano stamps/build-newlib* \
             build-newlib/riscv32-unknown-elf/newlib || true
 
             # Build the bootstrap cross-compiler first (target name is build-gcc1)
-            make -j "$CORES" build-gcc1 > /dev/null || {
-                echo -e "'${RED}'Error: bootstrap GCC (stage1) build failed.'${RESET}'"
+            if ! make -j "$CORES" build-gcc1 2>&1 | show_last_line_inplace "[make gcc1] "; then
+                echo "Error: bootstrap GCC (stage1) build failed."
                 exit 1
-            }
+            fi
 
             # Prefer the installed cross driver wrapper for target compiler
             TARGET_CC="riscv32-unknown-elf-gcc"
@@ -513,11 +660,17 @@ advance_progress
 
             # Force newlib to use the cross-compiler by setting CC_FOR_TARGET/CXX_FOR_TARGET
             # (honored by the riscv-gnu-toolchain newlib build via environment).
-            CC_FOR_TARGET="$TARGET_CC" CXX_FOR_TARGET="$TARGET_CXX" \
-            make -j "$CORES" V=1 newlib > /dev/null || {
-                echo -e "'${RED}'Error: riscv-gnu-toolchain build failed. Aborting.'${RESET}'"
+            if ! CC_FOR_TARGET="$TARGET_CC" CXX_FOR_TARGET="$TARGET_CXX" \
+                make -j "$CORES" V=1 newlib 2>&1 | show_last_line_inplace "[make newlib] "; then
+
+                [[ "${RISCV_GNU_TOOLCHAIN_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                    echo "Warning: riscv-gnu-toolchain newlib build failed. Soft failing."
+                    exit 0
+                }
+
+                echo "Error: riscv-gnu-toolchain build failed. Aborting."
                 exit 1
-            }
+            fi
 
             [[ "$FAST_BUILD" == 1 ]] && {
                 echo "Skipping QEMU build as --fast-build was set."; echo
@@ -525,15 +678,25 @@ advance_progress
             }
 
             # Optional: build QEMU simulator (not required for the toolchain itself)
-            make -j "$CORES" build-sim SIM=qemu > /dev/null || {
-                    echo -e "'${YELLOW}'Warning: QEMU build failed. Continuing without QEMU support.'${RESET}'\n"
+            make -j "$CORES" build-sim SIM=qemu 2>&1 | show_last_line_inplace "[make qemu] " || {
+                echo "Warning: QEMU build failed. Continuing without QEMU support."
             }
         '
 
+    export FAST_BUILD=$old_fast_build
     export PATH="$RISCV_INSTALL_PREFIX/bin:${PATH}"
-    sudo ln -sfn "$RISCV_INSTALL_PREFIX" /opt/riscv > /dev/null || true
-    echo -e "\n${CYAN}RISC-V GNU Toolchain successfully compiled from source."
-    echo " Version: $(riscv32-unknown-elf-gcc --version | head -n1)${RESET}"; echo
+
+    if ! command_exists riscv32-unknown-elf-gcc; then
+        echo -e "${YELLOW}Warning: riscv-gnu-toolchain couldn't be added to PATH."
+        echo    " this doesn't neccesserily mean that the installation failed."
+        echo -e " You may need to manually add ${RISCV_INSTALL_PREFIX}/bin to your PATH.${RESET}"
+    else
+        sudo ln -sfn "$RISCV_INSTALL_PREFIX" /opt/riscv > /dev/null || true
+        echo -e "\n${CYAN}RISC-V GNU Toolchain successfully compiled from source."
+        echo -e " Version: $(riscv32-unknown-elf-gcc --version | head -n1)${RESET}\n"
+    fi
+
+    echo -e "${CYAN}All developer tools installed successfully.${RESET}\n"
 }
 
 advance_progress
@@ -545,6 +708,9 @@ advance_progress
     git config --local core.hooksPath .github/hooks
     git config --local init.defaultBranch main
     git config --local pull.rebase true
+
+    # Any other git setup tasks go here
+    git fetch origin
 }
 
 [[ "$PARAM_FORCE" == 1 ]] && {
@@ -554,17 +720,15 @@ advance_progress
 }
 
 [[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
-    devsh '
-        [[ -f /etc/bash_completion ]] && {
-            . /etc/bash_completion
-        }
-
-        pre-commit install > /dev/null 2>&1 || {
-            echo -e "'${RED}'Error: pre-commit install failed. Aborting.'${RESET}'"
-            exit 1
-        }
-        ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${ROOT}/.pre-commit-config.yaml" > /dev/null || true
-    '
+    # FIX: Will not work because of bash-completion dependency issues in nix shell
+    # devsh '
+    #     pre-commit install > /dev/null 2>&1 || {
+    #         echo -e "'${RED}'Error: pre-commit install failed. Aborting.'${RESET}'"
+    #         exit 1
+    #     }
+    #     ln -sf "${PRE_COMMIT_CONFIG_YAML}" "${ROOT}/.pre-commit-config.yaml" > /dev/null || true
+    # '
+    :
 }
 
 [[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {

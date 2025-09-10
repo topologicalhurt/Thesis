@@ -19,17 +19,25 @@
           config.allowUnfree = true;
         };
 
+        # Passthrough's from HOST env
+        fastBuildDefault = builtins.getEnv "FAST_BUILD" == "1";
+        fastBuildDefaultStr = if fastBuildDefault then "1" else "0";
+        show_last_line_inplace = builtins.getEnv "SHOW_LAST_LINE_INPLACE";
+
         # Build Python package from pyproject.toml (example)
-        # llacPackage = pkgs.python3Packages.buildPythonPackage {
-        #   pname = "LLAC";
-        #   version = "0.0.0a";
-        #   format = "pyproject";
-        #   src = ./Src;
-        #   nativeBuildInputs = with pkgs.python3Packages; [ wheel ];
-        #   propagatedBuildInputs = with pkgs.python3Packages; [ numpy ];
-        #   doCheck = false;
-        #   pythonImportsCheck = [ "LLAC" ];
-        # };
+        # llacPackage = if (!fastBuildDefault) then
+          # pkgs.python3Packages.buildPythonPackage {
+          #   # Distribution name; importable top-level modules are derived from src contents
+          #   pname = "LLAC";
+          #   version = "0.0.0a";
+          #   format = "pyproject";
+          #   src = ./Src;
+          #   nativeBuildInputs = with pkgs.python3Packages; [ wheel ];
+          #   propagatedBuildInputs = with pkgs.python3Packages; [ numpy ];
+          #   doCheck = true;
+          #   pythonImportsCheck = [ "Allocator" "Src" "Scripts" ];
+          # }
+        # else null;
 
         # Mainline build selections
         pythonStable = pkgs.python3;
@@ -52,7 +60,7 @@
         # Build a Python env with common dev packages
         # For Python >= 3.14, exclude ipython (traitlets) and matplotlib until
         # upstream gains support in nixpkgs; keep core tooling.
-        mkPythonEnv = python: 
+        mkPythonEnv = python:
               let
                 ver = if python ? pythonVersion then python.pythonVersion else "";
                 is314plus = pkgs.lib.versionAtLeast ver "3.14";
@@ -70,27 +78,33 @@
         ldLibPath = with pkgs; [ zlib libGL glib.out ];
 
   baseShellHook = ''
+          export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
+          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
+          export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
+
+          # Resolve FAST_BUILD once: prefer runtime env, fall back to Nix-evaluated default
+          FAST_BUILD="''${FAST_BUILD:-${fastBuildDefaultStr}}"
+          export FAST_BUILD
+
+          show_last_line_inplace="''${SHOW_LAST_LINE_INPLACE:-${show_last_line_inplace}}"
+          export show_last_line_inplace
+
+          # Load project environment (prefer direct source over direnv to avoid recursion)
+          $PWD="$(pwd)"
+          if [ -f "$PWD/.env.shared" ]; then
+            . "$PWD/.env.shared"
+          elif [ -f "./.env.shared" ]; then
+            . "./.env.shared"
+          fi
+
+          # Validate ROOT now that we've attempted to set it
+          [[ -z "${ROOT:-}" ]] && {
+            echo "ERROR: ROOT environment variable is not set. Ensure .env.shared is present."
+            return 1
+          }
+
           # Determine Python version (major.minor) inside the shell
           PY_MM=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")' || echo)
-
-          # Compute project root and current branch if not already exported
-          if [ -z "''${ROOT:-}" ]; then
-            ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-            export ROOT
-          fi
-
-          if [ -z "''${CUR_BRANCH:-}" ]; then
-            CUR_BRANCH="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
-            export CUR_BRANCH
-          fi
-
-          # Optionally source shared env exports so they're always
-          # available inside nix shells without relying on direnv hooks.
-          # Create this file with lines like: export FOO=bar
-          if [ -f "$ROOT/.env.shared" ]; then
-            # shellcheck disable=SC1090
-            . "$ROOT/.env.shared"
-          fi
 
           # Helper to install requirements with optional blocklist for latest python builds
           install_requirements() {
@@ -118,13 +132,8 @@
             fi
           }
 
-          export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
-          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
-          export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
-
           # Specify library prefixes for GMP/MPFR/MPC via pkg-config
           # These are needed to build riscv-gnu-toolchain from source
-
           GMP_PREFIX=$(pkg-config --variable=prefix gmp 2>/dev/null || true)
           MPFR_PREFIX=$(pkg-config --variable=prefix mpfr 2>/dev/null || true)
           MPC_PREFIX=$(pkg-config --variable=prefix mpc 2>/dev/null || pkg-config \
@@ -132,7 +141,6 @@
 
           # Pass these prefixes to riscv-gnu-toolchain's configure script
           # Commented out for now since it seems to find them automatically
-
           # CONFIG_EXTRA=""
           # [ -n "$GMP_PREFIX" ] && CONFIG_EXTRA="$CONFIG_EXTRA --with-gmp=$GMP_PREFIX"
           # [ -n "$MPFR_PREFIX" ] && CONFIG_EXTRA="$CONFIG_EXTRA --with-mpfr=$MPFR_PREFIX"
@@ -160,55 +168,68 @@
           #   export LIBRARY_PATH="$LIBRARY_PATH_PREFIX"
           # fi
 
-          # Decide on venv suffix based on optimization flag
-          OPT_SUFFIX=""
-          if [ "''${PY_IS_OPT:-0}" = "1" ]; then
-            OPT_SUFFIX="_opt"
-          fi
+          if [ "''${FAST_BUILD}" != "1" ]; then
+            # Decide on venv suffix based on optimization flag
+            OPT_SUFFIX=""
+            if [ "''${PY_IS_OPT:-0}" = "1" ]; then
+              OPT_SUFFIX="_opt"
+            fi
 
-          case "$CUR_BRANCH" in
-            "research") VENV_DIR="$ROOT/docs/Notebook/.venv_''${PY_MM}''${OPT_SUFFIX}";;
-            *) VENV_DIR="$ROOT/.venv_''${PY_MM}''${OPT_SUFFIX}";;
-          esac
+            case "$CUR_BRANCH" in
+              "research") VENV_DIR="$ROOT/docs/Notebook/.venv_''${PY_MM}''${OPT_SUFFIX}";;
+              *) VENV_DIR="$ROOT/.venv_''${PY_MM}''${OPT_SUFFIX}";;
+            esac
 
-          export VENV_DIR="$VENV_DIR"
+            export VENV_DIR="$VENV_DIR"
 
-          [ ! -d $VENV_DIR ] && {
-            echo "Creating Python virtual environment in $VENV_DIR..."
-            python3 -m venv $VENV_DIR
-          }
+            # Make project sources importable without installation
+            if [ -d "$ROOT/Src" ]; then
+              if [ -n "${PYTHONPATH:-}" ]; then
+                export PYTHONPATH="$ROOT/Src:$PYTHONPATH"
+              else
+                export PYTHONPATH="$ROOT/Src"
+              fi
+            fi
 
-          source "$VENV_DIR/bin/activate"
+            [ ! -d $VENV_DIR ] && {
+              echo "Creating Python virtual environment in $VENV_DIR..."
+              python3 -m venv $VENV_DIR
+            }
 
-          # ! Anything below this line is run inside the .venv !
+            # Activate venv for current shell so hooks can source it too
+            . "$VENV_DIR/bin/activate"
 
-          # Install the main project package in editable mode for all branches
-          # pip install -e "$ROOT/Src" --quiet
+            # Install the main project package in editable mode for all branches
+            # pip install -e "$ROOT/Src" --quiet
 
-          case "$CUR_BRANCH" in
-            "research")
-                echo "Installing Python dependencies into the research virtual environment..."
-                install_requirements "$ROOT/docs/Notebook/requirements.txt"
-                python3 -m ipykernel install --user --name=.venv
-                cd "$ROOT/docs/Notebook"
+            case "$CUR_BRANCH" in
+              "research")
+                  echo "Installing Python dependencies into the research virtual environment..."
+                  install_requirements "$ROOT/docs/Notebook/requirements.txt"
+                  python3 -m ipykernel install --user --name=.venv
+                  cd "$ROOT/docs/Notebook"
+                ;;
+              *)
+                echo "Installing Python dependencies into the virtual environment..."
+                install_requirements "$ROOT/Src/Allocator/requirements.txt"
+                install_requirements "$ROOT/Src/Scripts/requirements.txt"
               ;;
-            *)
-              echo "Installing Python dependencies into the virtual environment..."
-              install_requirements "$ROOT/Src/Allocator/requirements.txt"
-              install_requirements "$ROOT/Src/Scripts/requirements.txt"
-            ;;
-          esac
+            esac
 
-          GIL_ENABLED=$(python3 -c 'import sys; print(sys._is_gil_enabled())')
-          echo "LLAC development environment loaded on $CUR_BRANCH branch"
-          echo "Python virtual environment activated. Python: $(which python)"
-          echo "GIL status: ''${GIL_ENABLED}"
-          python3 --version
+            GIL_ENABLED=$(python3 -c 'import sys; print(sys._is_gil_enabled())')
+            echo "LLAC development environment loaded on $CUR_BRANCH branch"
+            echo "Python virtual environment activated. Python: $(which python)"
+            echo "GIL status: ''${GIL_ENABLED}"
+            python3 --version
+          else
+            echo "FAST_BUILD is set: skipping Python venv setup and dependency installation"
+          fi
         '';
 
   mkLlacShell = python: optimized: pkgs.mkShell {
           buildInputs = with pkgs; [
             (mkPythonEnv python)
+            # Meta
             direnv nix-direnv
 
             # Build tools
@@ -219,7 +240,7 @@
             glib libGL fontconfig libxkbcommon freetype dbus libsForQt5.wrapQtAppsHook
 
             # Networking
-            libslirp 
+            libslirp
 
             # System dependencies
             git curl cacert gnupg coreutils-full ccache perl act docker docker-compose

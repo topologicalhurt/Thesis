@@ -11,5 +11,6 @@ PyYAML==6.0.2
 redis==6.4.0
 regex==2025.7.34
 scipy==1.16.0
+Scripts==3.0
 sphinx==8.2.3
 urllib3_secure_extra==0.1.0
