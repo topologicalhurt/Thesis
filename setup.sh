@@ -11,7 +11,7 @@ SKIP_SUBMODULE_SYNC=1
 
 # These are required for setup on HOST. Try to keep as minimal as possible.
 readonly HOST_REQUIREMENTS_DEB=('sudo' 'git' 'curl' 'python3')
-readonly HOST_REQUIREMENTS_DARWIN=('git' 'curl' 'python3' 'awk' 'grep')
+readonly HOST_REQUIREMENTS_DARWIN=('git' 'curl' 'python3' 'gawk' 'gnu-sed' 'gnu-tar' 'grep' 'findutils' 'coreutils')
 
 # ANSI codes
 readonly ITALICS='\033[3m'
@@ -40,6 +40,9 @@ get_os() {
         *) echo "UNKNOWN:$(uname -s)";;
     esac
 }
+
+readonly ARCH="$(uname -p)"
+readonly OS="$(get_os)"
 
 print_logo() {
     art=$(cat <<'EOF'
@@ -251,7 +254,7 @@ devsh() {
     # Helper: run a command inside the dev shell (nix develop). If already
     # in a nix shell, just run it in bash with login semantics.
     if [ -z "${IN_NIX_SHELL:-}" ]; then
-        nix develop --command bash -lc "$*" || {
+        nix develop --quiet --impure --command bash -lc "$*" || {
                 echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
                 exit 1
             }
@@ -263,7 +266,7 @@ devsh() {
     fi
 }
 
-PACKAGES_HOST_REQUIREMENTS=""
+PACKAGES_HOST_REQUIREMENTS=
 
 install_host_packages_linux() {
     for package in "${HOST_REQUIREMENTS_DEB[@]}"; do
@@ -300,7 +303,7 @@ install_host_packages_darwin() {
     fi
 }
 
-case "$(get_os)" in
+case $OS in
     "Linux")
         distribution=$(cat /etc/*-release | grep -oP '(?<=^NAME=")[^"]+')
         kernel=$(uname -r | grep -oP '^[\d.]+')
@@ -311,7 +314,9 @@ case "$(get_os)" in
             echo "Only Debian-based distros with apt-get are supported.${RESET}"
             exit 1
         }
-        echo "Targeting Linux distro ${distribution} on kernel ${kernel}"; echo
+        echo "Targeting Linux distro ${distribution}"
+        echo "Kernel: ${kernel}"
+        echo "Architecture: ${ARCH}"; echo
 
         sudo apt-get -y update > /dev/null 2>&1 && sudo apt-get -y upgrade > /dev/null 2>&1
         install_host_packages_linux
@@ -319,7 +324,12 @@ case "$(get_os)" in
         command_exists docker && sudo usermod -aG docker "${USER}"
     ;;
     "Mac")
-        echo "Targeting macOS / Darwin platform"; echo
+        echo "Targeting macOS / Darwin platform"
+        if [[ $ARCH == 'arm' ]]; then
+            echo "Running on Apple Silicon (ARM architecture)"; echo
+        else
+            echo "Running on Intel/AMD (x86_64 architecture)"; echo
+        fi
 
         # Manage system dependencies with Homebrew
         command_exists brew || {
@@ -328,24 +338,28 @@ case "$(get_os)" in
         }
         brew update > /dev/null 2>&1
 
+        # Use GNU coreutils tools by default for compatibility
+        readonly HOMEBREW_PREFIX=$(brew --prefix)
+        for d in ${HOMEBREW_PREFIX}/opt/*/libexec/gnubin; do export PATH=$d:$PATH; done
+
         install_host_packages_darwin
         ;;
     "FreeBSD") echo "Targeting FreeBSD platform"; echo;;
     "Windows") echo "Windows is not supported. Aborting setup."; exit 1;;
 esac
 
+. "$PWD/.env.shared"
+
 git rev-parse --git-dir > /dev/null 2>&1 || {
     REPO_NAME=$(basename "${GIT_REPO_URL}" .git)
     echo "Not a git repository. Cloning '${REPO_NAME}'..."
-    [ -d "${REPO_NAME}" ] && {
+    [ -d "$ROOT/$REPO_NAME" ] && {
         echo -e "${RED}Error: Directory '${REPO_NAME}' already exists. Aborting.${RESET}"
         exit 1
     }
     git clone "${GIT_REPO_URL}" --depth 1
     cd "$ROOT/$REPO_NAME"
 }
-
-. "$PWD/.env.shared"
 
 readonly SUBMODULE_BIN="$ROOT/bin"
 readonly SETUP_CACHE="${ROOT}/bin/cache"
@@ -371,7 +385,7 @@ install_nix() {
 
 source_nix_profile() {
     local nix_profiles=()
-    if [[ "$(get_os)" == "Linux" ]]; then
+    if [[ $OS == "Linux" ]]; then
         nix_profiles=("/nix/var/nix/profiles/default/etc/profile.d/nix.sh" "/etc/profile.d/nix.sh")
     else
         # Annoyingly, on darwin the Nix profile may be mounted on a separate volume
@@ -391,7 +405,7 @@ source_nix_profile() {
                 # On darwin, if the expected path location is matched add nix to PATH
                 # activating the profile doesn't seem to add nix to the PATH correctly (likely due to zshrc differences)
                 command_exists nix || {
-                    if [[ "$(get_os)" == "Mac" && "$profile" == "/nix/var/nix/profiles/default"* ]]; then
+                    if [[ $OS == "Mac" && "$profile" == "/nix/var/nix/profiles/default"* ]]; then
                         export PATH="/nix/var/nix/profiles/default/bin:$PATH"
                     else
                         echo -e "${YELLOW}Warning: Nix profile script found at unexpected location: ${profile}."
@@ -460,7 +474,7 @@ privilege_script_dir() {
 advance_progress
 
 echo "Installing dependencies with Nix..."
-nix develop --command true > /dev/null 2>&1 || {
+nix develop --impure --quiet --command true > /dev/null 2>&1 || {
     echo -e "${RED}Error: Failed to enter the Nix dev shell. Aborting setup.${RESET}"
     exit 1
 }

@@ -68,7 +68,7 @@
                 python.withPackages (ps:
                   let
                     baseMinimal = with ps; [ virtualenv wheel pip ];
-                    baseFull = (with ps; [ virtualenv wheel pip pytest ruff packaging build ]) ++ [ ps."setuptools-scm" ];
+                    baseFull = (with ps; [ virtualenv wheel pip pytest ruff packaging build poetry ]) ++ [ ps."setuptools-scm" ];
                   in
                     if is314plus then baseMinimal
                     else baseFull ++ (with ps; [ ipython (matplotlib.override { enableQt = true; }) ])
@@ -82,22 +82,20 @@
           export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
           export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
 
-          FAST_BUILD="''${FAST_BUILD:-${fastBuildDefaultStr}}"
-          export FAST_BUILD
-
-          show_last_line_inplace="''${SHOW_LAST_LINE_INPLACE:-${show_last_line_inplace}}"
-          export show_last_line_inplace
-
           export PATH="$VERILATOR_PREFIX/bin:$PATH"
           export PATH="$RISCV_INSTALL_PREFIX/bin:$PATH"
 
           # Load project environment
-          $PWD="$(pwd)"
-          if [ -f "$PWD/.env.shared" ]; then
-            . "$PWD/.env.shared"
-          elif [ -f "./.env.shared" ]; then
+          # Don't overwrite env passthroughs from host
+          fast_build_tmp="''${FAST_BUILD:-${fastBuildDefaultStr}}"
+          show_last_line_inplace_tmp="''${SHOW_LAST_LINE_INPLACE:-${show_last_line_inplace}}"
+
+          [[ -f "./.env.shared" ]] && {
             . "./.env.shared"
-          fi
+          }
+
+          export FAST_BUILD="$fast_build_tmp"
+          export SHOW_LAST_LINE_INPLACE="$show_last_line_inplace_tmp"
 
           [[ -z "${ROOT:-}" ]] && {
             echo "ERROR: ROOT environment variable is not set. Ensure .env.shared is present."
@@ -230,7 +228,6 @@
   mkLlacShell = python: optimized: pkgs.mkShell {
           buildInputs = with pkgs; [
             (mkPythonEnv python)
-            # Meta
             direnv nix-direnv
 
             # Build tools
