@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
-source "$VENV_DIR/bin/activate"
+. "$VENV_DIR/bin/activate"
 
 # Strip outputs from every staged .ipynb before the commit is recorded.
 notebooks=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ipynb$' || true)

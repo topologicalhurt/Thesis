@@ -6,17 +6,13 @@ Core <-- Interpreter <-- Scripts where 'a <-- b' means 'b depends (or can depend
 The Core directory abides by the following rules without exception:
 
 I: Any approved external dependencies must be able to be compiled into a single static riscv32 lib
-
 II: Any code must be fully portable between riscv32 & the supported unix-based platforms
-
 III: All bindings (E.g. wrappers exposing libs to python via ctypes/cffi) must live here
-
 IV: The rules for introducing bindings are as follows:
-
     - If the python binding is purely exposing functions to be used in the interpreter (I.e. for speed / memory savings) place it under ```python```.
-
     - Otherwise, if the binding is targeting a native implementation (I.e. can be expected to run on the softcore) introduce it under the respective subdirectory (E.g. ```libs```)
 
-You will need to have the risc-v-gnu-toolchain installed in order to compile for the softcore target (E.g. 32-bit based RISCV NERV processor) which you build with ```make riscv```.
+You will need to have the *risc-v-gnu-toolchain* installed in order to compile for the softcore target (E.g. 32-bit based RISCV NERV processor) which you build with ```make riscv```. Because the riscv-gnu-toolchain is highly specialized you are probably best off running ```./setup.sh --extra-dev-tools``` in order to start using LLAC's custom riscv-gnu-toolchain.
 
 By default ```make``` will only target supported unix-based systems.
+Other common options include ```make all``` for unix & riscv.

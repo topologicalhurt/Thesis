@@ -4,8 +4,6 @@ import sys
 import argparse as ap
 import regex as re
 
-from Allocator.Interpreter.helpers import join_regex
-
 
 CODESPELL_PATTERNS = [
     r'https?://[^\s]+',                                                    # URL pattern's
@@ -33,6 +31,7 @@ def main():
                         for pattern in args['patterns']]
 
     try:
+        from Allocator.Interpreter.helpers import join_regex
         result = join_regex(*args['patterns'])
         print(result)
         sys.exit(0)
