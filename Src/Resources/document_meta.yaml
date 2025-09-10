@@ -2,10 +2,7 @@
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
-  'file_description': 'Allocator.Core package
-
-
-    Python-facing wrappers for the native c implementation of various core algorithms.'
+  'file_description': 'N/A'
   'fname': '__init__.py'
   'license_preamble': '// It is intended to be used as part of the allocator design
     which is responsible for the soft-core, or offboard, management of the on-fabric
@@ -85,12 +82,7 @@
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
-  'file_description': 'ctypes binding for libpoly.
-
-
-    This module loads the sibling shared library ''libpoly.so'' built from poly.c
-
-    and exposes simple Python-callable functions.'
+  'file_description': 'N/A'
   'fname': 'polywrap.py'
   'license_preamble': '// It is intended to be used as part of the allocator design
     which is responsible for the soft-core, or offboard, management of the on-fabric
@@ -110,10 +102,7 @@
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
-  'file_description': 'Allocator.Core package
-
-
-    Python-facing wrappers for the native c implementation of select optimised algorithms.'
+  'file_description': 'N/A'
   'fname': '__init__.py'
   'license_preamble': '// It is intended to be used as part of the allocator design
     which is responsible for the soft-core, or offboard, management of the on-fabric
@@ -285,18 +274,6 @@
     For more information see the repository: https://github.com/topologicalhurt/Thesis
 
 
-    Purpose:        ------------------------------------------------------------------------
-
-    Filename:       hashable_array.py
-
-
-    Project:        LLAC, intelligent hardware scheduler targeting common audio signal
-    chains.
-
-
-    For more information see the repository: https://github.com/topologicalhurt/Thesis
-
-
     Purpose:        Hashable wrapper for numpy arrays.
 
 
@@ -310,39 +287,6 @@
     Note: Mutating the original input after wrapping does not affect the wrapper
 
     since an internal copy is made and marked read-only.
-
-
-    Author: topologicalhurt csin0659@uni.sydney.edu.au
-
-
-    ------------------------------------------------------------------------
-
-    Copyright (C) 2025, LLAC project LLC
-
-
-    This file is a part of the ALLOCATOR module
-
-    It is intended to be used as part of the allocator design which is responsible
-    for the soft-core, or offboard, management of the on-fabric components.
-
-    Please refer to docs/whitepaper first, which provides a complete description of
-    the project & it''s motivations.
-
-
-    The design is NOT COVERED UNDER ANY WARRANTY.
-
-
-    LICENSE:     GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
-
-    As defined by GNU GPL 3.0 https://www.gnu.org/licenses/gpl-3.0.html
-
-
-    A copy of this license is included at the root directory. It should''ve been provided
-    to you
-
-    Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LICENSE
-
-    ------------------------------------------------------------------------
 
 
     Author: topologicalhurt csin0659@uni.sydney.edu.au
@@ -475,10 +419,7 @@
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
-  'file_description': 'Polynomial optimization utilities with a matrix-based representation
-    (ICCAD 2004 compatible)
-
-    plus practical univariate evaluators (Horner/Estrin).'
+  'file_description': 'N/A'
   'fname': 'polynomial_cse_iccad.py'
   'license_preamble': '// It is intended to be used as part of the allocator design
     which is responsible for the soft-core, or offboard, management of the on-fabric
@@ -777,41 +718,12 @@
     //'
   'module': 'ALLOCATOR'
   'separator': '------------------------------------------------------------------------'
-'Allocator/setup.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'setup.py'
-  'license_preamble': '// It is intended to be used as part of the allocator design
-    which is responsible for the soft-core, or offboard, management of the on-fabric
-    components.
-
-    // Please refer to docs/whitepaper first, which provides a complete description
-    of the project & it''s motivations.
-
-    //
-
-    // The design is NOT COVERED UNDER ANY WARRANTY.
-
-    //'
-  'module': 'ALLOCATOR'
-  'separator': '------------------------------------------------------------------------'
 'Demo/__init__.py':
   'author_email': 'csin0659@uni.sydney.edu.au'
   'author_name': 'topologicalhurt'
   'copyright_year': !!int '2025'
   'file_description': 'N/A'
   'fname': '__init__.py'
-  'license_preamble': !!null 'null'
-  'module': !!null 'null'
-  'separator': '------------------------------------------------------------------------'
-'Demo/llac_audio_passthrough.py':
-  'author_email': 'csin0659@uni.sydney.edu.au'
-  'author_name': 'topologicalhurt'
-  'copyright_year': !!int '2025'
-  'file_description': 'N/A'
-  'fname': 'llac_audio_passthrough.py'
   'license_preamble': !!null 'null'
   'module': !!null 'null'
   'separator': '------------------------------------------------------------------------'
