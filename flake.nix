@@ -216,22 +216,20 @@
             cmake ninja libmpc mpfr gmp
 
             # Graphics (tested: all of these should be optional)
-            glib libGL fontconfig wayland libxkbcommon freetype dbus libsForQt5.wrapQtAppsHook
+            glib libGL fontconfig libxkbcommon freetype dbus libsForQt5.wrapQtAppsHook
 
             # Networking
             libslirp 
 
             # System dependencies
             git curl cacert gnupg coreutils-full ccache perl act docker docker-compose
-            gawk texinfo gperf expat zlib xz lzip unzip patchutils gperf
+            gawk texinfo gperf expat zlib xz lzip unzip patchutils gperf bash-completion
 
             # Git dependencies
             pre-commit codespell
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             # macOS specific packages
-            pkgs.darwin.apple_sdk.frameworks.CoreServices
-            pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
           ]
           ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
             # Linux specific packages

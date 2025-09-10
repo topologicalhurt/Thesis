@@ -1,9 +1,9 @@
-[submodule "dblclockfft"]
+[submodule "submodules/dblclockfft"]
 	path = submodules/dblclockfft
 	url = https://github.com/ZipCPU/dblclockfft
-[submodule "verilator"]
+[submodule "submodules/verilator"]
 	path = submodules/verilator
 	url = https://github.com/verilator/verilator
-[submodule "riscv-gnu-toolchain"]
+[submodule "submodules/riscv-gnu-toolchain"]
 	path = submodules/riscv-gnu-toolchain
 	url = https://github.com/riscv-collab/riscv-gnu-toolchain
