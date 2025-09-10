@@ -133,7 +133,6 @@ show_last_line_inplace() {
     local italics=$'\033[3m'
     local reset=$'\033[0m'
 
-    # If not a TTY and not forced, passthrough without ANSI to preserve logs
     if [[ ! -t 1 && -z "${FORCE_INLINE_OUTPUT:-}" ]]; then
         cat
         return 0
@@ -141,7 +140,6 @@ show_last_line_inplace() {
 
     trap 'printf "\n"' INT TERM
 
-    # Determine terminal width (fallback to 80)
     local cols=80
     if [[ -n "${COLUMNS:-}" ]]; then
         cols=${COLUMNS}
@@ -151,14 +149,12 @@ show_last_line_inplace() {
 
     local line disp
     while IFS= read -r line; do
-        # Use the last segment after any carriage-return updates
         disp="${line##*$'\r'}"
         local max_len=$(( cols > 1 ? cols - 1 : 1 ))
         local len_prefix=${#raw_prefix}
 
         printf '\r\033[J'
         if [[ -n "$raw_prefix" && $len_prefix -lt $max_len ]]; then
-            # Show full prefix in bold if it fits, then truncate message if needed
             local avail=$(( max_len - len_prefix ))
             local msg="$disp"
             if (( ${#msg} > avail )); then
@@ -277,7 +273,7 @@ install_host_packages_linux() {
     done
 
     if [ -n "$PACKAGES_HOST_REQUIREMENTS" ]; then
-        echo "Installing host packages: $PACKAGES_HOST_REQUIREMENTS"
+        echo "Installing the following host packages: $PACKAGES_HOST_REQUIREMENTS"
         sudo apt-get -y install $PACKAGES_HOST_REQUIREMENTS >/dev/null 2>&1 || {
             echo -e "${RED}Error: Failed to install host packages: $PACKAGES_HOST_REQUIREMENTS${RESET}"
             exit 1
@@ -294,7 +290,7 @@ install_host_packages_darwin() {
     done
 
     if [ -n "$PACKAGES_HOST_REQUIREMENTS" ]; then
-        echo "Installing host packages: $PACKAGES_HOST_REQUIREMENTS"
+        echo "Installing the following host packages: $PACKAGES_HOST_REQUIREMENTS"
         brew install $PACKAGES_HOST_REQUIREMENTS >/dev/null 2>&1 || {
             echo -e "${RED}Error: Failed to install host packages: $PACKAGES_HOST_REQUIREMENTS${RESET}"
             exit 1
@@ -308,7 +304,6 @@ case $OS in
         distribution=$(cat /etc/*-release | grep -oP '(?<=^NAME=")[^"]+')
         kernel=$(uname -r | grep -oP '^[\d.]+')
 
-        # Manage system dependencies with apt-get
         command_exists apt-get || {
             echo -e "${RED}Error: Unsupported Linux distro ${distribution}.\n"
             echo "Only Debian-based distros with apt-get are supported.${RESET}"
@@ -320,8 +315,6 @@ case $OS in
 
         sudo apt-get -y update > /dev/null 2>&1 && sudo apt-get -y upgrade > /dev/null 2>&1
         install_host_packages_linux
-
-        command_exists docker && sudo usermod -aG docker "${USER}"
     ;;
     "Mac")
         echo "Targeting macOS / Darwin platform"
@@ -331,14 +324,13 @@ case $OS in
             echo "Running on Intel/AMD (x86_64 architecture)"; echo
         fi
 
-        # Manage system dependencies with Homebrew
         command_exists brew || {
             /bin/bash -c "$(curl -fsSL \
             https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" >/dev/null 2>&1
         }
         brew update > /dev/null 2>&1
 
-        # Use GNU coreutils tools by default for compatibility
+        # Use GNU coreutils tools
         readonly HOMEBREW_PREFIX=$(brew --prefix)
         for d in ${HOMEBREW_PREFIX}/opt/*/libexec/gnubin; do export PATH=$d:$PATH; done
 
@@ -409,7 +401,7 @@ source_nix_profile() {
                         export PATH="/nix/var/nix/profiles/default/bin:$PATH"
                     else
                         echo -e "${YELLOW}Warning: Nix profile script found at unexpected location: ${profile}."
-                        echo -e "You will need to manually add Nix to your shell's environment.${RESET}"
+                        echo -e " You will need to manually add Nix to your shell's environment.${RESET}"
                     fi
                 }
                 return 0
@@ -417,7 +409,7 @@ source_nix_profile() {
     done
 
     echo -e "${YELLOW}Warning: Could not find the Nix profile script to source."
-    echo -e "You may need to manually add Nix to your shell's environment.${RESET}"
+    echo -e " You may need to manually add Nix to your shell's environment.${RESET}"
     set -u
     return 1
 }
@@ -517,7 +509,6 @@ clone_submodules() {
             *) : ;;
         esac
 
-        # Stream concise, single-line progress; speed up via shallow+filtered clone and parallel submodules
         if ! git clone \
             --recurse-submodules \
             --shallow-submodules \
@@ -536,16 +527,14 @@ clone_submodules() {
 }
 
 [[ "$HAS_RUN_SETUP_SHELL" == 0 || "$UPDATE_SUBMODULES" == 1 ]] && {
-    sudo rm -rf .git/submodules
-
     echo "Updating git submodules..."; echo
 
-    git submodule deinit --all --force 2>&1 | show_last_line_inplace "[submodule deinit] " || true
     if [[ "$SKIP_SUBMODULE_SYNC" == 0 ]]; then
         git submodule sync --recursive 2>&1 | show_last_line_inplace "[submodule sync] " || true
     else
         echo "[submodule sync] skipped by flag"
     fi
+
     git -c protocol.version=2 submodule update --init --recursive \
         --depth 1 --jobs "${CORES:-8}" --recommend-shallow --filter=blob:none \
         2>&1 | show_last_line_inplace "[submodule update] " || true
@@ -564,8 +553,7 @@ advance_progress
         sudo rm -rf $SUBMODULE_BIN > /dev/null 2>&1 || true
     }
 
-    # Temporarily enable FAST_BUILD for compilation of optional dependencies to skip
-    # unnecessary nix shell hooks
+    # Temporarily enable FAST_BUILD for compilation to skip unnecessary nix shell hooks
     old_fast_build=$FAST_BUILD
     export FAST_BUILD=1
 
@@ -627,7 +615,6 @@ advance_progress
             }
 
             # GCC configure will fail if LIBRARY_PATH includes the current directory
-            # Sanitize by unsetting it for this build.
             [[ -n "${LIBRARY_PATH:-}" ]] && {
                 unset LIBRARY_PATH
             }
@@ -658,22 +645,16 @@ advance_progress
                 exit 1
             fi
 
-            # Clean previous partial builds to ensure flags/toolchain changes take effect
-            sudo rm -rf build-gcc-newlib-stage1 build-newlib build-newlib-nano stamps/build-newlib* \
-            build-newlib/riscv32-unknown-elf/newlib || true
-
-            # Build the bootstrap cross-compiler first (target name is build-gcc1)
+            # Build the bootstrap cross-compiler first
             if ! make -j "$CORES" build-gcc1 2>&1 | show_last_line_inplace "[make gcc1] "; then
                 echo "Error: bootstrap GCC (stage1) build failed."
                 exit 1
             fi
 
-            # Prefer the installed cross driver wrapper for target compiler
             TARGET_CC="riscv32-unknown-elf-gcc"
             TARGET_CXX="riscv32-unknown-elf-g++"
 
-            # Force newlib to use the cross-compiler by setting CC_FOR_TARGET/CXX_FOR_TARGET
-            # (honored by the riscv-gnu-toolchain newlib build via environment).
+            # Force newlib to use the cross-compiler
             if ! CC_FOR_TARGET="$TARGET_CC" CXX_FOR_TARGET="$TARGET_CXX" \
                 make -j "$CORES" V=1 newlib 2>&1 | show_last_line_inplace "[make newlib] "; then
 
@@ -723,7 +704,6 @@ advance_progress
     git config --local init.defaultBranch main
     git config --local pull.rebase true
 
-    # Any other git setup tasks go here
     git fetch origin
 }
 

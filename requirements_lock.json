@@ -1,320 +1,320 @@
 {
-    "modules": {
-        "allocator": {
-            "dependencies": [
-                {
-                    "name": "fxpmath",
-                    "version": "0.4.9",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "456a0ae8960c9de2bd7a9518bbc9d62a22ad1f3c51b8c31e4000aeaf4f898b75"
-                        }
-                    ],
-                    "lock_key": "b4a7ebbba59ab58069dd3c0970ed4630917a283ab321e83d52e890ea01586122"
-                },
-                {
-                    "name": "networkx",
-                    "version": "3.5",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "0030d386a9a06dee3565298b4a734b68589749a544acbb6c412dc9e2489ec6ec"
-                        }
-                    ],
-                    "lock_key": "d6610b9d503a25238399969b05a155906915b12ba27e838865b11898af73d161"
-                },
-                {
-                    "name": "numpy",
-                    "version": "2.3.3",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
-                        }
-                    ],
-                    "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
-                },
-                {
-                    "name": "pytest",
-                    "version": "8.4.2",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79"
-                        }
-                    ],
-                    "lock_key": "13a0d095e88e465ef2960e0b746bbc463cfd15a8f2d2c9d71837e50b452204e0"
-                },
-                {
-                    "name": "scipy",
-                    "version": "1.16.1",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
-                        }
-                    ],
-                    "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
-                },
-                {
-                    "name": "xxhash",
-                    "version": "3.5.0",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "97a662338797c660178e682f3bc180277b9569a59abfb5925e8620fba00b9fc5"
-                        }
-                    ],
-                    "lock_key": "10b5e7e5c7c7fa64cd1789c2f05a1caaab7482cb0880974abf197ce2d647be80"
-                }
-            ]
+  "modules": {
+    "allocator": {
+      "dependencies": [
+        {
+          "name": "fxpmath",
+          "version": "0.4.9",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "456a0ae8960c9de2bd7a9518bbc9d62a22ad1f3c51b8c31e4000aeaf4f898b75"
+            }
+          ],
+          "lock_key": "b4a7ebbba59ab58069dd3c0970ed4630917a283ab321e83d52e890ea01586122"
         },
-        "scripts": {
-            "dependencies": [
-                {
-                    "name": "PyYAML",
-                    "version": "6.0.2",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1"
-                        }
-                    ],
-                    "lock_key": "4963e368330fa3956d38386930ce329da5b86a979614250d18c873b253210a4f"
-                },
-                {
-                    "name": "matplotlib",
-                    "version": "3.10.6",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
-                        }
-                    ],
-                    "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
-                },
-                {
-                    "name": "numpy",
-                    "version": "2.3.3",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
-                        }
-                    ],
-                    "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
-                },
-                {
-                    "name": "scipy",
-                    "version": "1.16.1",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
-                        }
-                    ],
-                    "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
-                }
-            ]
+        {
+          "name": "networkx",
+          "version": "3.5",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "0030d386a9a06dee3565298b4a734b68589749a544acbb6c412dc9e2489ec6ec"
+            }
+          ],
+          "lock_key": "d6610b9d503a25238399969b05a155906915b12ba27e838865b11898af73d161"
         },
-        "notebook": {
-            "dependencies": [
-                {
-                    "name": "Src",
-                    "version": null,
-                    "source": "pypi",
-                    "hashes": [],
-                    "lock_key": null
-                },
-                {
-                    "name": "helpers",
-                    "version": null,
-                    "source": "pypi",
-                    "hashes": [],
-                    "lock_key": null
-                },
-                {
-                    "name": "ipython",
-                    "version": "9.5.0",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "88369ffa1d5817d609120daa523a6da06d02518e582347c29f8451732a9c5e72"
-                        }
-                    ],
-                    "lock_key": "650440a02f6748e0d5019b984804d53f03ba35391f8aeca38397307c8c9e47d4"
-                },
-                {
-                    "name": "matplotlib",
-                    "version": "3.10.6",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
-                        }
-                    ],
-                    "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
-                },
-                {
-                    "name": "numpy",
-                    "version": "2.3.3",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
-                        }
-                    ],
-                    "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
-                },
-                {
-                    "name": "pylatex",
-                    "version": null,
-                    "source": "pypi",
-                    "hashes": [],
-                    "lock_key": null
-                },
-                {
-                    "name": "scipy",
-                    "version": "1.16.1",
-                    "source": "pypi",
-                    "hashes": [
-                        {
-                            "algo": "sha256",
-                            "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
-                        }
-                    ],
-                    "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
-                }
-            ]
+        {
+          "name": "numpy",
+          "version": "2.3.3",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+            }
+          ],
+          "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
+        },
+        {
+          "name": "pytest",
+          "version": "8.4.2",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79"
+            }
+          ],
+          "lock_key": "13a0d095e88e465ef2960e0b746bbc463cfd15a8f2d2c9d71837e50b452204e0"
+        },
+        {
+          "name": "scipy",
+          "version": "1.16.1",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+            }
+          ],
+          "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+        },
+        {
+          "name": "xxhash",
+          "version": "3.5.0",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "97a662338797c660178e682f3bc180277b9569a59abfb5925e8620fba00b9fc5"
+            }
+          ],
+          "lock_key": "10b5e7e5c7c7fa64cd1789c2f05a1caaab7482cb0880974abf197ce2d647be80"
         }
+      ]
     },
-    "dependencies": [
+    "scripts": {
+      "dependencies": [
         {
-            "name": "fxpmath",
-            "version": "0.4.9",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "456a0ae8960c9de2bd7a9518bbc9d62a22ad1f3c51b8c31e4000aeaf4f898b75"
-                }
-            ],
-            "lock_key": "b4a7ebbba59ab58069dd3c0970ed4630917a283ab321e83d52e890ea01586122"
+          "name": "PyYAML",
+          "version": "6.0.2",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1"
+            }
+          ],
+          "lock_key": "4963e368330fa3956d38386930ce329da5b86a979614250d18c873b253210a4f"
         },
         {
-            "name": "ipython",
-            "version": "9.5.0",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "88369ffa1d5817d609120daa523a6da06d02518e582347c29f8451732a9c5e72"
-                }
-            ],
-            "lock_key": "650440a02f6748e0d5019b984804d53f03ba35391f8aeca38397307c8c9e47d4"
+          "name": "matplotlib",
+          "version": "3.10.6",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
+            }
+          ],
+          "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
         },
         {
-            "name": "matplotlib",
-            "version": "3.10.6",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
-                }
-            ],
-            "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
+          "name": "numpy",
+          "version": "2.3.3",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+            }
+          ],
+          "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
         },
         {
-            "name": "networkx",
-            "version": "3.5",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "0030d386a9a06dee3565298b4a734b68589749a544acbb6c412dc9e2489ec6ec"
-                }
-            ],
-            "lock_key": "d6610b9d503a25238399969b05a155906915b12ba27e838865b11898af73d161"
-        },
-        {
-            "name": "numpy",
-            "version": "2.3.3",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
-                }
-            ],
-            "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
-        },
-        {
-            "name": "pytest",
-            "version": "8.4.2",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79"
-                }
-            ],
-            "lock_key": "13a0d095e88e465ef2960e0b746bbc463cfd15a8f2d2c9d71837e50b452204e0"
-        },
-        {
-            "name": "PyYAML",
-            "version": "6.0.2",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1"
-                }
-            ],
-            "lock_key": "4963e368330fa3956d38386930ce329da5b86a979614250d18c873b253210a4f"
-        },
-        {
-            "name": "scipy",
-            "version": "1.16.1",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
-                }
-            ],
-            "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
-        },
-        {
-            "name": "xxhash",
-            "version": "3.5.0",
-            "source": "pypi",
-            "hashes": [
-                {
-                    "algo": "sha256",
-                    "value": "97a662338797c660178e682f3bc180277b9569a59abfb5925e8620fba00b9fc5"
-                }
-            ],
-            "lock_key": "10b5e7e5c7c7fa64cd1789c2f05a1caaab7482cb0880974abf197ce2d647be80"
+          "name": "scipy",
+          "version": "1.16.1",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+            }
+          ],
+          "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
         }
-    ],
-    "metadata": {
-        "python": "3.13",
-        "tool": "lock_requirements.py",
-        "root": "/Users/connorsinclair/Desktop/Thesis"
+      ]
+    },
+    "notebook": {
+      "dependencies": [
+        {
+          "name": "Src",
+          "version": null,
+          "source": "pypi",
+          "hashes": [],
+          "lock_key": null
+        },
+        {
+          "name": "helpers",
+          "version": null,
+          "source": "pypi",
+          "hashes": [],
+          "lock_key": null
+        },
+        {
+          "name": "ipython",
+          "version": "9.5.0",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "88369ffa1d5817d609120daa523a6da06d02518e582347c29f8451732a9c5e72"
+            }
+          ],
+          "lock_key": "650440a02f6748e0d5019b984804d53f03ba35391f8aeca38397307c8c9e47d4"
+        },
+        {
+          "name": "matplotlib",
+          "version": "3.10.6",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
+            }
+          ],
+          "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
+        },
+        {
+          "name": "numpy",
+          "version": "2.3.3",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+            }
+          ],
+          "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
+        },
+        {
+          "name": "pylatex",
+          "version": null,
+          "source": "pypi",
+          "hashes": [],
+          "lock_key": null
+        },
+        {
+          "name": "scipy",
+          "version": "1.16.1",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+            }
+          ],
+          "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+        }
+      ]
     }
+  },
+  "dependencies": [
+    {
+      "name": "fxpmath",
+      "version": "0.4.9",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "456a0ae8960c9de2bd7a9518bbc9d62a22ad1f3c51b8c31e4000aeaf4f898b75"
+        }
+      ],
+      "lock_key": "b4a7ebbba59ab58069dd3c0970ed4630917a283ab321e83d52e890ea01586122"
+    },
+    {
+      "name": "ipython",
+      "version": "9.5.0",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "88369ffa1d5817d609120daa523a6da06d02518e582347c29f8451732a9c5e72"
+        }
+      ],
+      "lock_key": "650440a02f6748e0d5019b984804d53f03ba35391f8aeca38397307c8c9e47d4"
+    },
+    {
+      "name": "matplotlib",
+      "version": "3.10.6",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
+        }
+      ],
+      "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
+    },
+    {
+      "name": "networkx",
+      "version": "3.5",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "0030d386a9a06dee3565298b4a734b68589749a544acbb6c412dc9e2489ec6ec"
+        }
+      ],
+      "lock_key": "d6610b9d503a25238399969b05a155906915b12ba27e838865b11898af73d161"
+    },
+    {
+      "name": "numpy",
+      "version": "2.3.3",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+        }
+      ],
+      "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
+    },
+    {
+      "name": "pytest",
+      "version": "8.4.2",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "872f880de3fc3a5bdc88a11b39c9710c3497a547cfa9320bc3c5e62fbf272e79"
+        }
+      ],
+      "lock_key": "13a0d095e88e465ef2960e0b746bbc463cfd15a8f2d2c9d71837e50b452204e0"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.2",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1"
+        }
+      ],
+      "lock_key": "4963e368330fa3956d38386930ce329da5b86a979614250d18c873b253210a4f"
+    },
+    {
+      "name": "scipy",
+      "version": "1.16.1",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+        }
+      ],
+      "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+    },
+    {
+      "name": "xxhash",
+      "version": "3.5.0",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "97a662338797c660178e682f3bc180277b9569a59abfb5925e8620fba00b9fc5"
+        }
+      ],
+      "lock_key": "10b5e7e5c7c7fa64cd1789c2f05a1caaab7482cb0880974abf197ce2d647be80"
+    }
+  ],
+  "metadata": {
+    "python": "3.13",
+    "tool": "lock_requirements.py",
+    "root": "/Users/connorsinclair/Desktop/Thesis"
+  }
 }
