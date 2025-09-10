@@ -256,7 +256,8 @@ def underline_first_non_captured_group(groups: re.Pattern | str, string: str) ->
     matches = []
     j = 0                                                                               # Tracks last matches' end position
     for i, group in enumerate(groups):
-        if not (match := re.match(join_regex(*groups[:i+1], or_join=False), string, partial=True)) or match.partial:
+        match = re.match(join_regex(*groups[:i+1], or_join=False), string)
+        if not match:
             return f'\n{underline_matches(string, group, start_index=j, literal=False)}'
         matches.append(match.group(i+1))
         j = match.end()
