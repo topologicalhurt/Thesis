@@ -31,8 +31,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 
 import itertools
+import re
 import argparse as ap
-import regex as re
 
 from pathlib import Path
 

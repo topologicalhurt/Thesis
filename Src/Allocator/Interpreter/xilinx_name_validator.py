@@ -24,7 +24,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 """
 
 import importlib
-import regex as re
+import re
 
 from collections.abc import Sequence
 from typing import assert_never

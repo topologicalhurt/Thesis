@@ -30,10 +30,10 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 import os
 import sys
+import re
 import yaml
 import textwrap
 import argparse as ap
-import regex as re
 
 from pathlib import Path
 from collections.abc import Mapping, Sequence
