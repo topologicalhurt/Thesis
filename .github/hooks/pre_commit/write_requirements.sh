@@ -5,7 +5,8 @@ set -eo pipefail
 cd "$ROOT"
 
 LOCK_PATH="$ROOT/requirements_lock.json"
-	JSON_OUT=$(python3 "$ROOT/.github/hooks/pre_commit/lock_requirements.py" --write-txt)
+	JSON_OUT=$(python3 "$ROOT/.github/hooks/pre_commit/lock_requirements.py" --write-txt --update \
+	--resolve-method pypi)
 printf '%s
 ' "$JSON_OUT" > "$LOCK_PATH"
 	git add "$LOCK_PATH" || true

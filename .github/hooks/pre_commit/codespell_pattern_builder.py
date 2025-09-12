@@ -1,8 +1,14 @@
 #!/usr/bin/env python
+"""Command line interface for joining regex patterns for codespell."""
+
 
 import sys
 import argparse as ap
 import re
+
+from Allocator.Interpreter.helpers import join_regex
+
+from utils import eprint
 
 
 CODESPELL_PATTERNS = [
@@ -14,29 +20,24 @@ CODESPELL_PATTERNS = [
 
 
 def main():
-    """Command line interface for joining regex patterns."""
-
-    parser = ap.ArgumentParser(description='Safely join multiple regex patterns into a single alternation pattern.')
-
-    parser.add_argument('patterns', nargs='*',
-                        help='One or more regex patterns to join with alternation (|)'
-                        )
-
+    parser = ap.ArgumentParser(description='Safely join multiple regex patterns into a single alternation pattern for codespell.')
+    parser.add_argument('patterns', nargs='*')
     args = vars(parser.parse_args())
 
-    if not args['patterns']:
+    if args['patterns']:
+        args['patterns'] = args['patterns'].extend(CODESPELL_PATTERNS)
+    else:
         args['patterns'] = CODESPELL_PATTERNS
 
     args['patterns'] = [re.sub(r'(!|\$|#|&|`|;)', r'\\\1', pattern)
                         for pattern in args['patterns']]
 
     try:
-        from Allocator.Interpreter.helpers import join_regex
         result = join_regex(*args['patterns'])
         print(result)
         sys.exit(0)
     except ValueError as e:
-        print(f'Error: {e}', file=sys.stderr)
+        eprint(e)
         sys.exit(1)
 
 

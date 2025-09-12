@@ -6,9 +6,13 @@ set -eo pipefail
 cd "$ROOT"
 
 IGNORE_REGEX=$(python3 "$ROOT/.github/hooks/pre_commit/codespell_pattern_builder.py")
-# Skip the vendor tree entirely
-find . -path "./submodules/*" -prune -o \
-    \( -name "*.md" -o -path "*/Scripts/*.py" -o -path "*/Allocator/*.py" \) -print0 | \
-    xargs -0 codespell --skip "submodules" --ignore-multiline-regex="$IGNORE_REGEX"
+
+find . \
+    -path "./submodules/*" -prune -o \
+    -path "./.venv/*" -prune -o \
+    \( -name "*.md" -o -path "*/Scripts/*.py" -o -path "*/Allocator/*.py" \) \
+    -print0 | \
+xargs -0 codespell --skip "submodules,.venv" --ignore-multiline-regex="$IGNORE_REGEX"
+
 
 deactivate

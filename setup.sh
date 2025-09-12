@@ -11,7 +11,7 @@ SKIP_SUBMODULE_SYNC=1
 
 # These are required for setup on HOST. Try to keep as minimal as possible.
 readonly HOST_REQUIREMENTS_DEB=('sudo' 'git' 'curl' 'python3')
-readonly HOST_REQUIREMENTS_DARWIN=('git' 'curl' 'python3' 'gawk' 'gnu-sed' 'gnu-tar' 'grep' 'findutils' 'coreutils')
+readonly HOST_REQUIREMENTS_DARWIN=('bash' 'git' 'curl' 'python3' 'gawk' 'gnu-sed' 'gnu-tar' 'grep' 'findutils' 'coreutils')
 
 # ANSI codes
 readonly ITALICS='\033[3m'
@@ -122,64 +122,6 @@ ProgressBar() {
 advance_progress() {
     let _progress++ || true; ProgressBar ${_progress} ${TOTAL_STEPS}
 }
-
-show_last_line_inplace() {
-    # Usage: some_command 2>&1 | show_last_line_inplace "[prefix] "
-    # - Rewrites the same terminal line with the most recent line from stdin.
-    # - If stdout isn't a TTY, it falls back to a plain passthrough (cat), unless FORCE_INLINE_OUTPUT=1.
-    local raw_prefix="${1-}"
-    local bold_on=$'\033[1m'
-    local bold_off=$'\033[22m'
-    local italics=$'\033[3m'
-    local reset=$'\033[0m'
-
-    if [[ ! -t 1 && -z "${FORCE_INLINE_OUTPUT:-}" ]]; then
-        cat
-        return 0
-    fi
-
-    trap 'printf "\n"' INT TERM
-
-    local cols=80
-    if [[ -n "${COLUMNS:-}" ]]; then
-        cols=${COLUMNS}
-    elif command -v tput >/dev/null 2>&1; then
-        cols=$(tput cols 2>/dev/null || echo 80)
-    fi
-
-    local line disp
-    while IFS= read -r line; do
-        disp="${line##*$'\r'}"
-        local max_len=$(( cols > 1 ? cols - 1 : 1 ))
-        local len_prefix=${#raw_prefix}
-
-        printf '\r\033[J'
-        if [[ -n "$raw_prefix" && $len_prefix -lt $max_len ]]; then
-            local avail=$(( max_len - len_prefix ))
-            local msg="$disp"
-            if (( ${#msg} > avail )); then
-                local keep=$(( avail > 3 ? avail - 3 : avail ))
-                msg="...${msg: -$keep}"
-            fi
-            printf '%s%s%s%s%s' "$italics" "$bold_on" "$raw_prefix" "$bold_off" "${msg}${reset}"
-        else
-            # Prefix doesn't fit or is empty: show tail of combined text
-            local combined
-            if [[ -n "$raw_prefix" ]]; then
-                combined="$raw_prefix$disp"
-            else
-                combined="$disp"
-            fi
-            if (( ${#combined} > max_len )); then
-                local keep=$(( max_len > 3 ? max_len - 3 : max_len ))
-                combined="...${combined: -$keep}"
-            fi
-            printf '%s%s%s' "$italics" "$combined" "$reset"
-        fi
-    done
-    printf '\n'
-}
-export -f show_last_line_inplace 2>/dev/null || true
 
 print_logo
 print_license
