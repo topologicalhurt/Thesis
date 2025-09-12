@@ -22,7 +22,6 @@
         # Passthrough's from HOST env
         fastBuildDefault = builtins.getEnv "FAST_BUILD" == "1";
         fastBuildDefaultStr = if fastBuildDefault then "1" else "0";
-        show_last_line_inplace = builtins.getEnv "SHOW_LAST_LINE_INPLACE";
 
         # Build Python package from pyproject.toml (example)
         # llacPackage = if (!fastBuildDefault) then
@@ -68,7 +67,7 @@
                 python.withPackages (ps:
                   let
                     baseMinimal = with ps; [ virtualenv wheel pip ];
-                    baseFull = (with ps; [ virtualenv wheel pip pytest ruff packaging build poetry ]) ++ [ ps."setuptools-scm" ];
+                    baseFull = (with ps; [ virtualenv wheel pip pytest ruff packaging build poetry-core ]) ++ [ ps."setuptools-scm" ];
                   in
                     if is314plus then baseMinimal
                     else baseFull ++ (with ps; [ ipython (matplotlib.override { enableQt = true; }) ])
@@ -88,14 +87,12 @@
           # Load project environment
           # Don't overwrite env passthroughs from host
           fast_build_tmp="''${FAST_BUILD:-${fastBuildDefaultStr}}"
-          show_last_line_inplace_tmp="''${SHOW_LAST_LINE_INPLACE:-${show_last_line_inplace}}"
 
           [[ -f "./.env.shared" ]] && {
             . "./.env.shared"
           }
 
           export FAST_BUILD="$fast_build_tmp"
-          export SHOW_LAST_LINE_INPLACE="$show_last_line_inplace_tmp"
 
           [[ -z "${ROOT:-}" ]] && {
             echo "ERROR: ROOT environment variable is not set. Ensure .env.shared is present."
@@ -112,7 +109,7 @@
             if [ -f "$req_file" ]; then
               if printf '%s\n%s\n' "$PY_MM" "3.14" | sort -C -V; then
                 # PY_MM < 3.14 -> no blocklist
-                pip install -r "$req_file" --quiet
+                pip install -r "$req_file" | show_last_line_inplace "[pip - venv] "
               else
                 # PY_MM >= 3.14 -> apply blocklist if available
                 if [ -f "$blocklist" ]; then
@@ -122,10 +119,10 @@
                   echo "Applying Python 3.14+ blocklist from $blocklist for $req_file"
                   echo "Skipped packages (if present):"
                   grep -E -f "$blocklist" "$req_file" || true
-                  pip install -r "$tmp_req" --quiet
+                  pip install -r "$tmp_req" | show_last_line_inplace "[pip - venv] "
                   rm -f "$tmp_req"
                 else
-                  pip install -r "$req_file" --quiet
+                  pip install -r "$req_file" | show_last_line_inplace "[pip - venv] "
                 fi
               fi
             fi
@@ -198,8 +195,10 @@
             # Activate venv for current shell so hooks can source it too
             . "$VENV_DIR/bin/activate"
 
-            # Install the main project package in editable mode for all branches
-            # pip install -e "$ROOT/Src" --quiet
+            # Install the main project package in editable mode &
+            # Any python dependencies used in scripts
+            # pip install -e "$ROOT/Src" | show_last_line_inplace "[pip - src package] "
+            pip install pipdeptree packaging | show_last_line_inplace "[pip - script dependencies] "
 
             case "$CUR_BRANCH" in
               "research")

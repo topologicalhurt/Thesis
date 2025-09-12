@@ -33,7 +33,7 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+              "value": "afd07d377f478344ec6ca2b8d4ca08ae8bd44706763d1efb56397de606393f48"
             }
           ],
           "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
@@ -52,15 +52,15 @@
         },
         {
           "name": "scipy",
-          "version": "1.16.1",
+          "version": "1.16.2",
           "source": "pypi",
           "hashes": [
             {
               "algo": "sha256",
-              "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+              "value": "e574be127bb760f0dad24ff6e217c80213d153058372362ccb9555a10fc5e8d2"
             }
           ],
-          "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+          "lock_key": "c76b3180f8ce04123b5c496d114e53917be5d33eb0a3c569ea0709ae9488c6f1"
         },
         {
           "name": "xxhash",
@@ -69,7 +69,7 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "97a662338797c660178e682f3bc180277b9569a59abfb5925e8620fba00b9fc5"
+              "value": "7c5d3e570ef46adaf93fc81b44aca6002b5a4d8ca11bd0580c07eac537f36680"
             }
           ],
           "lock_key": "10b5e7e5c7c7fa64cd1789c2f05a1caaab7482cb0880974abf197ce2d647be80"
@@ -85,10 +85,10 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1"
+              "value": "8824b5a04a04a047e72eea5cec3bc266db09e35de6bdfe34c9436ac5ee27d237"
             }
           ],
-          "lock_key": "4963e368330fa3956d38386930ce329da5b86a979614250d18c873b253210a4f"
+          "lock_key": "d6be3c56dfd9766aabbbbb03cf01478c7dace31d4a2172e5921baaff78fa2d09"
         },
         {
           "name": "matplotlib",
@@ -97,7 +97,7 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
+              "value": "8fa4c43d6bfdbfec09c733bca8667de11bfa4970e8324c471f3a3632a0301c15"
             }
           ],
           "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
@@ -109,41 +109,27 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+              "value": "afd07d377f478344ec6ca2b8d4ca08ae8bd44706763d1efb56397de606393f48"
             }
           ],
           "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
         },
         {
           "name": "scipy",
-          "version": "1.16.1",
+          "version": "1.16.2",
           "source": "pypi",
           "hashes": [
             {
               "algo": "sha256",
-              "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+              "value": "e574be127bb760f0dad24ff6e217c80213d153058372362ccb9555a10fc5e8d2"
             }
           ],
-          "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+          "lock_key": "c76b3180f8ce04123b5c496d114e53917be5d33eb0a3c569ea0709ae9488c6f1"
         }
       ]
     },
     "notebook": {
       "dependencies": [
-        {
-          "name": "Src",
-          "version": null,
-          "source": "pypi",
-          "hashes": [],
-          "lock_key": null
-        },
-        {
-          "name": "helpers",
-          "version": null,
-          "source": "pypi",
-          "hashes": [],
-          "lock_key": null
-        },
         {
           "name": "ipython",
           "version": "9.5.0",
@@ -163,7 +149,7 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
+              "value": "8fa4c43d6bfdbfec09c733bca8667de11bfa4970e8324c471f3a3632a0301c15"
             }
           ],
           "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
@@ -175,29 +161,34 @@
           "hashes": [
             {
               "algo": "sha256",
-              "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+              "value": "afd07d377f478344ec6ca2b8d4ca08ae8bd44706763d1efb56397de606393f48"
             }
           ],
           "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
         },
         {
           "name": "pylatex",
-          "version": null,
-          "source": "pypi",
-          "hashes": [],
-          "lock_key": null
-        },
-        {
-          "name": "scipy",
-          "version": "1.16.1",
+          "version": "1.4.2",
           "source": "pypi",
           "hashes": [
             {
               "algo": "sha256",
-              "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+              "value": "bb7b21bec57ecdba3f6f44c856ebebdf6549fd6e80661bd44fd5094236729242"
             }
           ],
-          "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+          "lock_key": "fc622f7741ce4f94ac890eb7d32658e85fe09599b8246a058a3ac971844e39c1"
+        },
+        {
+          "name": "scipy",
+          "version": "1.16.2",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "e574be127bb760f0dad24ff6e217c80213d153058372362ccb9555a10fc5e8d2"
+            }
+          ],
+          "lock_key": "c76b3180f8ce04123b5c496d114e53917be5d33eb0a3c569ea0709ae9488c6f1"
         }
       ]
     }
@@ -234,7 +225,7 @@
       "hashes": [
         {
           "algo": "sha256",
-          "value": "59c8ac8382fefb9cb71308dde16a7c487432f5255d8f1fd32473523abecfecdf"
+          "value": "8fa4c43d6bfdbfec09c733bca8667de11bfa4970e8324c471f3a3632a0301c15"
         }
       ],
       "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
@@ -258,10 +249,22 @@
       "hashes": [
         {
           "algo": "sha256",
-          "value": "9dc13c6a5829610cc07422bc74d3ac083bd8323f14e2827d992f9e52e22cd6a6"
+          "value": "afd07d377f478344ec6ca2b8d4ca08ae8bd44706763d1efb56397de606393f48"
         }
       ],
       "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
+    },
+    {
+      "name": "pylatex",
+      "version": "1.4.2",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "bb7b21bec57ecdba3f6f44c856ebebdf6549fd6e80661bd44fd5094236729242"
+        }
+      ],
+      "lock_key": "fc622f7741ce4f94ac890eb7d32658e85fe09599b8246a058a3ac971844e39c1"
     },
     {
       "name": "pytest",
@@ -282,22 +285,22 @@
       "hashes": [
         {
           "algo": "sha256",
-          "value": "50187695423ffe49e2deacb8cd10510bc361faac997de9efef88badc3bb9e2d1"
+          "value": "8824b5a04a04a047e72eea5cec3bc266db09e35de6bdfe34c9436ac5ee27d237"
         }
       ],
-      "lock_key": "4963e368330fa3956d38386930ce329da5b86a979614250d18c873b253210a4f"
+      "lock_key": "d6be3c56dfd9766aabbbbb03cf01478c7dace31d4a2172e5921baaff78fa2d09"
     },
     {
       "name": "scipy",
-      "version": "1.16.1",
+      "version": "1.16.2",
       "source": "pypi",
       "hashes": [
         {
           "algo": "sha256",
-          "value": "e756d688cb03fd07de0fffad475649b03cb89bee696c98ce508b17c11a03f95c"
+          "value": "e574be127bb760f0dad24ff6e217c80213d153058372362ccb9555a10fc5e8d2"
         }
       ],
-      "lock_key": "7e40d5a3c70bacf0654c498399a96a25242b75e569c88fdaab7dbd9f83d0a3d3"
+      "lock_key": "c76b3180f8ce04123b5c496d114e53917be5d33eb0a3c569ea0709ae9488c6f1"
     },
     {
       "name": "xxhash",
@@ -306,7 +309,7 @@
       "hashes": [
         {
           "algo": "sha256",
-          "value": "97a662338797c660178e682f3bc180277b9569a59abfb5925e8620fba00b9fc5"
+          "value": "7c5d3e570ef46adaf93fc81b44aca6002b5a4d8ca11bd0580c07eac537f36680"
         }
       ],
       "lock_key": "10b5e7e5c7c7fa64cd1789c2f05a1caaab7482cb0880974abf197ce2d647be80"
@@ -315,6 +318,6 @@
   "metadata": {
     "python": "3.13",
     "tool": "lock_requirements.py",
-    "root": "/Users/connorsinclair/Desktop/Thesis"
+    "lockfile_id": "31d10b5d-b64b-4113-b025-682323bee0e2"
   }
 }

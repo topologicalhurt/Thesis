@@ -8,9 +8,6 @@ from scipy.spatial import ConvexHull, Delaunay
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))), 'Src'))
 
-from helpers import tri_sign_2d
-
-
 # TODO:
 # (1) 'Inflate' the surface vertices such that the old polytope is completely circumscribed
 # (2) Use R*-tree or Hilbert R-tree to find volume contributions of the top n densest packed regions
