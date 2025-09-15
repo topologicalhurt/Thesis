@@ -77,12 +77,10 @@
         ldLibPath = with pkgs; [ zlib libGL glib.out ];
 
   baseShellHook = ''
-          export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
-          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
-          export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
-
-          export PATH="$VERILATOR_PREFIX/bin:$PATH"
-          export PATH="$RISCV_INSTALL_PREFIX/bin:$PATH"
+          [[ -v WAS_IN_NIX_SHELL ]] && {
+            echo -e "\033[31mYou're already in a Nix shell! Do 'exit' to leave & re-activate the environment.\033[0m"
+            exit 1
+          }
 
           # Load project environment
           # Don't overwrite env passthroughs from host
@@ -94,10 +92,19 @@
 
           export FAST_BUILD="$fast_build_tmp"
 
-          [[ -z "${ROOT:-}" ]] && {
-            echo "ERROR: ROOT environment variable is not set. Ensure .env.shared is present."
+          [[ -v ROOT ]] || {
+            echo -e "\033[31mERROR: ROOT environment variable is not set. Ensure .env.shared is present.\033[0m"
             return 1
           }
+
+          export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/
+          export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath ldLibPath}:$LD_LIBRARY_PATH"
+          export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.libsForQt5.qt5.qtbase.bin}/lib/qt-${pkgs.libsForQt5.qt5.qtbase.version}/plugins";
+
+          export PATH="$VERILATOR_PREFIX/bin:$PATH"
+          export PATH="$RISCV_INSTALL_PREFIX/bin:$PATH"
+
+          export WAS_IN_NIX_SHELL="1"
 
           # Determine Python version (major.minor) inside the shell
           PY_MM=$(python3 -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")' || echo)
@@ -213,12 +220,15 @@
                 install_requirements "$ROOT/Src/Scripts/requirements.txt"
               ;;
             esac
-
+            
+            echo -e "\033[32m"
             GIL_ENABLED=$(python3 -c 'import sys; print(sys._is_gil_enabled())')
             echo "LLAC development environment loaded on $CUR_BRANCH branch"
-            echo "Python virtual environment activated. Python: $(which python)"
+            echo "Python virtual environment activated."
+            echo "Python: $(which python)"
+            echo "Python version: $(python3 --version)"
             echo "GIL status: ''${GIL_ENABLED}"
-            python3 --version
+            echo -e "\033[0m"
           else
             echo "FAST_BUILD is set: skipping Python venv setup and dependency installation"
           fi
