@@ -34,8 +34,8 @@ import scipy as sp
 from collections.abc import Callable
 from typing import override
 
-from Allocator.Interpreter.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat
-from Allocator.Interpreter.signal_statistic import SignalStatistic
+from Allocator.Interpreter.main.dataclass import LUT_QUANT_ACC_REPORT, LUT_THD_ACC_REPORT, SIG_WINDOW_TYPE, SIGNAL_TYPE, QFormat
+from Allocator.Interpreter.metricities.signal_statistic import SignalStatistic
 
 
 class DistortionMetrics(SignalStatistic):

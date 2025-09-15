@@ -40,9 +40,9 @@ from pathlib import Path
 from typing import Any
 from enum import Enum
 
-from Allocator.Interpreter.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP, STANDARD_NP_DTYPES
-from Allocator.Interpreter.dataclass import ExtendedEnum, FREQ, QFormat
-from Allocator.Interpreter.helpers import underline_matches
+from Allocator.Interpreter.main.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP, STANDARD_NP_DTYPES
+from Allocator.Interpreter.main.dataclass import ExtendedEnum, FREQ, QFormat
+from Allocator.Interpreter.main.util_helpers import underline_matches
 
 from Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException
 from Scripts.consts import META_INFO, SRC_DIR

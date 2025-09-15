@@ -6,7 +6,7 @@ import sys
 import argparse as ap
 import re
 
-from Allocator.Interpreter.helpers import join_regex
+from Allocator.Interpreter.main.util_helpers import join_regex
 
 from utils import eprint
 

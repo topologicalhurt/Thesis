@@ -32,8 +32,8 @@ import numpy as np
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from Allocator.Interpreter.dataclass import SIGNAL_METRIC, SIGNAL_TYPE
-from Allocator.Interpreter.singleton import SingletonSubclassBase
+from Allocator.Interpreter.main.dataclass import SIGNAL_METRIC, SIGNAL_TYPE
+from Allocator.Interpreter.main.singleton import SingletonSubclassBase
 
 
 class SignalStatistic(ABC, SingletonSubclassBase, frozen=False):

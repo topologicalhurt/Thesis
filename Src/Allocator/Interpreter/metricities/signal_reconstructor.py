@@ -26,7 +26,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import numpy as np
 
 # from Allocator.Interpreter.helpers import find_nearest
-from Allocator.Interpreter.dataclass import TABLE_MODE
+from Allocator.Interpreter.main.dataclass import TABLE_MODE
 
 
 def reconstruct_sin_qwave(qwave: np.ndarray[np.number]) -> np.ndarray[np.number]:

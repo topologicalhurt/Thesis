@@ -31,7 +31,7 @@ from abc import ABC
 
 import pytest
 
-from Allocator.Interpreter.singleton import SingletonSubclassBase
+from Allocator.Interpreter.main.singleton import SingletonSubclassBase
 
 
 @pytest.fixture

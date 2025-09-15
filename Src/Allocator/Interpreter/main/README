@@ -1,0 +1,4 @@
+=== MAIN ===
+
+These are parts of the allocator that implement control flow, general-use data structures, helper / utility functions ...
+essentially anything general enough that it might find itself being used throughout the project.

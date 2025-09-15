@@ -39,8 +39,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, fields
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_FN_DEFS, PREC_MODE, TABLE_MODE, QFormat
-from Allocator.Interpreter.helpers import join_regex, rename_keys, underline_matches
+from Allocator.Interpreter.main.dataclass import LUT, BYTEORDER, LUT_ACC_REPORT, LUT_FN_DEFS, PREC_MODE, TABLE_MODE, QFormat
+from Allocator.Interpreter.main.util_helpers import join_regex, rename_keys, underline_matches
 
 from Scripts.argparse_helpers import str2num, str2varname, str2frac
 from Scripts.exceptions import ExpectedFloatParseException, ExpectedIntParseException

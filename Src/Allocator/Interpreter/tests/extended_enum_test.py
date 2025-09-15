@@ -29,8 +29,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 import pytest
 
-import Allocator.Interpreter.extendedenum as ext
-from Allocator.Interpreter.extendedenum import ExtendedEnum
+import Allocator.Interpreter.main.extendedenum as ext
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 
 
 @pytest.fixture

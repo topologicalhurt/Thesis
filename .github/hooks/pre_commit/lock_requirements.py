@@ -24,7 +24,7 @@ from dataclasses import dataclass, field, replace
 
 from packaging.version import InvalidVersion, Version
 
-from Allocator.Interpreter.extendedenum import ExtendedEnum
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 
 from Scripts.argparse_helpers import str2enumval
 

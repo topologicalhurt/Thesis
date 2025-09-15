@@ -1,0 +1,4 @@
+=== POLY ===
+
+These are parts of the allocator that handle polynomials: factoring, expansion, translation into hardware & so forth.
+That is, anything concerning the handling of taylor / maclaurin series, power series, polytopes, generic polynomials etc.

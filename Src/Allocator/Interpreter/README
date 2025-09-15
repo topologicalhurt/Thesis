@@ -1,0 +1,10 @@
+=== INTERPRETER ===
+
+This is the Interpreter directory. External dependencies approved here need to be carefully managed & approved.
+Core <-- Interpreter <-- Scripts where 'a <-- b' means 'b depends (or can depend) upon a.'
+
+The 'Interpreter' is responsible for managing the FPGA's on-fabric components be it through:
+- 'Hardware scheduling capabilities'
+- Generating components
+- Performing analysis on waveforms to make decisions
+etc.

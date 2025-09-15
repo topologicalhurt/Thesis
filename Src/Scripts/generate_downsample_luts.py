@@ -43,9 +43,9 @@ from collections.abc import Sequence
 from typing import assert_never
 from scipy import signal
 
-from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP
-from Allocator.Interpreter.helpers import pad_lists_to_same_length, underline_matches
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, FILTER_TYPE
+from Allocator.Interpreter.main.nptypes import FLOAT_STR_NPMAP
+from Allocator.Interpreter.main.util_helpers import pad_lists_to_same_length, underline_matches
+from Allocator.Interpreter.main.dataclass import LUT, BYTEORDER, FILTER_TYPE
 
 from Scripts.argparse_helpers import get_action_from_parser_by_name, str2freq, str2path, str2float_in_range, str2posint, str2bitwidth
 from Scripts.consts import COMMON_RATES, DOWNSAMPLE_COEFFS_NTAPS, SAMPLE_RATE

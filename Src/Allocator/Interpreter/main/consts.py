@@ -37,7 +37,7 @@ import logging.handlers
 # GENERAL PROGRAM / META INFO / MISC #
 ######################################
 
-dataclass = importlib.import_module('.dataclass', package='Allocator.Interpreter')
+dataclass = importlib.import_module('.dataclass', package='Allocator.Interpreter.main')
 PROGRAM_META_INFO = dataclass.PROGRAM_META_INFO
 
 META_INFO = PROGRAM_META_INFO(
@@ -50,7 +50,7 @@ META_INFO = PROGRAM_META_INFO(
 # TARGET FPGA'S #
 #################
 
-xilinx_name_validator = importlib.import_module('.xilinx_name_validator', package='Allocator.Interpreter')
+xilinx_name_validator = importlib.import_module('.xilinx_name_validator', package='Allocator.Interpreter.main')
 XilinxDeviceSet = xilinx_name_validator.XilinxDeviceSet
 
 GEN7_ARTIX_TARGET_NAMES = ['XC7A100+T']

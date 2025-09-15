@@ -32,9 +32,9 @@ import numpy as np
 from dataclasses import dataclass
 from typing import override
 
-from Allocator.Interpreter.dataclass import INTERPOLATION_STRATEGY, SIGNAL_TYPE
-from Allocator.Interpreter.signal_metrics import acf_biased_norm, estimate_min_period_multiple, filter_peaks_abs, find_peaks_with_prominence, refine_local_max, select_peak_index, smooth_ma, parabolic_peak_refine
-from Allocator.Interpreter.signal_statistic import SignalStatistic
+from Allocator.Interpreter.main.dataclass import INTERPOLATION_STRATEGY, SIGNAL_TYPE
+from Allocator.Interpreter.metricities.signal_metrics import acf_biased_norm, estimate_min_period_multiple, filter_peaks_abs, find_peaks_with_prominence, refine_local_max, select_peak_index, smooth_ma, parabolic_peak_refine
+from Allocator.Interpreter.metricities.signal_statistic import SignalStatistic
 
 
 class PeriodicityMetrics(SignalStatistic):

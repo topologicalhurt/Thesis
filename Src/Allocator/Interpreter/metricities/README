@@ -1,0 +1,5 @@
+=== METRICITIES ===
+
+These are parts of the allocator that derive / infer information (n-order statistics) from waveforms.
+It includes common methods of analysis / common measurements for signals I.e. THD+N% but can include
+more general constructs like estimating the periodicity of a waveform.

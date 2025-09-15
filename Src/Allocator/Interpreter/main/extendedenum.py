@@ -27,7 +27,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
-import importlib
 import re
 import numpy as np
 
@@ -35,12 +34,7 @@ from enum import Enum, EnumMeta
 from collections.abc import Sequence, Iterable
 from typing import Any, Mapping
 
-
-helpers = importlib.import_module('.helpers', 'Allocator.Interpreter')
-combined_fast_stable_hash = helpers.combined_fast_stable_hash
-fast_stable_hash = helpers.fast_stable_hash
-join_regex = helpers.join_regex
-underline_matches = helpers.underline_matches
+from Allocator.Interpreter.main.util_helpers import join_regex, underline_matches, combined_fast_stable_hash, fast_stable_hash
 
 
 class _ExtendedEnumMeta(EnumMeta):

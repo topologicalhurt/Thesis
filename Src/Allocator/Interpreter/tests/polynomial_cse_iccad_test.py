@@ -30,7 +30,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import math
 import numpy as np
 
-from Allocator.Interpreter.polynomial_cse_iccad import (
+from Allocator.Interpreter.poly.polynomial_cse_iccad import (
     MatrixRow,
     PolynomialMatrix,
     ICCADOptimizer,
