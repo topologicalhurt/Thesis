@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from Src.Scripts.util_helpers import get_repo_root
+from Scripts.util_helpers import get_repo_root
 
 
 CURRENT_DIR = Path(__file__).parent.resolve()

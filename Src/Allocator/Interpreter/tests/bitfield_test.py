@@ -32,9 +32,9 @@ import string
 import pytest
 import numpy as np
 
-from Allocator.Interpreter.helpers import combined_fast_stable_hash
-from Allocator.Interpreter.bitfield import BITFIELD
-from Allocator.Interpreter.extendedenum import ExtendedEnum
+from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash
+from Allocator.Interpreter.main.bitfield import BITFIELD
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 
 
 @pytest.fixture

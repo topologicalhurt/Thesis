@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 ------------------------------------------------------------------------
 Filename: 	polynomial_cse_iccad_demo.py
@@ -25,7 +26,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 import numpy as np
 
-from Allocator.Interpreter.polynomial_cse_iccad import optimize_polynomial_iccad
+from Allocator.Interpreter.poly.polynomial_cse_iccad import optimize_polynomial_iccad
 from Allocator.Core import (
     poly_sin_deg7,
     poly_sin_deg9,

@@ -32,9 +32,9 @@ import pytest
 
 from typing import override
 
-from Allocator.Interpreter.signal_statistic import SignalStatistic
-from Allocator.Interpreter.dataclass import SIGNAL_TYPE
-from Allocator.Interpreter.hashable_array import HashableArray
+from Allocator.Interpreter.metricities.signal_statistic import SignalStatistic
+from Allocator.Interpreter.main.dataclass import SIGNAL_TYPE
+from Allocator.Interpreter.main.hashable_array import HashableArray
 
 
 @pytest.fixture

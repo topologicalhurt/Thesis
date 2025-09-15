@@ -29,7 +29,7 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 
 import numpy as np
 
-from Allocator.Interpreter.hashable_array import HashableArray
+from Allocator.Interpreter.main.hashable_array import HashableArray
 
 
 def test_hashable_array_basic_hash_and_eq():

@@ -27,19 +27,13 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
-import importlib
 import numpy as np
 
 from typing import override
 from enum import Enum
 
-helpers = importlib.import_module('.helpers', 'Allocator.Interpreter')
-largest_dtype_of_kind = helpers.largest_dtype_of_kind
-machine_has_extended_float_support = helpers.machine_has_extended_float_support
-machine_has_quad_float_support = helpers.machine_has_quad_float_support
-
-extendedenum = importlib.import_module('.extendedenum', 'Allocator.Interpreter')
-ExtendedEnum = extendedenum.ExtendedEnum
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
+from Allocator.Interpreter.main.math_utils import largest_dtype_of_kind, machine_has_extended_float_support, machine_has_quad_float_support
 
 
 class STANDARD_NP_DTYPES(ExtendedEnum):

@@ -38,7 +38,7 @@ import datetime as dt
 from pathlib import Path
 from textwrap import TextWrapper
 
-from Allocator.Interpreter.dataclass import XILINX_BRAM_SIZES
+from Allocator.Interpreter.main.dataclass import XILINX_BRAM_SIZES
 
 from Scripts.dataclass import PROGRAM_META_INFO
 

@@ -39,11 +39,11 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from fxpmath import Fxp
 
-from Allocator.Interpreter.extendedenum import ExtendedEnum
-from Allocator.Interpreter.nptypes import INT_STR_NPMAP
-from Allocator.Interpreter.helpers import combined_fast_stable_hash, fast_stable_hash
-from Allocator.Interpreter.compact_sinc import compact_sinc
-from Allocator.Interpreter.chebyshev_trig import chebyshev_arccos, chebyshev_arcsin, chebyshev_arctan, chebyshev_cos, chebyshev_sin, chebyshev_tan
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
+from Allocator.Interpreter.main.nptypes import INT_STR_NPMAP
+from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash, fast_stable_hash
+from Allocator.Interpreter.poly.compact_sinc import compact_sinc
+from Allocator.Interpreter.poly.chebyshev_trig import chebyshev_arccos, chebyshev_arcsin, chebyshev_arctan, chebyshev_cos, chebyshev_sin, chebyshev_tan
 
 
 class XILINX_GENERATION(ExtendedEnum):
@@ -244,7 +244,7 @@ class XILINX_NAME_SCHEME_STRUCTURE:
         raise NotImplementedError(f'There is no support for the generation {generation.value} line of devices')
 
 
-consts = importlib.import_module('.consts', package='Allocator.Interpreter')
+consts = importlib.import_module('.consts', package='Allocator.Interpreter.main')
 META_INFO = consts.META_INFO
 
 

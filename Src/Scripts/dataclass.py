@@ -34,7 +34,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from Allocator.Interpreter.dataclass import FILTER_TYPE, ExtendedEnum
+from Allocator.Interpreter.main.dataclass import FILTER_TYPE, ExtendedEnum
 
 
 @dataclass(frozen=True, slots=True)

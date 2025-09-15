@@ -30,8 +30,8 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 import pytest
 import numpy as np
 
-from Allocator.Interpreter.periodicity import PeriodicityMetrics
-from Allocator.Interpreter.dataclass import SIGNAL_TYPE
+from Allocator.Interpreter.metricities.periodicity import PeriodicityMetrics
+from Allocator.Interpreter.main.dataclass import SIGNAL_TYPE
 
 
 def _mk_sine(n: int, cycles: float, phase: float = 0.0) -> np.ndarray:

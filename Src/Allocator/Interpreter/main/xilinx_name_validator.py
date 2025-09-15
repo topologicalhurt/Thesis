@@ -30,13 +30,13 @@ from collections.abc import Sequence
 from typing import assert_never
 from enum import Enum
 
-from Allocator.Interpreter.helpers import greater_than_n_regex, sort_relative_to, underline_first_non_captured_group, underline_matches
-from Allocator.Interpreter.dataclass import XILINX_FAMILY_CLASSES, XILINX_GEN7_LUT_IDENTIFIERS, XILINX_GENERATION, XILINX_NAME_SCHEME_STRUCTURE, XILINX_SUPPORTED_APU_RPU,\
+from Allocator.Interpreter.main.util_helpers import greater_than_n_regex, sort_relative_to, underline_first_non_captured_group, underline_matches
+from Allocator.Interpreter.main.dataclass import XILINX_FAMILY_CLASSES, XILINX_GEN7_LUT_IDENTIFIERS, XILINX_GENERATION, XILINX_NAME_SCHEME_STRUCTURE, XILINX_SUPPORTED_APU_RPU,\
 XILINX_SUPPORTED_ENGINE, XILINX_SUPPORTED_FAMILIES, XILINX_SUPPORTED_LUT_SIZES, XILINX_SUPPORTED_PACKAGES, XILINX_SUPPORTED_SPEED_GRADES,\
 XILINX_ULTRASCALE_VALUE_IDENTIFIERS
 
 
-consts = importlib.import_module('.consts', package='Allocator.Interpreter')
+consts = importlib.import_module('.consts', package='Allocator.Interpreter.main')
 META_INFO = consts.META_INFO
 
 

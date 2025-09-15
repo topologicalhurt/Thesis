@@ -27,11 +27,11 @@ import numpy as np
 
 from typing import override
 
-from Allocator.Interpreter.dataclass import LUT, LUT_ACC_REPORT, LUT_QUANT_ACC_REPORT, SIGNAL_TYPE
-from Allocator.Interpreter.thd import DistortionMetrics
-from Allocator.Interpreter.periodicity import PeriodicityMetrics
-from Allocator.Interpreter.signal_reconstructor import get_reconstructed_from_lut
-from Allocator.Interpreter.consts import LOGGER
+from Allocator.Interpreter.main.dataclass import LUT, LUT_ACC_REPORT, LUT_QUANT_ACC_REPORT, SIGNAL_TYPE
+from Allocator.Interpreter.metricities.thd import DistortionMetrics
+from Allocator.Interpreter.metricities.periodicity import PeriodicityMetrics
+from Allocator.Interpreter.metricities.signal_reconstructor import get_reconstructed_from_lut
+from Allocator.Interpreter.main.consts import LOGGER
 
 
 class LutAccMetrics(DistortionMetrics, PeriodicityMetrics):

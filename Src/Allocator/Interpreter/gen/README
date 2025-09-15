@@ -1,0 +1,3 @@
+=== GENERATORS ===
+
+These are parts of the allocator that invoke scripts or generate concrete hardware components.

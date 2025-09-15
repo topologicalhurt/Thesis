@@ -56,14 +56,14 @@ import scipy as sp
 from collections.abc import Mapping, Sequence, Callable, Set
 from typing import Any, assert_never
 
-from Allocator.Interpreter.bitfield import BITFIELD
-from Allocator.Interpreter.extendedenum import ExtendedEnum
-from Allocator.Interpreter.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
-from Allocator.Interpreter.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
-from Allocator.Interpreter.lut_acc_metrics import LutAccMetrics
-from Allocator.Interpreter.helpers import join_regex, pairwise, underline_matches, quantize
-from Allocator.Interpreter.compact_sinc import compact_sinc
-from Allocator.Interpreter.chebyshev_trig import chebyshev_sin
+from Allocator.Interpreter.main.bitfield import BITFIELD
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
+from Allocator.Interpreter.main.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
+from Allocator.Interpreter.main.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
+from Allocator.Interpreter.metricities.lut_acc_metrics import LutAccMetrics
+from Allocator.Interpreter.main.util_helpers import join_regex, pairwise, underline_matches, quantize
+from Allocator.Interpreter.poly.compact_sinc import compact_sinc
+from Allocator.Interpreter.poly.chebyshev_trig import chebyshev_sin
 
 from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
 str2float, str2posint

@@ -40,8 +40,8 @@ from dataclasses import dataclass
 from typing import assert_never
 from collections.abc import Sequence, Set
 
-from Allocator.Interpreter.extendedenum import ExtendedEnum
-from Allocator.Interpreter.helpers import join_regex
+from Allocator.Interpreter.main.extendedenum import ExtendedEnum
+from Allocator.Interpreter.main.util_helpers import join_regex
 
 
 # TODO's
@@ -142,6 +142,8 @@ class CoefStyle(ExtendedEnum):
 class SIMD(Enum):
     """SIMD targets for optional vectorized emission annotations."""
     NONE = auto()
+    AVX = auto()
+    AVX2 = auto()
     AVX512 = auto()
 
 
@@ -604,7 +606,7 @@ class ICCADOptimizer:
             lines.append(f"x{p} = {pow_vars[k]}*{vr}")
             pow_vars[p] = f"x{p}"
             return pow_vars[p]
-        
+
         @cache
         def estrin_block(idx_list: Sequence[int], base_pow: int = 1) -> str:
             m = len(idx_list)
@@ -674,8 +676,8 @@ class ICCADOptimizer:
         if target is not SIMD.AVX512:
             raise NotImplementedError('Only AVX512 is implemented')
 
-        assign_pat = re.compile(r"^\s*([A-Za-z_]\w*)\s*=\s*(.+)$")
-        fma_pat = re.compile(r"^fma\(\s*(?P<a>.+?)\s*,\s*(?P<b>.+?)\s*,\s*(?P<c>.+?)\s*\)\s*$")
+        assign_pat = re.compile(r'^\s*([A-Za-z_]\w*)\s*=\s*(.+)$')
+        fma_pat = re.compile(r'^fma\(\s*(?P<a>.+?)\s*,\s*(?P<b>.+?)\s*,\s*(?P<c>.+?)\s*\)\s*$')
 
         # Parse entries and track original indices
         entries: list[tuple[int, str, str, str, str]] = []  # (idx, lhs, a, b, c)
@@ -829,8 +831,8 @@ class ICCADOptimizer:
         Lines already containing 'fma(' are left unchanged.
         """
         # Regexes are deliberately simple and local (no semicolons in body_lines).
-        pat_ab_c = re.compile(r"^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>[^+\-]+?)\s*(?P<op>[+-])\s*(?P<c>.+?)\s*$")
-        pat_c_ab = re.compile(r"^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<c>.+?)\s*(?P<op>[+-])\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>.+?)\s*$")
+        pat_ab_c = re.compile(r'^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>[^+\-]+?)\s*(?P<op>[+-])\s*(?P<c>.+?)\s*$')
+        pat_c_ab = re.compile(r'^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<c>.+?)\s*(?P<op>[+-])\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>.+?)\s*$')
 
         out: list[str] = []
         for ln in body_lines:
@@ -869,7 +871,7 @@ class ICCADOptimizer:
 
             out.append(ln)
         return out
-    
+
     def generate_python_code(self, body_lines: list[str], n_coefs: int,
                              assign_coefs: bool = False,
                              coef_style: CoefStyle | str = CoefStyle.C_INDEX,
@@ -932,18 +934,14 @@ class ICCADOptimizer:
         """Emit C code for the polynomial evaluator (static inline function)."""
         deg = n_coefs - 1
         style = CoefStyle.coerce(coef_style)
-
-        # Prepare body text with replacements or variable assignments
         c_prelude: list[str] = []
 
-        # If embedding coefs for C, define a static const array inside the function
         if embed_coefs is not None:
             ec = [float(c) for c in embed_coefs]
             c_prelude.append(
                 '  static const double coefs[' + str(n_coefs) + '] = { ' + ', '.join(f"{v:.17g}" for v in ec) + ' };'
             )
 
-        # Decide coefficient materialization strategy
         if assign_coefs:
             if style is CoefStyle.C_INDEX:
                 for i in range(n_coefs):
@@ -978,7 +976,7 @@ class ICCADOptimizer:
         # Inject FMAs & parallelize where profitable
         if inject_fmas:
             c_body_lines = self._inject_fma(c_body_lines)
-        
+
         if parallelize:
             c_body_lines = self._parallelize(c_body_lines)
 
@@ -986,7 +984,6 @@ class ICCADOptimizer:
         temps: list[str] = []
         assign_pat_decl = re.compile(r'^\s*([A-Za-z_]\w*)\s*=')
         for ln in c_body_lines:
-            # ignore comments and only accept identifier LHS
             m = assign_pat_decl.match(ln)
             if not m:
                 continue
@@ -995,11 +992,10 @@ class ICCADOptimizer:
             if lhs and lhs != 'y' and lhs not in temps:
                 temps.append(lhs)
 
-        # Build C function
         fma_used = any('fma(' in ln for ln in c_body_lines)
         avx_used = any('_mm512_' in ln for ln in c_body_lines)
 
-        includes = ['#include <stddef.h>'] 
+        includes = ['#include <stddef.h>']
         if fma_used:
             includes.append('#include <math.h>')
         if avx_used:
@@ -1040,11 +1036,10 @@ class ICCADOptimizer:
         tgt = CodeTarget.coerce(target)
         if tgt is CodeTarget.PYTHON:
             return self.generate_python_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs, coefs_var_name)
-        
+
         if tgt is CodeTarget.C:
             return self.generate_c_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
 
-        # SV or default
         return self.generate_sv_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
 
 
@@ -1057,7 +1052,6 @@ def optimize_polynomial_iccad(poly: np.poly1d, var_name: str = 'x', scheme: 'Eva
     eval_scheme = EvalScheme.coerce(scheme)
     code_lines, _ = opt.optimize_polynomial_univariate(poly.coefficients.tolist(), var_name=var_name, scheme=eval_scheme)
     n = len(poly.coefficients.tolist())
-    # Select coefficient style based on scheme
     coef_style = (CoefStyle.S_POWER
                   if eval_scheme is EvalScheme.PAPER
                   else CoefStyle.C_INDEX)
