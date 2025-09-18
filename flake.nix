@@ -23,20 +23,18 @@
         fastBuildDefault = builtins.getEnv "FAST_BUILD" == "1";
         fastBuildDefaultStr = if fastBuildDefault then "1" else "0";
 
-        # Build Python package from pyproject.toml (example)
-        # llacPackage = if (!fastBuildDefault) then
-          # pkgs.python3Packages.buildPythonPackage {
-          #   # Distribution name; importable top-level modules are derived from src contents
-          #   pname = "LLAC";
-          #   version = "0.0.0a";
-          #   format = "pyproject";
-          #   src = ./Src;
-          #   nativeBuildInputs = with pkgs.python3Packages; [ wheel ];
-          #   propagatedBuildInputs = with pkgs.python3Packages; [ numpy ];
-          #   doCheck = true;
-          #   pythonImportsCheck = [ "Allocator" "Src" "Scripts" ];
-          # }
-        # else null;
+        llacPackage = if (!fastBuildDefault) then
+          pkgs.python3Packages.buildPythonPackage {
+            pname = "LLAC";
+            version = "0.0.0a";
+            format = "pyproject";
+            src = ./Src;
+            nativeBuildInputs = with pkgs.python3Packages; [ wheel ];
+            propagatedBuildInputs = with pkgs.python3Packages; [ numpy ];
+            doCheck = true;
+            pythonImportsCheck = [ "Allocator" "Src" "Scripts" ];
+          }
+        else null;
 
         # Mainline build selections
         pythonStable = pkgs.python3;
@@ -184,6 +182,17 @@
             esac
 
             export VENV_DIR="$VENV_DIR"
+            VENV_CNFG="$VENV_DIR/pyvenv.cfg"
+            upgrade_venv=0
+            [ -f "$VENV_CNFG" ] && {
+              venv_version=$(awk -F'= *' '/^version/{print $2}' "$VENV_CNFG" | tr -d '[:space:]')
+              cur_version=$(python3 -V 2>&1 | awk '{print $2}')
+              [[ -n "$venv_version" && -n "$cur_version" && "$venv_version" != "$cur_version" ]] && {
+                echo "Python version mismatch in existing venv ($venv_version != $cur_version); upgrading $VENV_DIR..."
+                python3 -m venv --upgrade "$VENV_DIR"
+                echo -e "\033[32mSuccessfully upgraded venv to Python $cur_version!\033[0m"
+              }
+            }
 
             # Make project sources importable without installation
             if [ -d "$ROOT/Src" ]; then
@@ -197,15 +206,18 @@
             [ ! -d $VENV_DIR ] && {
               echo "Creating Python virtual environment in $VENV_DIR..."
               python3 -m venv $VENV_DIR
+              if [ $upgrade_venv -eq 1 ]; then
+                echo -e "\033[32mSuccessfully upgraded venv to Python $cur_version!\033[0m"
+              else
+                echo -e "\033[32mSuccessfully created venv for Python $PY_MM!\033[0m"
+              fi
             }
 
-            # Activate venv for current shell so hooks can source it too
             . "$VENV_DIR/bin/activate"
 
-            # Install the main project package in editable mode &
-            # Any python dependencies used in scripts
-            # pip install -e "$ROOT/Src" | show_last_line_inplace "[pip - src package] "
-            pip install pipdeptree packaging | show_last_line_inplace "[pip - script dependencies] "
+            # Install the main project package in editable mode & any python dependencies used in scripts
+            pip install -e "$ROOT/Src" | show_last_line_inplace "[pip - src package] "
+            pip install pipdeptree packaging requests | show_last_line_inplace "[pip - script dependencies] "
 
             case "$CUR_BRANCH" in
               "research")
@@ -220,7 +232,7 @@
                 install_requirements "$ROOT/Src/Scripts/requirements.txt"
               ;;
             esac
-            
+
             echo -e "\033[32m"
             GIL_ENABLED=$(python3 -c 'import sys; print(sys._is_gil_enabled())')
             echo "LLAC development environment loaded on $CUR_BRANCH branch"

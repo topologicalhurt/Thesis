@@ -1,0 +1,46 @@
+name: Lint
+
+on: [push, pull_request]
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+    - uses: actions/checkout@v5
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install ruff
+    - name: Results
+      run: |
+        TARGETS=$(git ls-files | grep -oP '.+[^//]\w+\.py$' | grep -v 'test\.py$')
+        ruff check $TARGETS --output-format=github
+
+  codespell:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+    steps:
+    - uses: actions/checkout@v5
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install codespell
+    - name: Results
+      run: |
+        IGNORE_REGEX=$(python3 .github/hooks/pre_commit/codespell_pattern_builder.py || echo '')
+        find . \
+        \( -type f \( -name '*.md' -o -name '*.py' -o -name '*.sh' -o -name '*.sv' \) -print0 \) \
+        | xargs -0 codespell --ignore-multiline-regex="$IGNORE_REGEX"

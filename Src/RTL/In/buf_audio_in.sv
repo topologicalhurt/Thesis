@@ -99,7 +99,7 @@ module buf_audio_in #(
     //================================================================
     //  CDC & STAGING LOGIC (sys_clk domain)
     //================================================================
-    // These registers hold flags that are pased with a 2-FF synchroniser
+    // These registers hold flags that are passed with a 2-FF synchroniser
     logic                   sample_ready_sys_meta, sample_ready_sys;
     logic                   captured_lrclk_sys_meta, captured_lrclk_sys;
 

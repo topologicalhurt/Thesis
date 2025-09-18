@@ -11,6 +11,11 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
+def join_regex(*regex: str, non_capture: bool = True, or_join: bool = True) -> str:
+    wrapped = [f'(?:{p})' if non_capture else f'({p})' for p in regex]
+    return '|'.join(wrapped) if or_join else ''.join(wrapped)
+
+
 def compute_file_hash(file_path: Path) -> str:
     """Compute SHA256 hash of a file."""
     hasher = hashlib.sha256()
