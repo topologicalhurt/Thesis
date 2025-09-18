@@ -9,6 +9,9 @@ UPDATE_SUBMODULES=0
 FAST_BUILD=0
 SKIP_SUBMODULE_SYNC=1
 
+# Selected developer tools (from --extra-dev-tools)
+DEV_TOOLS=()
+
 # These are required for setup on HOST. Try to keep as minimal as possible.
 readonly HOST_REQUIREMENTS_DEB=('sudo' 'git' 'curl' 'python3')
 readonly HOST_REQUIREMENTS_DARWIN=('bash' 'git' 'curl' 'python3' 'gawk' 'gnu-sed' 'gnu-tar' 'grep' 'findutils' 'coreutils')
@@ -41,7 +44,7 @@ get_os() {
     esac
 }
 
-readonly ARCH="$(uname -p)"
+readonly ARCH="$(uname -m)"
 readonly OS="$(get_os)"
 
 print_logo() {
@@ -132,7 +135,8 @@ Usage: $0 [options]
 
 Options:
   --force              Disregard cache and run install from scratch.
-  --extra-dev-tools    Install auxiliary developer tools.
+  --extra-dev-tools    Install selected developer tools. Accepts: verilator riscv yosys
+                       Example: --extra-dev-tools verilator riscv
   --privilege-scripts  Apply privileging to script directories.
   --fast-build         Avoid long build-times by skipping compilation of optional dependencies. E.g submodules distributed as source, use mainline builds etc.
   --update-submodules  Force update and re-clone of git submodules.
@@ -153,7 +157,12 @@ while [[ $# -gt 0 ]]; do
         shift;;
         --extra-dev-tools)
             INSTALL_DEV_TOOLS=1
-        shift;;
+            shift
+            while [[ $# -gt 0 && $1 != --* ]]; do
+                DEV_TOOLS+=("$1")
+                shift
+            done
+        ;;
         --privilege-scripts)
             PRIVILEGE_SCRIPTS=1
         shift;;
@@ -173,6 +182,63 @@ while [[ $# -gt 0 ]]; do
 
 done
 
+# Returns 0 if the given tool is explicitly selected via --extra-dev-tools
+dev_tool_selected() {
+    local tool="$1"
+    if [[ ${#DEV_TOOLS[@]} -eq 0 ]]; then
+        return 1
+    fi
+    local t
+    for t in "${DEV_TOOLS[@]}"; do
+        if [[ "$t" == "$tool" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+devsh() {
+    # Helper: run a command inside the dev shell (nix develop). If already
+    # in a nix shell, just run it in bash with login semantics.
+    if [ -z "${IN_NIX_SHELL:-}" ]; then
+        if [ "${EUID}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+            sudo -Eu "${SUDO_USER}" nix develop "${ROOT}" --refresh --impure --quiet --command bash -lc "$*" || {
+                echo -e "${RED}Error: Command failed inside the Nix dev shell (user ${SUDO_USER}): $*${RESET}"
+                exit 1
+            }
+        else
+            nix develop "${ROOT}" --refresh --impure --quiet --command bash -lc "$*" || {
+                echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
+                exit 1
+            }
+        fi
+    else
+        bash -lc "$*" || {
+                echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
+                exit 1
+            }
+    fi
+}
+
+extract_archive() {
+    # Helper: extract a tar or gzip archive
+    local f="$1"
+    if tar -tzf "$f" >/dev/null 2>&1; then
+        tar -xzf "$f"
+        return $?
+    elif tar -tf "$f" >/dev/null 2>&1; then
+        tar -xf "$f"
+        return $?
+    elif gzip -t "$f" >/dev/null 2>&1; then
+        local out="${f%.gz}"
+        gzip -dc -- "$f" > "$out"
+        return $?
+    else
+        echo "not a tar or gzip archive: $f" >&2
+        return 1
+    fi
+}
+
 if [[ $EUID -ne 0 ]]; then
     echo -e "${YELLOW}Warning: This script performs actions that require elevated privileges.${RESET}\n"
     echo "Options: Inspect and run steps manually, run inside a privileged container,"
@@ -188,23 +254,8 @@ fi
 _progress=0
 ProgressBar 0 ${TOTAL_STEPS}
 
-devsh() {
-    # Helper: run a command inside the dev shell (nix develop). If already
-    # in a nix shell, just run it in bash with login semantics.
-    if [ -z "${IN_NIX_SHELL:-}" ]; then
-        nix develop --quiet --impure --command bash -lc "$*" || {
-                echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
-                exit 1
-            }
-    else
-        bash -lc "$*" || {
-                echo -e "${RED}Error: Command failed inside the Nix dev shell: $*${RESET}"
-                exit 1
-            }
-    fi
-}
-
 PACKAGES_HOST_REQUIREMENTS=
+echo "Checking & installing host packages..."; echo
 
 install_host_packages_linux() {
     for package in "${HOST_REQUIREMENTS_DEB[@]}"; do
@@ -216,7 +267,7 @@ install_host_packages_linux() {
 
     if [ -n "$PACKAGES_HOST_REQUIREMENTS" ]; then
         echo "Installing the following host packages: $PACKAGES_HOST_REQUIREMENTS"
-        sudo apt-get -y install $PACKAGES_HOST_REQUIREMENTS >/dev/null 2>&1 || {
+        sudo apt-get -y install $PACKAGES_HOST_REQUIREMENTS | show_last_line_inplace "[host install] " || {
             echo -e "${RED}Error: Failed to install host packages: $PACKAGES_HOST_REQUIREMENTS${RESET}"
             exit 1
         }
@@ -233,7 +284,7 @@ install_host_packages_darwin() {
 
     if [ -n "$PACKAGES_HOST_REQUIREMENTS" ]; then
         echo "Installing the following host packages: $PACKAGES_HOST_REQUIREMENTS"
-        brew install $PACKAGES_HOST_REQUIREMENTS >/dev/null 2>&1 || {
+        brew install $PACKAGES_HOST_REQUIREMENTS | show_last_line_inplace "[host install] " || {
             echo -e "${RED}Error: Failed to install host packages: $PACKAGES_HOST_REQUIREMENTS${RESET}"
             exit 1
         }
@@ -251,20 +302,25 @@ case $OS in
             echo "Only Debian-based distros with apt-get are supported.${RESET}"
             exit 1
         }
+        echo -e "${ITALICS}"
         echo "Targeting Linux distro ${distribution}"
         echo "Kernel: ${kernel}"
-        echo "Architecture: ${ARCH}"; echo
+        echo "Architecture: ${ARCH}"
+        echo -e "${RESET}\n"
 
-        sudo apt-get -y update > /dev/null 2>&1 && sudo apt-get -y upgrade > /dev/null 2>&1
+        sudo apt-get -y update > /dev/null 2>&1 || true
+        sudo apt-get -y upgrade > /dev/null 2>&1 || true
         install_host_packages_linux
     ;;
     "Mac")
+        echo -e "${ITALICS}"
         echo "Targeting macOS / Darwin platform"
         if [[ $ARCH == 'arm' ]]; then
-            echo "Running on Apple Silicon (ARM architecture)"; echo
+            echo "Architecture: Apple Silicon (ARM architecture)"; echo
         else
-            echo "Running on Intel/AMD (x86_64 architecture)"; echo
+            echo "Architecture: Intel/AMD (x86_64 architecture)"; echo
         fi
+        echo -e "${RESET}\n"
 
         command_exists brew || {
             /bin/bash -c "$(curl -fsSL \
@@ -281,6 +337,10 @@ case $OS in
     "FreeBSD") echo "Targeting FreeBSD platform"; echo;;
     "Windows") echo "Windows is not supported. Aborting setup."; exit 1;;
 esac
+
+advance_progress
+
+echo "Running auxiliary setup steps..." ; echo
 
 . "$PWD/.env.shared"
 
@@ -305,7 +365,11 @@ readonly PRE_COMMIT_CONFIG_YAML="${ROOT}/.github/hooks/.pre-commit-config.yaml"
 readonly PRE_COMMIT_DIR="${ROOT}/.github/hooks/pre_commit"
 readonly PRE_PUSH_SCRIPT="${ROOT}/.github/hooks/pre-push"
 
+echo -e "${CYAN}Steps ran successfully.${RESET}\n"
+
 advance_progress
+
+echo "Installing / sourcing nix profile..."; echo
 
 install_nix() {
     if [[ $EUID -eq 0 ]]; then
@@ -320,7 +384,7 @@ install_nix() {
 source_nix_profile() {
     local nix_profiles=()
     if [[ $OS == "Linux" ]]; then
-        nix_profiles=("/nix/var/nix/profiles/default/etc/profile.d/nix.sh" "/etc/profile.d/nix.sh")
+        nix_profiles=("/nix/var/nix/profiles/default" "/nix/var/nix/profiles/default/etc/profile.d/nix.sh" "/etc/profile.d/nix.sh")
     else
         # Annoyingly, on darwin the Nix profile may be mounted on a separate volume
         diskutil list | grep -q "Nix Store" && {
@@ -331,37 +395,43 @@ source_nix_profile() {
     fi
 
     set +u
-
     for profile in "${nix_profiles[@]}"; do
-            if [ -f "$profile" ]; then
-                . "$profile"
 
-                # On darwin, if the expected path location is matched add nix to PATH
-                # activating the profile doesn't seem to add nix to the PATH correctly (likely due to zshrc differences)
-                command_exists nix || {
-                    if [[ $OS == "Mac" && "$profile" == "/nix/var/nix/profiles/default"* ]]; then
-                        export PATH="/nix/var/nix/profiles/default/bin:$PATH"
-                    else
-                        echo -e "${YELLOW}Warning: Nix profile script found at unexpected location: ${profile}."
-                        echo -e " You will need to manually add Nix to your shell's environment.${RESET}"
-                    fi
-                }
-                return 0
-            fi
+        [[ -L "$profile" ]] && profile=$(readlink -f "$profile")
+
+        [[ -f "$profile" ]] && {
+            . "$profile"
+
+            # On darwin activating the profile doesn't seem to add nix to the PATH correctly (likely due to zshrc differences)
+            command_exists nix || {
+                if [[ $OS == "Mac" && "$profile" == "/nix/var/nix/profiles/default"* ]]; then
+                    export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+                else
+                    echo -e "${YELLOW}Warning: Nix profile script found at unexpected location: ${profile}."
+                    echo -e " You will need to manually add Nix to your shell's environment.${RESET}"
+                fi
+            }
+            return 0
+        }
     done
+    set -u
 
     echo -e "${YELLOW}Warning: Could not find the Nix profile script to source."
     echo -e " You may need to manually add Nix to your shell's environment.${RESET}"
-    set -u
+
     return 1
 }
 
-source_nix_profile >/dev/null 2>&1 || true
-
-command_exists nix || {
-    (install_nix) || true
-    source_nix_profile || exit 1
-}
+if ! command_exists nix; then
+    install_nix
+    source_nix_profile && {
+        echo -e "${CYAN}Nix installed and profile sourced successfully.${RESET}\n"
+    }
+else
+    source_nix_profile && {
+        echo -e "${CYAN}Nix profile sourced successfully.${RESET}\n"
+    }
+fi
 
 advance_progress
 
@@ -372,7 +442,7 @@ grep -q "experimental-features = nix-command flakes" "${NIX_CONFIG_FILE}" 2>/dev
     echo "experimental-features = nix-command flakes" >> "${NIX_CONFIG_FILE}"
 }
 
-advance_progress
+echo "Applying privileging to script directories..."; echo
 
 privilege_script_dir() {
     local target_dir="$1"
@@ -407,11 +477,19 @@ privilege_script_dir() {
 
 advance_progress
 
-echo "Installing dependencies with Nix..."
-nix develop --impure --quiet --command true > /dev/null 2>&1 || {
+echo "Installing dependencies with Nix..."; echo
+
+if [ "${EUID}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    sudo -Eu "${SUDO_USER}" nix develop "${ROOT}" --refresh --impure --quiet --command true > /dev/null 2>&1 || {
+        echo -e "${RED}Error: Failed to enter the Nix dev shell. Aborting setup.${RESET}"
+        exit 1
+    }
+else
+    nix develop "${ROOT}" --refresh --impure --quiet --command true > /dev/null 2>&1 || {
     echo -e "${RED}Error: Failed to enter the Nix dev shell. Aborting setup.${RESET}"
     exit 1
-}
+    }
+fi
 echo -e "${CYAN}Nix dependencies installed successfully.${RESET}\n"
 
 advance_progress
@@ -458,7 +536,7 @@ clone_submodules() {
             --jobs "${CORES:-8}" \
             --progress \
             --depth "$recursion_depth" "${url}" "${path}" \
-            2>&1 | tr '\r' '\n' | show_last_line_inplace "[clone] "; then
+            2>&1 | show_last_line_inplace "[clone] "; then
             echo -e "${RED}Error: Failed to clone submodule ${url} into ${path}.${RESET}"
             exit 1
         fi
@@ -472,14 +550,14 @@ clone_submodules() {
     echo "Updating git submodules..."; echo
 
     if [[ "$SKIP_SUBMODULE_SYNC" == 0 ]]; then
-        git submodule sync --recursive 2>&1 | show_last_line_inplace "[submodule sync] " || true
+        git submodule sync --recursive 2>&1 | show_last_line_inplace "[submodule sync] "
     else
         echo "[submodule sync] skipped by flag"
     fi
 
     git -c protocol.version=2 submodule update --init --recursive \
-        --depth 1 --jobs "${CORES:-8}" --recommend-shallow --filter=blob:none \
-        2>&1 | show_last_line_inplace "[submodule update] " || true
+        --jobs "${CORES:-8}" --recommend-shallow --filter=blob:none \
+        2>&1 | show_last_line_inplace "[submodule update] "
 
     echo -e "${CYAN}Git submodules updated successfully.${RESET}\n"
 
@@ -488,155 +566,217 @@ clone_submodules() {
 
 advance_progress
 
-[[ "$INSTALL_DEV_TOOLS" == 1 ]] && {
+[[ "$INSTALL_DEV_TOOLS" == 1 || "$PARAM_FORCE" == 1 || "$UPDATE_SUBMODULES" == 1 ]] && {
 
     [[ "$PARAM_FORCE" == 1 ]] && {
         echo "Removing existing installations..."
         sudo rm -rf $SUBMODULE_BIN > /dev/null 2>&1 || true
     }
 
-    # Temporarily enable FAST_BUILD for compilation to skip unnecessary nix shell hooks
+    # Temporarily enable FAST_BUILD for compilation step
     old_fast_build=$FAST_BUILD
     export FAST_BUILD=1
 
-    echo "Installing Verilator from source (this will take a while)..."
-        devsh '
-            set -euo pipefail
-
-            unset VERILATOR_ROOT
-            cd "$ROOT/submodules/verilator"
-            autoconf 2>&1 | show_last_line_inplace "[autoconf] "
-
-            [[ -z "${VERILATOR_PREFIX:-}" ]] && {
-                VERILATOR_PREFIX="$ROOT/bin/verilator"
-            }
-
-            mkdir -p "$VERILATOR_PREFIX"
-            if ! ./configure --prefix="$VERILATOR_PREFIX" 2>&1 | show_last_line_inplace "[configure] "; then
-
-                [[ "${VERILATOR_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
-                    echo "Warning: Verilator configure failed. Soft failing."
-                    exit 0
-                }
-
-                echo "Error: Verilator configure failed. Aborting."
-                exit 1
-            fi
-
-            if ! make -j "$CORES" install 2>&1 | show_last_line_inplace "[make] "; then
-
-                [[ "${VERILATOR_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
-                    echo "Warning: Verilator build failed. Soft failing."
-                    exit 0
-                }
-
-                echo "Error: Verilator build failed. Aborting."
-                exit 1
-            fi
-        '
-
-    export PATH="$VERILATOR_PREFIX/bin:${PATH}"
-
-    if ! command_exists verilator; then
-        echo -e "${YELLOW}Warning: Verilator couldn't be added to PATH."
-        echo    " this doesn't neccesserily mean that the installation failed."
-        echo -e " You may need to manually add ${VERILATOR_PREFIX}/bin to your PATH.${RESET}"
-    else
-        sudo ln -sfn "$VERILATOR_PREFIX" /opt/verilator > /dev/null || true
-        echo -e "\n${CYAN}Verilator successfully compiled from source."
-        echo -e "Version: $(verilator --version | head -n1)${RESET}\n"
+    # Determine default behavior: if --extra-dev-tools was passed without values, build all
+    BUILD_ALL_DEV_TOOLS=0
+    if [[ "$INSTALL_DEV_TOOLS" == 1 && ${#DEV_TOOLS[@]} -eq 0 ]]; then
+        BUILD_ALL_DEV_TOOLS=1
     fi
 
-    echo "Installing riscv-gnu-toolchain from source (this will take a while)..."
-        devsh '
-            set -euo pipefail
-            cd "$ROOT/submodules/riscv-gnu-toolchain"
+    # Verilator
+    if [[ $BUILD_ALL_DEV_TOOLS -eq 1 ]] || dev_tool_selected verilator; then
+        echo "Installing Verilator from source (this will take a while)..."
+            devsh '
+                set -euo pipefail
 
-            [[ -n "${CONFIG_EXTRA:=}" ]] && {
-                echo "Using configure extras: ${CONFIG_EXTRA}"
-            }
+                unset VERILATOR_ROOT
+                cd "$ROOT/submodules/verilator"
+                autoconf 2>&1 | show_last_line_inplace "[autoconf] "
 
-            # GCC configure will fail if LIBRARY_PATH includes the current directory
-            [[ -n "${LIBRARY_PATH:-}" ]] && {
-                unset LIBRARY_PATH
-            }
+                [[ -z "${VERILATOR_PREFIX:-}" ]] && {
+                    VERILATOR_PREFIX="$ROOT/bin/verilator"
+                }
 
-            # Prevent host CFLAGS/CXXFLAGS leaking into target builds
-            for v in CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET CFLAGS CXXFLAGS CPPFLAGS LDFLAGS; do
-                if [ -n "${!v:-}" ]; then
-                    unset "$v"
+                mkdir -p "$VERILATOR_PREFIX"
+                if ! ./configure --prefix="$VERILATOR_PREFIX" 2>&1 | show_last_line_inplace "[configure] "; then
+
+                    [[ "${VERILATOR_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                        echo "Warning: Verilator configure failed. Soft failing."
+                        exit 0
+                    }
+
+                    echo "Error: Verilator configure failed. Aborting."
+                    exit 1
                 fi
-            done
 
-            [[ -z "${RISCV_INSTALL_PREFIX:-}" ]] && {
-                RISCV_INSTALL_PREFIX="$ROOT/bin/riscv"
-            }
+                if ! make -j "$CORES" install 2>&1 | show_last_line_inplace "[make] "; then
 
-            # Bare-metal (newlib) toolchain for RV32GC ILP32D
-            mkdir -p "$RISCV_INSTALL_PREFIX"
-            if ! ./configure --prefix="$RISCV_INSTALL_PREFIX" --with-arch=rv32gc --with-abi=ilp32d \
-            --with-isa-spec=2.2 --with-cmodel=medany --with-languages=c $CONFIG_EXTRA 2>&1 \
-            | show_last_line_inplace "[configure] "; then
+                    [[ "${VERILATOR_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                        echo "Warning: Verilator build failed. Soft failing."
+                        exit 0
+                    }
 
-                [[ "${RISCV_GNU_TOOLCHAIN_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
-                    echo "Warning: riscv-gnu-toolchain configure failed. Soft failing."
+                    echo "Error: Verilator build failed. Aborting."
+                    make clean > /dev/null 2>&1
+                    exit 1
+                fi
+            '
+
+        export PATH="$VERILATOR_PREFIX/bin:${PATH}"
+
+        if ! command_exists verilator; then
+            echo -e "${YELLOW}Warning: Verilator couldn't be added to PATH."
+            echo    " this doesn't neccesserily mean that the installation failed."
+            echo -e " You may need to manually add ${VERILATOR_PREFIX}/bin to your PATH.${RESET}"
+        else
+            sudo ln -sfn "$VERILATOR_PREFIX" /opt/verilator > /dev/null || true
+            echo -e "\n${CYAN}Verilator successfully compiled from source."
+            echo -e "Version: $(verilator --version | head -n1)${RESET}\n"
+        fi
+    fi
+
+    # RISC-V toolchain
+    if [[ $BUILD_ALL_DEV_TOOLS -eq 1 ]] || dev_tool_selected riscv; then
+        echo "Installing riscv-gnu-toolchain from source (this will take a while)..."
+            devsh '
+                set -euo pipefail
+                cd "$ROOT/submodules/riscv-gnu-toolchain"
+
+                [[ -n "${CONFIG_EXTRA:=}" ]] && {
+                    echo "Using configure extras: ${CONFIG_EXTRA}"
+                }
+
+                # GCC configure will fail if LIBRARY_PATH includes the current directory
+                [[ -n "${LIBRARY_PATH:-}" ]] && {
+                    unset LIBRARY_PATH
+                }
+
+                # Prevent host CFLAGS/CXXFLAGS leaking into target builds
+                for v in CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET CFLAGS CXXFLAGS CPPFLAGS LDFLAGS; do
+                    if [ -n "${!v:-}" ]; then
+                        unset "$v"
+                    fi
+                done
+
+                [[ -z "${RISCV_INSTALL_PREFIX:-}" ]] && {
+                    RISCV_INSTALL_PREFIX="$ROOT/bin/riscv"
+                }
+
+                # Bare-metal (newlib) toolchain for RV32GC ILP32D
+                mkdir -p "$RISCV_INSTALL_PREFIX"
+                if ! ./configure --prefix="$RISCV_INSTALL_PREFIX" --with-arch=rv32gc --with-abi=ilp32d \
+                --with-isa-spec=2.2 --with-cmodel=medany --with-languages=c $CONFIG_EXTRA 2>&1 \
+                | show_last_line_inplace "[configure] "; then
+
+                    [[ "${RISCV_GNU_TOOLCHAIN_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                        echo "Warning: riscv-gnu-toolchain configure failed. Soft failing."
+                        exit 0
+                    }
+
+                    echo "Error: riscv-gnu-toolchain configure failed. Aborting."
+                    exit 1
+                fi
+
+                # Build the bootstrap cross-compiler first
+                if ! make -j "$CORES" build-gcc1 2>&1 | show_last_line_inplace "[make gcc1] "; then
+                    echo "Error: bootstrap GCC (stage1) build failed."
+                    make clean > /dev/null 2>&1
+                    exit 1
+                fi
+
+                TARGET_CC="riscv32-unknown-elf-gcc"
+                TARGET_CXX="riscv32-unknown-elf-g++"
+
+                # Force newlib to use the cross-compiler
+                if ! CC_FOR_TARGET="$TARGET_CC" CXX_FOR_TARGET="$TARGET_CXX" \
+                    make -j "$CORES" V=1 newlib 2>&1 | show_last_line_inplace "[make newlib] "; then
+
+                    [[ "${RISCV_GNU_TOOLCHAIN_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                        echo "Warning: riscv-gnu-toolchain newlib build failed. Soft failing."
+                        exit 0
+                    }
+
+                    echo "Error: riscv-gnu-toolchain build failed. Aborting."
+                    make clean > /dev/null 2>&1
+                    exit 1
+                fi
+
+                [[ "$FAST_BUILD" == 1 ]] && {
+                    echo "Skipping QEMU build as --fast-build was set."; echo
                     exit 0
                 }
 
-                echo "Error: riscv-gnu-toolchain configure failed. Aborting."
-                exit 1
-            fi
+                # Optional: build QEMU simulator (not required for the toolchain itself)
+                make -j "$CORES" build-sim SIM=qemu 2>&1 | show_last_line_inplace "[make qemu] " || {
+                    echo "Warning: QEMU build failed. Continuing without QEMU support."
+                }
+            '
 
-            # Build the bootstrap cross-compiler first
-            if ! make -j "$CORES" build-gcc1 2>&1 | show_last_line_inplace "[make gcc1] "; then
-                echo "Error: bootstrap GCC (stage1) build failed."
-                exit 1
-            fi
+        export PATH="$RISCV_INSTALL_PREFIX/bin:${PATH}"
+        if ! command_exists riscv32-unknown-elf-gcc; then
+            echo -e "${YELLOW}Warning: riscv-gnu-toolchain couldn't be added to PATH."
+            echo    " this doesn't neccesserily mean that the installation failed."
+            echo -e " You may need to manually add ${RISCV_INSTALL_PREFIX}/bin to your PATH.${RESET}"
+        else
+            sudo ln -sfn "$RISCV_INSTALL_PREFIX" /opt/riscv > /dev/null || true
+            echo -e "\n${CYAN}RISC-V GNU Toolchain successfully compiled from source."
+            echo -e " Version: $(riscv32-unknown-elf-gcc --version | head -n1)${RESET}\n"
+        fi
+    fi
 
-            TARGET_CC="riscv32-unknown-elf-gcc"
-            TARGET_CXX="riscv32-unknown-elf-g++"
+    # Yosys
+    if [[ $BUILD_ALL_DEV_TOOLS -eq 1 ]] || dev_tool_selected yosys; then
+        echo "Installing Yosys from source (this will take a while)..."
+            devsh '
+                set -euo pipefail
+                cd "$ROOT/submodules/yosys"
 
-            # Force newlib to use the cross-compiler
-            if ! CC_FOR_TARGET="$TARGET_CC" CXX_FOR_TARGET="$TARGET_CXX" \
-                make -j "$CORES" V=1 newlib 2>&1 | show_last_line_inplace "[make newlib] "; then
+                # Ensure headers and libs are discoverable via pkg-config
+                TCL_CFLAGS=$(pkg-config --cflags tcl 2>/dev/null || true)
+                TCL_LIBS=$(pkg-config --libs tcl 2>/dev/null || true)
+                READLINE_CFLAGS=$(pkg-config --cflags readline 2>/dev/null || true)
+                READLINE_LIBS=$(pkg-config --libs readline 2>/dev/null || echo -lreadline)
 
-                [[ "${RISCV_GNU_TOOLCHAIN_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
-                    echo "Warning: riscv-gnu-toolchain newlib build failed. Soft failing."
-                    exit 0
+                export CPPFLAGS="${TCL_CFLAGS} ${READLINE_CFLAGS} ${CPPFLAGS:-}"
+                export LDFLAGS="${TCL_LIBS} ${READLINE_LIBS} ${LDFLAGS:-}"
+
+                [[ -z "${YOSYS_INSTALL_PREFIX:-}" ]] && {
+                    YOSYS_INSTALL_PREFIX="$ROOT/bin/yosys"
                 }
 
-                echo "Error: riscv-gnu-toolchain build failed. Aborting."
-                exit 1
-            fi
+                make config-gcc 2>&1 | show_last_line_inplace "[make config] "
+                if ! make -j "$CORES" install DESTDIR="$YOSYS_INSTALL_PREFIX"; then
 
-            [[ "$FAST_BUILD" == 1 ]] && {
-                echo "Skipping QEMU build as --fast-build was set."; echo
-                exit 0
-            }
+                    [[ "${YOSYS_BUILD_CAN_SOFTFAIL:-0}" == 1 ]] && {
+                        echo "Warning: Yosys build failed. Soft failing."
+                        exit 0
+                    }
 
-            # Optional: build QEMU simulator (not required for the toolchain itself)
-            make -j "$CORES" build-sim SIM=qemu 2>&1 | show_last_line_inplace "[make qemu] " || {
-                echo "Warning: QEMU build failed. Continuing without QEMU support."
-            }
-        '
+                    echo "Error: Yosys build failed. Aborting."
+                    make clean > /dev/null 2>&1
+                    exit 1
+                fi
+            '
+
+        export PATH="$YOSYS_INSTALL_PREFIX/bin:${PATH}"
+        if ! command_exists yosys; then
+            echo -e "${YELLOW}Warning: yosys couldn't be added to PATH."
+            echo    " this doesn't neccesserily mean that the installation failed."
+            echo -e " You may need to manually add ${YOSYS_INSTALL_PREFIX}/bin to your PATH.${RESET}"
+        else
+            echo -e "\n${CYAN}Yosys successfully compiled from source."
+            echo -e " Version: $(yosys --version | head -n1)${RESET}\n"
+        fi
+    fi
 
     export FAST_BUILD=$old_fast_build
-    export PATH="$RISCV_INSTALL_PREFIX/bin:${PATH}"
-
-    if ! command_exists riscv32-unknown-elf-gcc; then
-        echo -e "${YELLOW}Warning: riscv-gnu-toolchain couldn't be added to PATH."
-        echo    " this doesn't neccesserily mean that the installation failed."
-        echo -e " You may need to manually add ${RISCV_INSTALL_PREFIX}/bin to your PATH.${RESET}"
-    else
-        sudo ln -sfn "$RISCV_INSTALL_PREFIX" /opt/riscv > /dev/null || true
-        echo -e "\n${CYAN}RISC-V GNU Toolchain successfully compiled from source."
-        echo -e " Version: $(riscv32-unknown-elf-gcc --version | head -n1)${RESET}\n"
-    fi
 
     echo -e "${CYAN}All developer tools installed successfully.${RESET}\n"
 }
 
 advance_progress
+
+echo "Configuring git for the repository..."; echo
 
 [[ "$HAS_RUN_SETUP_SHELL" == 0 ]] && {
     # Configure git for the repository
@@ -671,6 +811,8 @@ advance_progress
     mkdir -p "${SETUP_CACHE}"
     touch "${SETUP_CACHE}/.LLAC_SETUP_SHELL_DONE"
 }
+
+echo -e "${CYAN}Git configured successfully.${RESET}\n"
 
 advance_progress
 

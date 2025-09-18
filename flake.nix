@@ -215,7 +215,7 @@
 
             . "$VENV_DIR/bin/activate"
 
-            # Install the main project package in editable mode & any python dependencies used in scripts
+            # Install the main project package in editable mode & any script dependencies
             pip install -e "$ROOT/Src" | show_last_line_inplace "[pip - src package] "
             pip install pipdeptree packaging requests | show_last_line_inplace "[pip - script dependencies] "
 
@@ -253,10 +253,11 @@
 
             # Build tools
             stdenv.cc.cc.lib zlib zlib-ng gcc gnumake pkg-config autoconf automake libtool m4 bison flex
-            cmake ninja libmpc mpfr gmp
+            cmake ninja libmpc mpfr gmp tcl libffi boost readline
 
             # Graphics (tested: all of these should be optional)
             glib libGL fontconfig libxkbcommon freetype dbus libsForQt5.wrapQtAppsHook
+            graphviz xdot
 
             # Networking
             libslirp
@@ -275,14 +276,12 @@
             # Linux specific packages
           ];
 
-          # Expose for the shellHook to consume
           inherit ldLibPath;
           shellHook = ''
             export PY_IS_OPT=${if optimized then "1" else "0"}
           '' + baseShellHook;
         };
 
-        # Choose default Python based on env var PYTHON_ENV, falling back to optimized stable
         pyEnv = builtins.getEnv "PYTHON_ENV";
         defaultPython =
           if pyEnv == "python-stable" || pyEnv == "python3-stable" || pyEnv == "stable" then pythonStable
@@ -301,7 +300,6 @@
       {
         # Dev shells: default is stable; expose both cached 3.14 and an "opt" alias
         devShells = {
-          # If PYTHON_ENV is set (e.g., by setup.sh), use that to pick default
           default = mkLlacShell defaultPython defaultIsOpt;
           python-stable = mkLlacShell pythonStable false;
           python3-stable = mkLlacShell pythonStable false;
