@@ -60,8 +60,9 @@ from Allocator.Interpreter.main.bitfield import BITFIELD
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 from Allocator.Interpreter.main.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
 from Allocator.Interpreter.main.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
+from Allocator.Interpreter.main.util_helpers import join_regex, pairwise, underline_matches
 from Allocator.Interpreter.metricities.lut_acc_metrics import LutAccMetrics
-from Allocator.Interpreter.main.util_helpers import join_regex, pairwise, underline_matches, quantize
+from Allocator.Interpreter.math.math_utils import quantize
 from Allocator.Interpreter.poly.compact_sinc import compact_sinc
 from Allocator.Interpreter.poly.chebyshev_trig import chebyshev_sin
 

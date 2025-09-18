@@ -33,7 +33,7 @@ from typing import override
 from enum import Enum
 
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
-from Allocator.Interpreter.main.math_utils import largest_dtype_of_kind, machine_has_extended_float_support, machine_has_quad_float_support
+from Allocator.Interpreter.math.math_utils import largest_dtype_of_kind, machine_has_extended_float_support, machine_has_quad_float_support
 
 
 class STANDARD_NP_DTYPES(ExtendedEnum):
