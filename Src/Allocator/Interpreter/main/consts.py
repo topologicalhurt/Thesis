@@ -32,6 +32,8 @@ import importlib
 import logging
 import logging.handlers
 
+from Allocator.Interpreter.main.util_helpers import get_repo_root
+
 
 ######################################
 # GENERAL PROGRAM / META INFO / MISC #
@@ -42,7 +44,8 @@ PROGRAM_META_INFO = dataclass.PROGRAM_META_INFO
 
 META_INFO = PROGRAM_META_INFO(
     **{
-        'DEBUG': True
+        'DEBUG': True,
+        'GIT_ROOT': get_repo_root(),
     }
 )
 
@@ -65,6 +68,9 @@ XILINX_TARGETS = XilinxDeviceSet(names=XILINX_ALL_TARGET_NAMES)
 ###########
 
 LOGGER = logging.getLogger(__name__)
+LOG_FNAME = str(META_INFO.GIT_ROOT / 'Src' / 'Allocator' / 'Interpreter' / 'alloc_info.log')
+
+DYADIC_POLY_PREFIX='\n[*] DYADIC_POLY [*] \n{}'
 
 
 def set_logger_opts():
@@ -73,7 +79,7 @@ def set_logger_opts():
     # Set circular logger
     LOGGER.setLevel(logging.INFO)
     handler = logging.handlers.RotatingFileHandler(
-        filename='info.log',
+        filename=LOG_FNAME,
         encoding='utf-8',
         maxBytes=2 * 1024 * 1024,  # 2 MiB files
         backupCount=5 # Rotate through 5 files
@@ -86,4 +92,4 @@ def set_logger_opts():
     LOGGER.addHandler(handler)
 
 
-# set_logger_opts()
+set_logger_opts()

@@ -39,7 +39,7 @@ from pathlib import Path
 from collections.abc import Mapping, Sequence
 from fnmatch import fnmatch
 
-from Allocator.Interpreter.main.util_helpers import underline_matches
+from Allocator.Interpreter.main.common_utils import underline_matches
 
 from Scripts.consts import ALLOCATOR_DIR, CURRENT_DIR, META_INFO, DOCUMENT_META
 from Scripts.util_helpers import extract_docstring_from_file

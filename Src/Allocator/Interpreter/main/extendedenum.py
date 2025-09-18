@@ -34,7 +34,7 @@ from enum import Enum, EnumMeta
 from collections.abc import Sequence, Iterable
 from typing import Any, Mapping
 
-from Allocator.Interpreter.main.util_helpers import join_regex, underline_matches, combined_fast_stable_hash, fast_stable_hash
+from Allocator.Interpreter.main.common_utils import join_regex, underline_matches, combined_fast_stable_hash, fast_stable_hash
 
 
 class _ExtendedEnumMeta(EnumMeta):

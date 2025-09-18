@@ -52,36 +52,6 @@ class PROGRAM_META_INFO:
 
 
 @dataclass(frozen=True, slots=True)
-class KaiserParameters:
-    """# Summary
-
-    Dataclass storing Kaiser window parameters BEFORE it is designed
-    """
-    beta: np.float32
-    window_length: np.int16
-    transition_width_rad: np.float64
-    transition_width_norm: np.float64
-    transition_width_hz: np.int32 | None
-    sample_rate: np.int32
-    estimated_attenuation: np.float32
-
-
-@dataclass(frozen=True, slots=True)
-class KaiserSchematic:
-    """# Summary
-
-    Dataclass storing the Kaiser window AFTER it is designed
-    """
-    coeffs: np.ndarray[np.floating]
-    cutoff_norm: float | Sequence[np.floating]
-    filter_type: FILTER_TYPE
-    measured_stopband_attenuation: np.float32
-    target_stopband_attenuation: np.float32
-    frequency_response: Sequence[np.ndarray[np.floating], np.ndarray[np.floating]]
-    parameters: KaiserParameters
-
-
-@dataclass(frozen=True, slots=True)
 class TRIG_OPTS:
     lut_select: np.uint          # *Every* single lut that should be generated
     k_mask_bitfield: np.uint     # A mask which determines which luts need to have k also specified

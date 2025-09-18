@@ -41,7 +41,7 @@ from typing import Any
 from enum import Enum
 
 from Allocator.Interpreter.main.dataclass import ExtendedEnum, FREQ, QFormat
-from Allocator.Interpreter.main.util_helpers import underline_matches
+from Allocator.Interpreter.main.common_utils import underline_matches
 from Allocator.Interpreter.math.nptypes import INT_STR_NPMAP, FLOAT_STR_NPMAP, STANDARD_NP_DTYPES
 
 from Scripts.exceptions import ExpectedFloatParseException, ExpectedPosFloatParseException, ExpectedPosIntParseException, ExpectedIntParseException
@@ -315,6 +315,8 @@ def str2bool(val: str) -> bool:
     if val in ('yes', 'true', 't', 'y', '1'):
         return True
     elif val in ('no', 'false', 'f', 'n', '0'):
+        return False
+    elif not val:
         return False
     else:
         raise ap.ArgumentTypeError('Boolean val expected')
