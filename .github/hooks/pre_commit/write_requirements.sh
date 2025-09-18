@@ -19,13 +19,30 @@ if [ -z "$relevant" ]; then
 fi
 
 LOCK_PATH="$ROOT/requirements_lock.json"
-	JSON_OUT=$(python3 "$ROOT/.github/hooks/pre_commit/lock_requirements.py" --write-txt --update \
-	--resolve-method pypi)
-printf '%s
-' "$JSON_OUT" > "$LOCK_PATH"
-	git add "$LOCK_PATH" || true
-	git add "$ROOT/Src/Allocator/requirements.txt" 2>/dev/null || true
-	git add "$ROOT/Src/Scripts/requirements.txt" 2>/dev/null || true
-	git add "$ROOT/docs/Notebook/requirements.txt" 2>/dev/null || true
+
+RESOLVE_METHOD="${LOCK_RESOLVE_METHOD:-pypi}"
+LOCK_TIMEOUT="${LOCK_TIMEOUT:-10s}"
+
+tmp_lock="$(mktemp)"
+if timeout "$LOCK_TIMEOUT" python3 "$ROOT/.github/hooks/pre_commit/lock_requirements.py"\
+ --write-txt --update --resolve-method "$RESOLVE_METHOD" > "$tmp_lock"; then
+	if [ ! -f "$LOCK_PATH" ] || ! cmp -s "$tmp_lock" "$LOCK_PATH"; then
+		mv "$tmp_lock" "$LOCK_PATH"
+	else
+		rm -f "$tmp_lock"
+	fi
+else
+	echo "[write_requirements] Timed out after $LOCK_TIMEOUT; skipping lock update" >&2
+	rm -f "$tmp_lock"
+fi
+
+create_pre_commit_marker
+echo "[write_requirements] Updated $LOCK_PATH"
+add_file_in_pre_commit "$LOCK_PATH"
+echo "[write_requirements] Updated requirements.txt files"
+add_file_in_pre_commit "$ROOT/Src/Allocator/requirements.txt"
+add_file_in_pre_commit "$ROOT/Src/Scripts/requirements.txt"
+# add_file_in_pre_commit "$ROOT/docs/Notebook/requirements.txt"
+destroy_pre_commit_marker
 
 deactivate

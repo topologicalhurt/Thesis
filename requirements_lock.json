@@ -51,6 +51,18 @@
           "lock_key": "13a0d095e88e465ef2960e0b746bbc463cfd15a8f2d2c9d71837e50b452204e0"
         },
         {
+          "name": "regex",
+          "version": "2025.9.1",
+          "source": "pypi",
+          "hashes": [
+            {
+              "algo": "sha256",
+              "value": "d9914fe1040874f83c15fcea86d94ea54091b0666eab330aaab69e30d106aabe"
+            }
+          ],
+          "lock_key": "16bfd62533c009e68e091f3a0a521e398f6eb4b3df44ac5ed50ae7581639a982"
+        },
+        {
           "name": "scipy",
           "version": "1.16.2",
           "source": "pypi",
@@ -127,70 +139,6 @@
           "lock_key": "c76b3180f8ce04123b5c496d114e53917be5d33eb0a3c569ea0709ae9488c6f1"
         }
       ]
-    },
-    "notebook": {
-      "dependencies": [
-        {
-          "name": "ipython",
-          "version": "9.5.0",
-          "source": "pypi",
-          "hashes": [
-            {
-              "algo": "sha256",
-              "value": "88369ffa1d5817d609120daa523a6da06d02518e582347c29f8451732a9c5e72"
-            }
-          ],
-          "lock_key": "650440a02f6748e0d5019b984804d53f03ba35391f8aeca38397307c8c9e47d4"
-        },
-        {
-          "name": "matplotlib",
-          "version": "3.10.6",
-          "source": "pypi",
-          "hashes": [
-            {
-              "algo": "sha256",
-              "value": "8fa4c43d6bfdbfec09c733bca8667de11bfa4970e8324c471f3a3632a0301c15"
-            }
-          ],
-          "lock_key": "cbc3420113edfc9976ba89d93340e32af0e00d7698acd0f47e2efe8635f86302"
-        },
-        {
-          "name": "numpy",
-          "version": "2.3.3",
-          "source": "pypi",
-          "hashes": [
-            {
-              "algo": "sha256",
-              "value": "afd07d377f478344ec6ca2b8d4ca08ae8bd44706763d1efb56397de606393f48"
-            }
-          ],
-          "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
-        },
-        {
-          "name": "pylatex",
-          "version": "1.4.2",
-          "source": "pypi",
-          "hashes": [
-            {
-              "algo": "sha256",
-              "value": "bb7b21bec57ecdba3f6f44c856ebebdf6549fd6e80661bd44fd5094236729242"
-            }
-          ],
-          "lock_key": "fc622f7741ce4f94ac890eb7d32658e85fe09599b8246a058a3ac971844e39c1"
-        },
-        {
-          "name": "scipy",
-          "version": "1.16.2",
-          "source": "pypi",
-          "hashes": [
-            {
-              "algo": "sha256",
-              "value": "e574be127bb760f0dad24ff6e217c80213d153058372362ccb9555a10fc5e8d2"
-            }
-          ],
-          "lock_key": "c76b3180f8ce04123b5c496d114e53917be5d33eb0a3c569ea0709ae9488c6f1"
-        }
-      ]
     }
   },
   "dependencies": [
@@ -205,18 +153,6 @@
         }
       ],
       "lock_key": "b4a7ebbba59ab58069dd3c0970ed4630917a283ab321e83d52e890ea01586122"
-    },
-    {
-      "name": "ipython",
-      "version": "9.5.0",
-      "source": "pypi",
-      "hashes": [
-        {
-          "algo": "sha256",
-          "value": "88369ffa1d5817d609120daa523a6da06d02518e582347c29f8451732a9c5e72"
-        }
-      ],
-      "lock_key": "650440a02f6748e0d5019b984804d53f03ba35391f8aeca38397307c8c9e47d4"
     },
     {
       "name": "matplotlib",
@@ -255,18 +191,6 @@
       "lock_key": "657121d1651c851984d024f847877fde25c7af6f2ae72de6a13612f8f3194cb1"
     },
     {
-      "name": "pylatex",
-      "version": "1.4.2",
-      "source": "pypi",
-      "hashes": [
-        {
-          "algo": "sha256",
-          "value": "bb7b21bec57ecdba3f6f44c856ebebdf6549fd6e80661bd44fd5094236729242"
-        }
-      ],
-      "lock_key": "fc622f7741ce4f94ac890eb7d32658e85fe09599b8246a058a3ac971844e39c1"
-    },
-    {
       "name": "pytest",
       "version": "8.4.2",
       "source": "pypi",
@@ -289,6 +213,18 @@
         }
       ],
       "lock_key": "d6be3c56dfd9766aabbbbb03cf01478c7dace31d4a2172e5921baaff78fa2d09"
+    },
+    {
+      "name": "regex",
+      "version": "2025.9.1",
+      "source": "pypi",
+      "hashes": [
+        {
+          "algo": "sha256",
+          "value": "d9914fe1040874f83c15fcea86d94ea54091b0666eab330aaab69e30d106aabe"
+        }
+      ],
+      "lock_key": "16bfd62533c009e68e091f3a0a521e398f6eb4b3df44ac5ed50ae7581639a982"
     },
     {
       "name": "scipy",
@@ -318,6 +254,6 @@
   "metadata": {
     "python": "3.13",
     "tool": "lock_requirements.py",
-    "lockfile_id": "31d10b5d-b64b-4113-b025-682323bee0e2"
+    "lockfile_id": "7b5f186f-bf0a-4ba2-8441-4841650de33a"
   }
 }

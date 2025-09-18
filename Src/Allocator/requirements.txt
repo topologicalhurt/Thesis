@@ -2,5 +2,6 @@ fxpmath==0.4.9
 networkx==3.5
 numpy==2.3.3
 pytest==8.4.2
+regex==2025.9.1
 scipy==1.16.2
 xxhash==3.5.0
