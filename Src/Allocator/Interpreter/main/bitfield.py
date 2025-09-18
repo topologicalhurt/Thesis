@@ -34,8 +34,8 @@ from collections.abc import Generator, Hashable, Iterable, Mapping, Set
 from typing import Any, override
 
 from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash
-from Allocator.Interpreter.main.nptypes import STANDARD_NP_DTYPES
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum, _ExtendedEnumMeta
+from Allocator.Interpreter.math.nptypes import STANDARD_NP_DTYPES
 
 
 class BitFieldEnumMeta(_ExtendedEnumMeta):

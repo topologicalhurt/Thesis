@@ -40,8 +40,8 @@ from enum import Enum
 from fxpmath import Fxp
 
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
-from Allocator.Interpreter.main.nptypes import INT_STR_NPMAP
 from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash, fast_stable_hash
+from Allocator.Interpreter.math.nptypes import INT_STR_NPMAP
 from Allocator.Interpreter.poly.compact_sinc import compact_sinc
 from Allocator.Interpreter.poly.chebyshev_trig import chebyshev_arccos, chebyshev_arcsin, chebyshev_arctan, chebyshev_cos, chebyshev_sin, chebyshev_tan
 
