@@ -41,7 +41,7 @@ from typing import assert_never
 from collections.abc import Sequence, Set
 
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
-from Allocator.Interpreter.main.util_helpers import join_regex
+from Allocator.Interpreter.main.common_utils import join_regex
 
 
 # TODO's

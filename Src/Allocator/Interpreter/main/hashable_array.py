@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash
+from Allocator.Interpreter.main.common_utils import combined_fast_stable_hash
 
 
 class HashableArray:

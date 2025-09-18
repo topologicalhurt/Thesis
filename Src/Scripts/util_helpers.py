@@ -108,30 +108,6 @@ def get_git_author() -> tuple[str, str] | None:
     return None
 
 
-def get_repo_root(start: Path | None = None) -> Path:
-    """Discover the Git worktree root WITHOUT invoking the git executable.
-
-    Walks upward from `start` (or CWD) looking for a `.git` directory OR a
-    `.git` file (worktree/submodule pointer). Returns the first directory
-    containing one of these. Raises FileNotFoundError if no repository root
-    is found.
-    """
-    p = (start or Path.cwd()).resolve()
-    for candidate in (p, *p.parents):
-        git_path = candidate / '.git'
-        if git_path.is_dir():
-            return candidate
-        if git_path.is_file():  # worktree / submodule pointer
-            try:
-                with git_path.open('r', encoding='utf-8') as f:
-                    first = f.readline().strip()
-                if first.startswith('gitdir:'):
-                    return candidate
-            except OSError:
-                continue
-    raise FileNotFoundError(f'No .git directory found from {p}')
-
-
 @deprecated('Use get_repo_root() which avoids invoking external git executable.')
 def get_repo_root_shell() -> Path | None:
     """(Deprecated) Determine repository root via 'git rev-parse --show-toplevel'.

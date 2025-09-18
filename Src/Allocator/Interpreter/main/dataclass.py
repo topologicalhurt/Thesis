@@ -34,8 +34,9 @@ import re
 import scipy as sp
 import numpy as np
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import InitVar, dataclass, field
+from pathlib import Path
 from enum import Enum
 from fxpmath import Fxp
 
@@ -184,6 +185,7 @@ class XILINX_SUPPORTED_LUT_SIZES(Enum):
 @dataclass(frozen=True, slots=True)
 class PROGRAM_META_INFO:
     DEBUG: bool
+    GIT_ROOT: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -584,6 +586,36 @@ class LUT_ACC_REPORT:
             result.append(str(self.thd_acc_report))
 
         return '\t\n'.join(result)
+
+
+@dataclass(frozen=True, slots=True)
+class KaiserParameters:
+    """# Summary
+
+    Dataclass storing Kaiser window parameters BEFORE it is designed
+    """
+    beta: np.float32
+    window_length: np.int16
+    transition_width_rad: np.float64
+    transition_width_norm: np.float64
+    transition_width_hz: np.int32 | None
+    sample_rate: np.int32
+    estimated_attenuation: np.float32
+
+
+@dataclass(frozen=True, slots=True)
+class KaiserSchematic:
+    """# Summary
+
+    Dataclass storing the Kaiser window AFTER it is designed
+    """
+    coeffs: np.ndarray[np.floating]
+    cutoff_norm: float | Sequence[np.floating]
+    filter_type: FILTER_TYPE
+    measured_stopband_attenuation: np.float32
+    target_stopband_attenuation: np.float32
+    frequency_response: Sequence[np.ndarray[np.floating], np.ndarray[np.floating]]
+    parameters: KaiserParameters
 
 
 @dataclass(slots=True, kw_only=True)

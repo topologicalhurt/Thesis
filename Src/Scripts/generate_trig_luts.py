@@ -60,16 +60,16 @@ from Allocator.Interpreter.main.bitfield import BITFIELD
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 from Allocator.Interpreter.math.nptypes import FLOAT_STR_NPMAP, INT_STR_NPMAP
 from Allocator.Interpreter.main.dataclass import LUT, BYTEORDER, LUT_TYPE, TRIG_DEFS, TRIG_FN_DEFS, TRIG_OPT_MODE, TRIG_PRECISION
-from Allocator.Interpreter.main.util_helpers import join_regex, pairwise, underline_matches
+from Allocator.Interpreter.main.common_utils import join_regex, pairwise, underline_matches
 from Allocator.Interpreter.metricities.lut_acc_metrics import LutAccMetrics
 from Allocator.Interpreter.math.math_utils import quantize
 from Allocator.Interpreter.poly.compact_sinc import compact_sinc
 from Allocator.Interpreter.poly.chebyshev_trig import chebyshev_sin
+from Allocator.Interpreter.gen.hex_utils import TrigLutManager
 
 from Scripts.argparse_helpers import get_non_flags, str2Qfixedformat, str2bitwidth, str2enumval, eval_arithmetic_str_safe, str2path, get_action_from_parser_by_name,\
 str2float, str2posint
 from Scripts.dataclass import TRIG_ATAN_OPTS, TRIG_OPTS, TRIG_SINC_OPTS, TRIG_MUST_HAVE_KSET
-from Scripts.hex_utils import TrigLutManager
 from Scripts.consts import GENERATE_TRIG_LUTS_PREFIX, LOGGER, LUT_DEFAULT_BRAM, log_wrapper
 
 

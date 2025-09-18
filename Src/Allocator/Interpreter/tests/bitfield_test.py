@@ -32,7 +32,7 @@ import string
 import pytest
 import numpy as np
 
-from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash
+from Allocator.Interpreter.main.common_utils import combined_fast_stable_hash
 from Allocator.Interpreter.main.bitfield import BITFIELD
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 
