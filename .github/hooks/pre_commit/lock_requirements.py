@@ -10,7 +10,6 @@ import functools
 import json
 import requests
 import hashlib
-import tempfile
 import subprocess
 import sys
 import os
@@ -26,9 +25,9 @@ from packaging.version import InvalidVersion, Version
 
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
 
-from Scripts.argparse_helpers import str2enumval
+from Scripts.argparse_helpers import str2enumval, str2bool
 
-from utils import eprint, compute_file_hash, run_pip_sandboxed
+from utils import eprint
 
 
 # TODO: replace
@@ -37,15 +36,23 @@ IMPORT_TO_PACKAGE_MAP = {
     'yaml': 'PyYAML',
     'PIL': 'Pillow',
     'dateutil': 'python-dateutil',
+    'OpenGL': 'PyOpenGL',
 }
 
 MODULE_ROOTS = {
     'allocator': 'Src/Allocator',
     'scripts': 'Src/Scripts',
-    'notebook': 'docs/Notebook',
+    # 'notebook': 'docs/Notebook',
 }
 
-LOCAL_MODULE_PREFIXES = ('Allocator', 'Scripts', 'Src' , 'Src.Allocator', 'Src.Scripts')
+# Treat these import prefixes as local (not third-party)
+LOCAL_MODULE_PREFIXES = [
+    'Allocator',
+    'Scripts',
+    'Core',
+    'Src',
+]
+LOCAL_MODULE_PREFIXES += [f'Src.{p}' for p in LOCAL_MODULE_PREFIXES if p != 'Src']
 
 
 class DepResolveMethod(ExtendedEnum):
@@ -171,7 +178,7 @@ class ImportAnalyzer:
             self.root / 'Src' / module_name,              # <root>/Src/<module>
             self.root / 'Src' / f"{module_name}.py",      # <root>/Src/<module>.py
             self.root / module_name / '__init__.py',      # <root>/<module>/__init__.py
-            self.root / 'Src' / module_name / '__init__.py,'
+            self.root / 'Src' / module_name / '__init__.py'
         ]
         return not any(p.exists() for p in candidates)
 
@@ -190,6 +197,8 @@ class ImportAnalyzer:
 class DependencyResolver:
     def __init__(self):
         self._import_to_dist_cache: dict[str, str] = {}
+        self._debug: bool = str2bool(os.environ.get('LOCK_DEBUG', ''))
+
         if packages_distributions is None:
             self._installed_map: dict[str, list[str]] = {}
         else:
@@ -214,40 +223,10 @@ class DependencyResolver:
             self._import_to_dist_cache[import_name] = package
             return package
 
-        package = self._resolve_via_pip(import_name)
-        if package:
-            self._import_to_dist_cache[import_name] = package
-            return package
-
         self._import_to_dist_cache[import_name] = import_name
         return import_name
 
-    def _resolve_via_pip(self, import_name: str) -> 'str | None':
-        candidates = [
-            import_name,
-            import_name.lower(),
-            import_name.replace('_', '-'),
-            f"python-{import_name}",
-        ]
-
-        for candidate in candidates:
-            cmd = [sys.executable, '-m', 'pip', 'install', '--dry-run', '--report', '-', candidate]
-            code, out, _err = run_pip_sandboxed(cmd)
-            if code != 0 or not out.strip():
-                continue
-            try:
-                data = json.loads(out)
-            except json.JSONDecodeError:
-                continue
-            installs = data.get('install', [])
-            for item in installs:
-                meta = item.get('metadata', {}) or {}
-                name = meta.get('name')
-                if name:
-                    return name
-        return None
-
-    def resolve_versions_with_pipdeptree(self, packages: list[str]) -> dict[str, DependencyInfo]:
+    def resolve_versions_with_pipdeptree(self, packages: list[str], include_transitive: bool = False) -> dict[str, DependencyInfo]:
         resolved: dict[str, DependencyInfo] = {}
 
         cmd = [sys.executable, '-m', 'pipdeptree', '--json']
@@ -260,29 +239,41 @@ class DependencyResolver:
                 tree = []
 
         package_map: dict[str, dict] = {}
+        deps_graph: dict[str, list[str]] = {}
         for item in tree:
             pkg = item.get('package') or {}
-            key = pkg.get('key')
+            key = (pkg.get('key') or '').lower()
             if key:
                 package_map[key] = pkg
+                deps = [ (d.get('key') or '').lower() for d in (item.get('dependencies') or []) ]
+                deps_graph[key] = [d for d in deps if d]
 
-        for package in packages:
-            key = package.lower().replace('_', '-')
+        targets: set[str] = set(p.lower().replace('_', '-') for p in packages)
+        if include_transitive:
+
+            # BFS over deps_graph to include transitive dependencies
+            queue = list(targets)
+            while queue:
+                cur = queue.pop(0)
+                for dep in deps_graph.get(cur, []):
+                    if dep not in targets:
+                        targets.add(dep)
+                        queue.append(dep)
+
+        for key in sorted(targets):
             pkg_info = package_map.get(key)
             if pkg_info:
-                resolved[package] = DependencyInfo(
-                    name=pkg_info.get('package_name', package),
+                name = pkg_info.get('package_name') or key
+                resolved[name] = DependencyInfo(
+                    name=name,
                     version=pkg_info.get('installed_version', ''),
+                    source='pipdeptree'
                 )
-
-        unresolved = [p for p in packages if p not in resolved]
-        if unresolved:
-            resolved.update(self._resolve_via_pip_report(unresolved))
 
         return resolved
 
     @staticmethod
-    def pick_release_file(release_files: list[dict]) -> dict:
+    def pick_release_file(release_files: list[dict]) -> dict | None:
         """Pick release file from pypi.
 
         in order of preference:
@@ -291,34 +282,38 @@ class DependencyResolver:
         3. Source tarball
         4. First file available
         """
+        if not release_files:
+            return None
+
         for f in release_files:
             if f['filename'].endswith('.whl') and 'py3-none-any' in f['filename']:
                 return f
 
         for f in release_files:
             if f['filename'].endswith('.whl') and (
-                'manylinux' in f['filename'] or 'musllinux' in f['filename']
-            ):
+                'manylinux' in f['filename'] or 'musllinux' in f['filename']):
                 return f
 
         for f in release_files:
             if f['filename'].endswith('.tar.gz'):
                 return f
 
-        if release_files:
-            return release_files[0]
-
-        raise ValueError('No release files found')
+        return release_files[0]
 
     @staticmethod
-    def get_latest_version(pkg: str):
+    def get_latest_version(pkg: str) -> 'DependencyInfo | None':
         """When the resolve method is 'pypi', get the latest version and hash from PyPI.
         Use pick_release_file to choose the appropriate dist.
         """
-        resp = requests.get(f"https://pypi.org/pypi/{pkg}/json", timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
+        try:
+            resp = requests.get(f"https://pypi.org/pypi/{pkg}/json", timeout=10)
+        except requests.RequestException:
+            return None
 
+        if resp.status_code != 200:
+            return None
+
+        data = resp.json()
         valid_versions: list[Version] = []
         for v in data['releases'].keys():
             try:
@@ -327,11 +322,13 @@ class DependencyResolver:
                 continue    # skip non-PEP 440 versions
 
         if not valid_versions:
-            raise RuntimeError(f'No valid versions found for {pkg}')
+            return None
 
         latest_version = str(max(valid_versions))
         release_files = data['releases'].get(latest_version, [])
         f = DependencyResolver.pick_release_file(release_files)
+        if f is None:
+            return None
 
         return DependencyInfo(
             name=pkg,
@@ -340,73 +337,36 @@ class DependencyResolver:
             hashes=({'algo': 'sha256', 'value': f['digests']['sha256']},),
         )
 
-
-    def _resolve_via_pip_report(self, packages: list[str]) -> dict[str, DependencyInfo]:
-        resolved: dict[str, DependencyInfo] = {}
-        if not packages:
-            return resolved
-
-        cmd = [sys.executable, '-m', 'pip', 'install', '--dry-run', '--report', '-'] + packages
-        code, out, _err = run_pip_sandboxed(cmd)
-        if code != 0 or not out.strip():
-            return resolved
-
-        try:
-            data = json.loads(out)
-        except json.JSONDecodeError:
-            return resolved
-
-        for item in data.get('install', []):
-            meta = item.get('metadata', {}) or {}
-            name = meta.get('name')
-            version = meta.get('version', '') or ''
-
-            if not name:
-                continue
-
-            hashes_list: list[dict[str, str]] = []
-            download_info = item.get('download_info') or {}
-            archive_info = download_info.get('archive_info') or {}
-            hashes_dict = archive_info.get('hashes') or {}
-            sha256_val = hashes_dict.get('sha256')
-
-            if sha256_val:
-                hashes_list.append({'algo': 'sha256', 'value': sha256_val})
-
-            resolved[name] = DependencyInfo(name=name, version=version, hashes=tuple(hashes_list))
-
-        return resolved
-
     def ensure_hashes(self, dependencies: dict[str, DependencyInfo]) -> dict[str, DependencyInfo]:
         updated: dict[str, DependencyInfo] = {}
         if not dependencies:
             return updated
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp_path = Path(tmpdir)
-            for key, dep in dependencies.items():
-                if dep.hashes:
-                    updated[key] = dep
-                    continue
+        for key, dep in dependencies.items():
+            if dep.hashes or not dep.version:
+                updated[key] = dep
+                continue
 
-                pkg_spec = f"{dep.name}=={dep.version}" if dep.version else dep.name
-                cmd = [sys.executable, '-m', 'pip', 'download', pkg_spec, '-d', tmpdir, '--no-deps']
-                code, _out, _err = run_pip_sandboxed(cmd)
-                found_hash = None
-                if code == 0:
-                    for f in tmp_path.iterdir():
-                        if f.is_file():
-                            found_hash = compute_file_hash(f)
-                            try:
-                                f.unlink()
-                            finally:
-                                break
+            try:
+                resp = requests.get(f"https://pypi.org/pypi/{dep.name}/json", timeout=10)
+            except requests.RequestException:
+                continue
+            finally:
+                updated[key] = dep
 
-                if found_hash:
-                    new_hashes = ({'algo': 'sha256', 'value': found_hash},)
-                    updated[key] = replace(dep, hashes=new_hashes)
-                else:
-                    updated[key] = dep
+            data = resp.json()
+            files = data.get('releases', {}).get(dep.version, [])
+            f = DependencyResolver.pick_release_file(files)
+            if f is None:
+                updated[key] = dep
+                continue
+
+            sha256 = (f.get('digests') or {}).get('sha256')
+            if sha256:
+                new_hashes = ({'algo': 'sha256', 'value': sha256},)
+                updated[key] = replace(dep, hashes=new_hashes)
+            else:
+                updated[key] = dep
 
         return updated
 
@@ -418,15 +378,15 @@ class RequirementsManager:
         self.analyzer = ImportAnalyzer(root)
         self.resolver = DependencyResolver()
 
-    def load_or_create_lock(self, resolve_method: DepResolveMethod, update: bool = False) -> LockFile:
+    def load_or_create_lock(self, resolve_method: DepResolveMethod, update: bool = False, include_transitive: bool = False) -> LockFile:
         if not update and self.lock_path.exists():
             lock = LockFile.from_file(self.lock_path)
             if lock:
                 return lock
 
-        return self.generate_lock(resolve_method=resolve_method)
+        return self.generate_lock(resolve_method=resolve_method, include_transitive=include_transitive)
 
-    def generate_lock(self, resolve_method: DepResolveMethod) -> LockFile:
+    def generate_lock(self, resolve_method: DepResolveMethod, include_transitive: bool) -> LockFile:
         lock = LockFile()
         lock.metadata = {
             'python': f"{sys.version_info.major}.{sys.version_info.minor}",
@@ -445,9 +405,10 @@ class RequirementsManager:
 
         match resolve_method:
             case DepResolveMethod.PIPDEPTREE:
-                resolved = self.resolver.resolve_versions_with_pipdeptree(sorted(all_packages))
+                resolved = self.resolver.resolve_versions_with_pipdeptree(sorted(all_packages), include_transitive=include_transitive)
             case DepResolveMethod.PYPI:
-                resolved = {package: self.resolver.get_latest_version(package) for package in sorted(all_packages)}
+                tmp = {package: self.resolver.get_latest_version(package) for package in sorted(all_packages)}
+                resolved = {k: v for k, v in tmp.items() if v is not None}
             case _:
                 assert_never(resolve_method)
 
@@ -469,7 +430,7 @@ class RequirementsManager:
         paths = {
             'allocator': self.root / 'Src' / 'Allocator' / 'requirements.txt',
             'scripts': self.root / 'Src' / 'Scripts' / 'requirements.txt',
-            'notebook': self.root / 'docs' / 'Notebook' / 'requirements.txt',
+            # 'notebook': self.root / 'docs' / 'Notebook' / 'requirements.txt',
         }
 
         for module, deps in lock.modules.items():
@@ -490,6 +451,8 @@ def main() -> int:
     parser.add_argument('--write-txt', action='store_true', help='Write requirements.txt files')
     parser.add_argument('--resolve-method', default='pypi',
                         type=functools.partial(str2enumval, target_enum=DepResolveMethod))
+    parser.add_argument('--include-transitive', default='false', type=str2bool,
+                        help='Include transitive dependencies (default: false)')
     args = parser.parse_args()
 
     root_env = os.environ.get('ROOT')
@@ -501,15 +464,14 @@ def main() -> int:
 
     manager = RequirementsManager(root)
     lock = manager.load_or_create_lock(resolve_method=args.resolve_method,
-                                       update=args.update)
+                                       update=args.update,
+                                       include_transitive=args.include_transitive)
 
     if args.update:
         manager.write_lock(lock)
-        eprint('Lock file updated')
 
     if args.write_txt:
         manager.write_requirements_files(lock)
-        eprint('Requirements files written')
 
     print(json.dumps(lock.to_dict(), indent=2, ensure_ascii=False))
     return 0
