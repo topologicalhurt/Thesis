@@ -36,13 +36,13 @@ else
 	rm -f "$tmp_lock"
 fi
 
-create_pre_commit_marker
-echo "[write_requirements] Updated $LOCK_PATH"
-add_file_in_pre_commit "$LOCK_PATH"
-echo "[write_requirements] Updated requirements.txt files"
-add_file_in_pre_commit "$ROOT/Src/Allocator/requirements.txt"
-add_file_in_pre_commit "$ROOT/Src/Scripts/requirements.txt"
+# create_pre_commit_marker
+# echo "[write_requirements] Updated $LOCK_PATH"
+# add_file_in_pre_commit "$LOCK_PATH"
+# echo "[write_requirements] Updated requirements.txt files"
+# add_file_in_pre_commit "$ROOT/Src/Allocator/requirements.txt"
+# add_file_in_pre_commit "$ROOT/Src/Scripts/requirements.txt"
 # add_file_in_pre_commit "$ROOT/docs/Notebook/requirements.txt"
-destroy_pre_commit_marker
+# destroy_pre_commit_marker
 
 deactivate
