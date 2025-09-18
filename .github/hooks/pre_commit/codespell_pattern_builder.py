@@ -1,21 +1,29 @@
 #!/usr/bin/env python
 """Command line interface for joining regex patterns for codespell."""
 
-
 import sys
 import argparse as ap
 import re
 
-from Allocator.Interpreter.main.util_helpers import join_regex
-
-from utils import eprint
+from utils import eprint, join_regex
 
 
 CODESPELL_PATTERNS = [
     r'https?://[^\s]+',                                                    # URL pattern's
     r'([\'"]).*?\\.*?\1',                                                  # Single/double quoted strings with backslash
     r'r([\'"])\1{2}(?:.|\n)*\1{3}',                                        # Raw triple-quoted strings
-    r're\.compile\s*\((.|\n)*\)'                                           # re.compile statements
+    r're\.compile\s*\((.|\n)*\)',                                          # re.compile statements
+
+    # Heuristic: ignore concatenations of common HW/domain tokens repeated 2+ times (e.g., inout, readdata, writedata)
+    # This avoids false positives like 'inout' in SystemVerilog while keeping checks for normal words.
+    (lambda: (
+        r'\b(?:' +
+        join_regex(
+            'in','out','read','write','addr','data','clk','rst','reset','en','valid','ready',
+            'tx','rx','pll','fifo','dma','ref','sync','bus','i2s','i','o','n', or_join=True
+        ) +
+        r'){2,}\b'
+    ))()
 ]
 
 
@@ -25,7 +33,7 @@ def main():
     args = vars(parser.parse_args())
 
     if args['patterns']:
-        args['patterns'] = args['patterns'].extend(CODESPELL_PATTERNS)
+        args['patterns'] = list(args['patterns']) + CODESPELL_PATTERNS
     else:
         args['patterns'] = CODESPELL_PATTERNS
 
