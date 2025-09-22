@@ -1,4 +1,4 @@
-Cython==3.1.3
+Cython==3.1.4
 fxpmath==0.4.9
 numpy==2.3.1
 pytest==8.4.2
