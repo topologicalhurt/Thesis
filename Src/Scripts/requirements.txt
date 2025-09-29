@@ -6,7 +6,7 @@ keyring==25.6.0
 matplotlib==3.10.3
 numpy==2.3.0
 pytest==8.4.2
-PyYAML==6.0.2
+PyYAML==6.0.3
 redis==6.4.0
 regex==2025.7.34
 scipy==1.16.0
