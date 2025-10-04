@@ -27,25 +27,13 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
+import importlib
+import logging
+import logging.handlers
+
 from pathlib import Path
 
 from Allocator.Interpreter.main.common_utils import join_regex
-
-
-def greater_than_n_regex(n: int) -> str:
-    """# Summary
-
-    Returns the regex for >= n
-    """
-    result = [r'\d*']
-    i = 0   # Value will be log10(n) after loop
-    while n:
-        d, r = divmod(n, 10)
-        result.append(rf'[{r}-9]')
-        n = d
-        i += 1
-    result = reversed(result)
-    return join_regex(fr'[1-9]\d{{{i},}}', ''.join(result))
 
 
 def get_repo_root(start: Path | None = None) -> Path:
@@ -70,3 +58,52 @@ def get_repo_root(start: Path | None = None) -> Path:
             except OSError:
                 continue
     raise FileNotFoundError(f'No .git directory found from {p}')
+
+
+def get_module_parent_name() -> str:
+    return '.'.join(__name__.split('.')[:-1])
+
+
+def set_logger_opts(logger: logging.Logger, dir: Path | None = None, fname: str = '{}_info.log') -> logging.Logger:
+    if dir is None:
+        consts = importlib.import_module('.consts', package='Allocator.Interpreter.main')
+        dir = getattr(consts, 'LOG_DIR', get_repo_root() / 'bin' / 'logs')
+
+    if fname == '{}_info.log':
+        fname = fname.format(get_module_parent_name())
+
+    fname: Path = Path(fname)
+    dir.mkdir(parents=True, exist_ok=True)
+    fname = dir / fname.name
+
+    # Set circular logger
+    logger.setLevel(logging.INFO)
+    handler = logging.handlers.RotatingFileHandler(
+        filename=fname,
+        encoding='utf-8',
+        maxBytes=2 * 1024 * 1024,  # 2 MiB files
+        backupCount=5 # Rotate through 5 files
+    )
+    dt_fmt = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(('\n[{asctime}] [{levelname:<8}] PID {process} @ {threadName}: '
+                                '{message}'), dt_fmt, style='{')
+    handler.setFormatter(formatter)
+    handler.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    return logger
+
+
+def greater_than_n_regex(n: int) -> str:
+    """# Summary
+
+    Returns the regex for >= n
+    """
+    result = [r'\d*']
+    i = 0   # Value will be log10(n) after loop
+    while n:
+        d, r = divmod(n, 10)
+        result.append(rf'[{r}-9]')
+        n = d
+        i += 1
+    result = reversed(result)
+    return join_regex(fr'[1-9]\d{{{i},}}', ''.join(result))

@@ -14,10 +14,10 @@ from Allocator.Interpreter.math.math_utils import ceil_div
 from Allocator.Interpreter.poly.remez_cheb import remez_monomial, sup_norm
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class DyadicPoly:
-    numerators: np.ndarray
-    m_bits: np.ndarray
+    numerators: np.ndarray[np.integer]
+    m_bits: np.ndarray[np.uint8]
     a: float
     b: float
 
@@ -31,7 +31,7 @@ class DyadicPoly:
         return len(self.numerators) - 1
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class BMTResult:
     dyadic: DyadicPoly
     coeffs_float: np.ndarray
@@ -39,7 +39,7 @@ class BMTResult:
     candidates_scanned: int
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class IntPolytope:
     A: list[list[int]]
     L: list[int]
@@ -106,20 +106,6 @@ def build_polytope_int(
     ))
 
     return IntPolytope(A=A_rows, L=L_vec, U=U_vec), E
-
-
-def _variable_order_int(poly: IntPolytope) -> list[int]:
-    rows, cols = poly.rows(), poly.cols()
-    scores = []
-    for j in range(cols):
-        s = 0
-        for i in range(rows):
-            s += abs(poly.A[i][j])
-        scores.append((s, j))
-    scores.sort(reverse=True)
-    order = [j for _, j in scores]
-    LOGGER.info(DYADIC_POLY_PREFIX.format(f"var order: {order}"))
-    return order
 
 
 def _row_bounds_partial_int(
@@ -213,32 +199,82 @@ def enumerate_polytope_integer_points_int(
     initial_radius: int,
     max_nodes: int,
     var_order: list[int] | None = None,
+    frozen: list[bool] | None = None,
+    stop_after: int | None = None,
 ) -> Iterable[np.ndarray]:
+    if max_nodes <= 0:
+        return
+
     nvars = poly.cols()
-    if var_order is None:
-        var_order = _variable_order_int(poly)
 
     ranges: list[tuple[int, int]] = []
     for j in range(nvars):
-        R = initial_radius
+        R = 0 if (frozen is not None and frozen[j]) else initial_radius
         ranges.append((int(z0[j]) - R, int(z0[j]) + R))
+
+    # Fixed-point tightening of all variable ranges before search
+    changed = True
+    iters = 0
+    while changed and iters < 3 * max(1, nvars):
+        changed = False
+        iters += 1
+        for j in range(nvars):
+            lo_old, hi_old = ranges[j]
+            lo_new, hi_new = _tighten_range_for_var_int(poly, {}, ranges, j)
+            if lo_new > lo_old or hi_new < hi_old:
+                ranges[j] = (max(lo_old, lo_new), min(hi_old, hi_new))
+                changed = True
+            if ranges[j][0] > ranges[j][1]:
+                LOGGER.info(DYADIC_POLY_PREFIX.format(
+                    f"enumerate: infeasible after initial tighten on var {j}, aborting"
+                ))
+                return
+
+    # Order variables by current feasible width (narrower first) to prune faster
+    widths = [ranges[j][1] - ranges[j][0] for j in range(nvars)]
+    order_by_width = sorted(range(nvars), key=lambda j: widths[j])
+    var_order = order_by_width if var_order is None else var_order
 
     visited = 0
     expanded = 0
     pruned_empty = 0
 
     LOGGER.info(DYADIC_POLY_PREFIX.format(
-        f"enumerate: nvars={nvars}, initial_radius={initial_radius}, max_nodes={max_nodes}"
+        f"enumerate: nvars={nvars}, initial_radius={initial_radius}, max_nodes={max_nodes}, "
+        f"iters_tighten={iters}, widths={widths}, order={var_order}"
     ))
 
+    # Try z0 first if feasible
+    def _feasible_with(assigned: dict) -> bool:
+        Lres, Ures = _row_bounds_partial_int(poly, assigned, ranges)
+        for i in range(poly.rows()):
+            if not (Lres[i] <= 0 <= Ures[i]):
+                return False
+        return True
+
+    yielded = 0
+    if _feasible_with({j: int(z0[j]) for j in range(nvars)}):
+        visited += 1
+        yielded += 1
+        yield np.array([int(z0[j]) for j in range(nvars)], dtype=int)
+        if visited >= max_nodes or (stop_after is not None and yielded >= stop_after):
+            LOGGER.info(DYADIC_POLY_PREFIX.format(
+                f"enumerate done: visited={visited}, expanded={expanded}, pruned_empty={pruned_empty}"
+            ))
+            return
+
     def dfs(level: int, assigned: dict, ranges_cur: list[tuple[int, int]]):
-        nonlocal visited, expanded, pruned_empty
+        nonlocal visited, expanded, pruned_empty, yielded
         if expanded >= max_nodes:
             return
+        if stop_after is not None and yielded >= stop_after:
+            return
+
         expanded += 1
 
         if level == nvars:
             visited += 1
+            yielded += 1
             yield np.array([assigned[j] for j in range(nvars)], dtype=int)
             return
 
@@ -268,7 +304,7 @@ def enumerate_polytope_integer_points_int(
                     ranges_next = list(ranges_cur)
                     ranges_next[j] = (cand, cand)
                     yield from dfs(level + 1, assigned_next, ranges_next)
-                    if expanded >= max_nodes or visited >= max_nodes:
+                    if expanded >= max_nodes or (stop_after is not None and yielded >= stop_after):
                         return
 
     for z in dfs(0, {}, ranges):
@@ -290,69 +326,135 @@ def _power_t_to_power_x(c_t: np.ndarray, a: float, b: float) -> np.ndarray:
         if v == 0.0:
             continue
         scale = v * (inv_rad ** j)
-        # ((x - mid)/rad)^j = (1/rad^j) * sum_{k=0}^j C(j,k) * x^k * (-mid)^{j-k}
         for k in range(j + 1):
             out[k] += scale * math.comb(j, k) * ((-mid) ** (j - k))
     return out
 
 
-def _candidate_polys_from_seed(seed: np.ndarray, a: float, b: float) -> list[tuple[str, np.ndarray]]:
-    cand: list[tuple[str, np.ndarray]] = []
-    s_asc = np.array(seed, dtype=float)
-    s_desc = s_asc[::-1]
-    cand.append(('seed_power_x_asc', s_asc))
-    cand.append(('seed_power_x_desc', s_desc))
-    # Try interpreting seed as Chebyshev in t, convert to Polynomial in x
-    cand.append((
-        'cheb_to_power_x_from_asc',
-        np.array(Chebyshev(s_asc, domain=[-1.0, 1.0]).convert(kind=Polynomial, domain=[a, b]).coef, dtype=float)
-    ))
-    cand.append((
-        'cheb_to_power_x_from_desc',
-        np.array(Chebyshev(s_desc, domain=[-1.0, 1.0]).convert(kind=Polynomial, domain=[a, b]).coef, dtype=float)
-    ))
-    # Try interpreting seed as power in t, expand to power in x
-    cand.append(('power_t_to_power_x_from_asc', _power_t_to_power_x(s_asc, a, b)))
-    cand.append(('power_t_to_power_x_from_desc', _power_t_to_power_x(s_desc, a, b)))
-    return cand
-
-
-def _normalize_seed_power_basis(
+def _greedy_local_descent(
     f: Callable[[np.ndarray], np.ndarray],
-    seed: np.ndarray,
+    z: np.ndarray,
+    m_bits: np.ndarray,
     a: float,
     b: float,
     grid: int,
-) -> tuple[np.ndarray, str]:
-    LOGGER.info(DYADIC_POLY_PREFIX.format(f"seed raw first coeffs (up to 5): {np.array(seed, dtype=float)[:5].tolist()}"))
+    frozen: list[bool],
+    max_passes: int = 2,
+) -> tuple[np.ndarray, float]:
+    q = z.astype(float) / (2.0 ** m_bits)
+    bestK, _, _ = sup_norm(f, q, a, b, grid=grid)
 
-    cands = _candidate_polys_from_seed(seed, a, b)
-    best = None
-    best_tag = ''
-    best_K = float('inf')
-    for tag, coeffs in cands:
-        K, _, _ = sup_norm(f, coeffs, a, b, grid=grid)
-        LOGGER.info(DYADIC_POLY_PREFIX.format(f"candidate {tag}: K={K}"))
-        if K < best_K:
-            best_K = K
-            best = coeffs
-            best_tag = tag
+    for _ in range(max_passes):
+        improved = False
+        for j in range(len(z)):
+            if frozen[j]:
+                continue
+            base = z[j]
+            best_local = base
+            best_local_K = bestK
+            for step in (-1, 1):
+                cand = base + step
+                z_temp = z.copy()
+                z_temp[j] = cand
+                q = z_temp.astype(float) / (2.0 ** m_bits)
+                Kc, _, _ = sup_norm(f, q, a, b, grid=grid)
+                if Kc < best_local_K:
+                    best_local_K = Kc
+                    best_local = cand
+            z[j] = best_local
+            if best_local_K < bestK:
+                bestK = best_local_K
+                improved = True
+        if not improved:
+            break
 
-    # Derivative sanity check at interval mid
+    return z, bestK
+
+
+def _seed_power_x_via_tremez(
+    f: Callable[[np.ndarray], np.ndarray],
+    degree: int,
+    a: float,
+    b: float,
+    iters: int,
+    grid: int,
+) -> np.ndarray:
     mid = (a + b) / 2.0
-    h = 1e-6 * max(1.0, abs(b - a))
-    df_mid = (f(np.array([mid + h]))[0] - f(np.array([mid - h]))[0]) / (2 * h)
-    a1 = 0.0
-    if best is not None and len(best) >= 2:
-        # p'(x) = sum_{k>=1} k * a_k * x^{k-1}
-        a1 = 0.0
-        xpow = 1.0  # mid^{0}
-        for k in range(1, len(best)):
-            a1 += k * best[k] * xpow
-            xpow *= mid
-    LOGGER.info(DYADIC_POLY_PREFIX.format(f"normalize picked={best_tag}, K={best_K}, slope_check: poly'({mid})~{a1}, f'({mid})~{df_mid}"))
+    rad = (b - a) / 2.0 if b != a else 1.0
 
-    return (best if best is not None else np.array(seed, dtype=float)), best_tag
+    def f_t(t: np.ndarray) -> np.ndarray:
+        return f(mid + rad * t)
+
+    seed_t = remez_monomial(f_t, degree=degree, a=-1.0, b=1.0, iters=iters, grid=32769)
+    s1 = np.array(seed_t, dtype=float)
+    s2 = s1[::-1]
+
+    p1 = _power_t_to_power_x(s1, a, b)
+    p2 = _power_t_to_power_x(s2, a, b)
+
+    K1, _, _ = sup_norm(f, p1, a, b, grid=grid)
+    K2, _, _ = sup_norm(f, p2, a, b, grid=grid)
+
+    LOGGER.info(DYADIC_POLY_PREFIX.format(f"seed via t->x candidates: K_as_is={K1}, K_reversed={K2}"))
+
+    if np.isfinite(K1) and (K1 <= K2 or not np.isfinite(K2)):
+        chosen = p1
+        Kc = K1
+    else:
+        chosen = p2
+        Kc = K2
+
+    if not np.isfinite(Kc) or Kc > 1e-2:
+        xs = np.linspace(a, b, 2049)
+        ys = f(xs)
+        cheb = Chebyshev.fit(xs, ys, deg=degree, domain=[a, b]).convert(kind=Polynomial, domain=[a, b])
+        pf = np.array(cheb.coef, dtype=float)
+        Kf, _, _ = sup_norm(f, pf, a, b, grid=grid)
+        LOGGER.info(DYADIC_POLY_PREFIX.format(f"seed fallback cheb_fit: K={Kf}"))
+        if np.isfinite(Kf) and Kf < Kc:
+            chosen = pf
+            Kc = Kf
+
+    a0 = chosen[0] if len(chosen) > 0 else 0.0
+    a1 = chosen[1] if len(chosen) > 1 else 0.0
+    LOGGER.info(DYADIC_POLY_PREFIX.format(f"seed via t->x chosen: K={Kc}, a0={a0}, a1={a1}"))
+    return chosen
+
+
+def _parity_freeze_mask(
+    f: Callable[[np.ndarray], np.ndarray],
+    a: float,
+    b: float,
+    degree: int,
+) -> list[bool]:
+    mask = [False] * (degree + 1)
+    if not (abs(a + b) < 1e-15):
+        LOGGER.info(DYADIC_POLY_PREFIX.format('parity freeze: non-symmetric interval; no parity constraints'))
+        return mask
+
+    xs = np.linspace(0.0, (b - a) / 2.0, 257)
+    odd_err = 0.0
+    even_err = 0.0
+    denom = 1e-12
+    for x in xs:
+        fx = f(np.array([x]))[0]
+        fmx = f(np.array([-x]))[0]
+        odd_err = max(odd_err, abs(fx + fmx))
+        even_err = max(even_err, abs(fx - fmx))
+        denom = max(denom, abs(fx), abs(fmx))
+
+    is_odd = (odd_err / denom) < 1e-8
+    is_even = (even_err / denom) < 1e-8
+
+    if is_odd:
+        for j in range(0, degree + 1, 2):
+            mask[j] = True
+    elif is_even:
+        for j in range(1, degree + 1, 2):
+            mask[j] = True
+
+    LOGGER.info(DYADIC_POLY_PREFIX.format(f"parity freeze: is_odd={is_odd}, is_even={is_even}, mask={mask}"))
+    return mask
 
 
 def bmt_truncated_minimax(
@@ -368,25 +470,26 @@ def bmt_truncated_minimax(
     remez_iters: int = 12,
     grid_sup: int = 65537,
     refine_binary_search: int = 18,
+    per_k_cap: int = 2048,   # max candidates to test per bisection iteration
 ) -> BMTResult:
     n = degree
     m_bits = np.asarray(m_bits, dtype=int)
-    assert len(m_bits) == n + 1
 
-    seed = remez_monomial(f, degree=n, a=a, b=b, iters=remez_iters, grid=32769)
-    p_float, picked = _normalize_seed_power_basis(f, seed, a, b, grid=grid_sup)
-
+    p_float = _seed_power_x_via_tremez(f, degree=n, a=a, b=b, iters=remez_iters, grid=grid_sup)
     LB, _, _ = sup_norm(f, p_float, a, b, grid=grid_sup)
-
     z0 = np.rint(p_float * (2.0 ** m_bits)).astype(int)
+    frozen = _parity_freeze_mask(f, a, b, n)
+    for j in range(n + 1):
+        if frozen[j]:
+            z0[j] = 0
+
+    z0, UB = _greedy_local_descent(f, z0.copy(), m_bits, a, b, grid_sup, frozen, max_passes=2)
+
     q0 = z0.astype(float) / (2.0 ** m_bits)
-    UB, _, _ = sup_norm(f, q0, a, b, grid=grid_sup)
+    UB2, _, _ = sup_norm(f, q0, a, b, grid=grid_sup)
+    UB = min(UB, UB2)
     if UB < LB:
         UB = LB
-
-    LOGGER.info(DYADIC_POLY_PREFIX.format(
-        f"search init: degree={n}, LB={LB}, UB={UB}, picked_seed='{picked}', nodes_pow2={nodes_pow2}, initial_radius={initial_radius}, max_nodes={max_nodes}"
-    ))
 
     best_z = z0.copy()
     best_K = UB
@@ -394,6 +497,9 @@ def bmt_truncated_minimax(
 
     lo, hi = LB, UB
     for it in range(refine_binary_search):
+        if scanned >= max_nodes:
+            break
+
         K = (lo + hi) / 2.0
 
         poly, _ = build_polytope_int(
@@ -403,12 +509,16 @@ def bmt_truncated_minimax(
 
         improved = False
         found = False
+        limit_this_round = min(per_k_cap, max_nodes - scanned)
+
         for z in enumerate_polytope_integer_points_int(
             poly=poly,
-            z0=z0.tolist(),
+            z0=best_z.tolist(),              # center around current best, not just initial
             initial_radius=initial_radius,
-            max_nodes=max_nodes - scanned,
+            max_nodes=limit_this_round,
             var_order=None,
+            frozen=frozen,
+            stop_after=per_k_cap,
         ):
             scanned += 1
             found = True
@@ -419,6 +529,11 @@ def bmt_truncated_minimax(
                 best_z = z.copy()
                 improved = True
                 hi = min(hi, best_K)
+
+                # If we met the target K, no need to scan more in this round
+                if best_K <= K:
+                    break
+
             if scanned >= max_nodes:
                 break
 
@@ -430,9 +545,6 @@ def bmt_truncated_minimax(
         LOGGER.info(DYADIC_POLY_PREFIX.format(
             f"bsearch it={it}: K_try={K}, improved={improved}, found_any={found}, scanned={scanned}, best_K={best_K}, interval=[{lo},{hi}]"
         ))
-
-        if scanned >= max_nodes:
-            break
 
     result = BMTResult(
         dyadic=DyadicPoly(numerators=best_z, m_bits=m_bits, a=a, b=b),

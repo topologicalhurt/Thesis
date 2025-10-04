@@ -27,7 +27,6 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
-import importlib
 import enum
 import functools
 import re
@@ -41,10 +40,16 @@ from enum import Enum
 from fxpmath import Fxp
 
 from Allocator.Interpreter.main.extendedenum import ExtendedEnum
-from Allocator.Interpreter.main.util_helpers import combined_fast_stable_hash, fast_stable_hash
+from Allocator.Interpreter.main.common_utils import combined_fast_stable_hash, fast_stable_hash
 from Allocator.Interpreter.math.nptypes import INT_STR_NPMAP
 from Allocator.Interpreter.poly.compact_sinc import compact_sinc
 from Allocator.Interpreter.poly.chebyshev_trig import chebyshev_arccos, chebyshev_arcsin, chebyshev_arctan, chebyshev_cos, chebyshev_sin, chebyshev_tan
+
+
+@dataclass(frozen=True, slots=True)
+class PROGRAM_META_INFO:
+    DEBUG: bool
+    GIT_ROOT: Path
 
 
 class XILINX_GENERATION(ExtendedEnum):
@@ -183,12 +188,6 @@ class XILINX_SUPPORTED_LUT_SIZES(Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class PROGRAM_META_INFO:
-    DEBUG: bool
-    GIT_ROOT: Path
-
-
-@dataclass(frozen=True, slots=True)
 class XILINX_NAME_SCHEME_STRUCTURE:
     """# Summary
 
@@ -244,10 +243,6 @@ class XILINX_NAME_SCHEME_STRUCTURE:
         elif generation == XILINX_GENERATION.ULTRASCALE:
             return self._build_regex_for_ultrascale()
         raise NotImplementedError(f'There is no support for the generation {generation.value} line of devices')
-
-
-consts = importlib.import_module('.consts', package='Allocator.Interpreter.main')
-META_INFO = consts.META_INFO
 
 
 class BYTEORDER(ExtendedEnum):

@@ -1035,12 +1035,15 @@ class ICCADOptimizer:
         """
         tgt = CodeTarget.coerce(target)
         if tgt is CodeTarget.PYTHON:
-            return self.generate_python_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs, coefs_var_name)
+            return self.generate_python_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs, coefs_var_name,
+                                             parallelize=False)
 
         if tgt is CodeTarget.C:
-            return self.generate_c_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
+            return self.generate_c_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs,
+                                        parallelize=False)
 
-        return self.generate_sv_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs)
+        return self.generate_sv_code(body_lines, n_coefs, assign_coefs, coef_style, embed_coefs,
+                                     parallelize=False)
 
 
 def optimize_polynomial_iccad(poly: np.poly1d, var_name: str = 'x', scheme: 'EvalScheme | str' = EvalScheme.PAPER) -> tuple[str, dict]:

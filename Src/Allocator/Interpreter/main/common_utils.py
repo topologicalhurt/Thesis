@@ -199,6 +199,11 @@ def reverse_bits(n: np.uint) -> int:
         n >>= 1
     return result
 
+
+def trailing_zeros_count(n: np.integer) -> int:
+    return int(n & -n).bit_length() - 1
+
+
 def pairwise(t: Iterable) -> zip:
     it = iter(t)
     return zip(it,it)
