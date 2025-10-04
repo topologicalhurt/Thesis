@@ -29,12 +29,13 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 """
 
-from Allocator.Core.libs.poly.polywrap import (
+from Allocator.Core.bindings.py.polywrap import (
     poly_sin_deg7,
     poly_sin_deg9,
     poly_sqrtx1_deg3,
     poly_cos_deg6,
     poly_cos_deg12,
+    poly_dyadic_cos_deg12,
 )
 
 __all__ = [
@@ -43,4 +44,5 @@ __all__ = [
     'poly_sqrtx1_deg3',
     'poly_cos_deg6',
     'poly_cos_deg12',
+    'poly_dyadic_cos_deg12',
 ]

@@ -33,6 +33,7 @@ from Allocator.Core import (
     poly_sqrtx1_deg3,
     poly_cos_deg6,
     poly_cos_deg12,
+    poly_dyadic_cos_deg12,
 )
 
 
@@ -103,6 +104,13 @@ if __name__ == '__main__':
     # print(code6)
     # print(stats6)
 
+    # # Example 7: cos(x) power series degree 12, using dyadic rationals
+    # p_dyadic_cos_d12 = [16777214,0,-8388611,0,699046,0,-23309,0,401,0,-22,0,-345].astype(np.float64)
+    # p_dyadic_cos_d12 /= 2**24
+    # p_dyadic_cos_d12 = np.poly1d(p_dyadic_cos_d12[::-1])
+    # code7, stats7 = optimize_polynomial_iccad(p_dyadic_cos_d12)
+    # print(code7, stats7)
+
     # Verify against ctypes bindings
     print('\n[*] Printing results... [*]')
     print(f'sin_deg7: {poly_sin_deg7(np.pi / 4)}')
@@ -110,3 +118,4 @@ if __name__ == '__main__':
     print(f'sqrtx1_deg3: {poly_sqrtx1_deg3(-0.5)}')
     print(f'cos_deg6: {poly_cos_deg6(np.pi / 4)}')
     print(f'cos_deg12: {poly_cos_deg12(np.pi / 4)}')
+    print(f'dyadic_poly_deg12: {poly_dyadic_cos_deg12(np.pi / 4)}')

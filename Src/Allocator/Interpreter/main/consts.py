@@ -27,20 +27,17 @@ Otherwise please consult: https://github.com/topologicalhurt/Thesis/blob/main/LI
 ------------------------------------------------------------------------
 
 """
+
 import importlib
-
 import logging
-import logging.handlers
 
-from Allocator.Interpreter.main.util_helpers import get_repo_root
+from Allocator.Interpreter.main.dataclass import PROGRAM_META_INFO
 
 
-######################################
-# GENERAL PROGRAM / META INFO / MISC #
-######################################
+util_helpers = importlib.import_module('.util_helpers', package='Allocator.Interpreter.main')
+get_repo_root = util_helpers.get_repo_root
+set_logger_opts = util_helpers.set_logger_opts
 
-dataclass = importlib.import_module('.dataclass', package='Allocator.Interpreter.main')
-PROGRAM_META_INFO = dataclass.PROGRAM_META_INFO
 
 META_INFO = PROGRAM_META_INFO(
     **{
@@ -67,29 +64,9 @@ XILINX_TARGETS = XilinxDeviceSet(names=XILINX_ALL_TARGET_NAMES)
 # LOGGING #
 ###########
 
+
+LOG_DIR = get_repo_root() / 'bin' / 'logs'
+
 LOGGER = logging.getLogger(__name__)
-LOG_FNAME = str(META_INFO.GIT_ROOT / 'Src' / 'Allocator' / 'Interpreter' / 'alloc_info.log')
-
 DYADIC_POLY_PREFIX='\n[*] DYADIC_POLY [*] \n{}'
-
-
-def set_logger_opts():
-    global LOGGER
-
-    # Set circular logger
-    LOGGER.setLevel(logging.INFO)
-    handler = logging.handlers.RotatingFileHandler(
-        filename=LOG_FNAME,
-        encoding='utf-8',
-        maxBytes=2 * 1024 * 1024,  # 2 MiB files
-        backupCount=5 # Rotate through 5 files
-    )
-    dt_fmt = '%Y-%m-%d %H:%M:%S'
-    formatter = logging.Formatter(('[{asctime}] [{levelname:<8}] PID {process} @ {threadName}: '
-                                '{message}'), dt_fmt, style='{')
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.INFO)
-    LOGGER.addHandler(handler)
-
-
-set_logger_opts()
+LOGGER = set_logger_opts(LOGGER, dir=LOG_DIR)

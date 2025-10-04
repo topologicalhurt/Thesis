@@ -46,6 +46,7 @@ _FUNC_NAMES = [
     'poly_cos_deg12',
     'poly_sqrtx1_deg3',
     'poly_cos_deg6',
+    'dyadic_poly_cos_deg12',
 ]
 for _name in _FUNC_NAMES:
     _fn = getattr(_lib, _name)
@@ -71,6 +72,10 @@ def poly_cos_deg6(x: float) -> float:
 
 def poly_cos_deg12(x: float) -> float:
     return float(_lib.poly_cos_deg12(c_float(x)))
+
+
+def poly_dyadic_cos_deg12(x: float) -> float:
+    return float(_lib.dyadic_poly_cos_deg12(c_float(x)))
 
 
 __all__ = [

@@ -42,7 +42,7 @@ from Allocator.Interpreter.main.dataclass import XILINX_BRAM_SIZES
 
 from Scripts.dataclass import PROGRAM_META_INFO
 
-from Allocator.Interpreter.main.util_helpers import get_repo_root
+from Allocator.Interpreter.main.util_helpers import get_repo_root, set_logger_opts
 
 
 LOGGER = logging.getLogger(__name__)
@@ -92,7 +92,6 @@ META_INFO = PROGRAM_META_INFO(
 # LOGGING #
 ###########
 
-LOG_FNAME = str(META_INFO.GIT_ROOT / 'Src' / 'Scripts' / 'script_info.log')
 LOGGER_LINE_WIDTH = 100
 log_wrapper = TextWrapper(width=LOGGER_LINE_WIDTH)
 
@@ -103,24 +102,7 @@ UNWRAP_VEO_PREFIX='\n[*] VEO_UNWRAPPER [*] \n{}'
 WRITE_FILE_HEADER_PREFIX='\n[*] HEADER_WRITER [*] \n{}'
 MAKE_TESTBENCH_BOILERPLATE_PREFIX='\n[*] TESTBENCH_BOILERPLATE_MAKER [*] \n{}'
 
-
-def set_logger_opts():
-    global LOGGER
-
-    # Set circular logger
-    LOGGER.setLevel(logging.INFO)
-    handler = logging.handlers.RotatingFileHandler(
-        filename=LOG_FNAME,
-        encoding='utf-8',
-        maxBytes=2 * 1024 * 1024,  # 2 MiB files
-        backupCount=5 # Rotate through 5 files
-    )
-    dt_fmt = '%Y-%m-%d %H:%M:%S'
-    formatter = logging.Formatter(('\n[{asctime}] [{levelname:<8}] PID {process} @ {threadName}: '
-                                '{message}'), dt_fmt, style='{')
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.INFO)
-    LOGGER.addHandler(handler)
+LOGGER = set_logger_opts(LOGGER)
 
 
 def excepthook(type, value, tback):
@@ -133,8 +115,6 @@ def excepthook(type, value, tback):
 
 
 sys.excepthook = excepthook
-
-set_logger_opts()
 
 #################################
 # WARNINGS HOOK -> LOG HANDLER  #
