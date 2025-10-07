@@ -2,127 +2,340 @@
 
 \section{Procedure for approximating Error statistics on filter kernels}
 
-\[
-\boxed{
-\begin{aligned}
-&\text{Let $f$ be a monotone function (increasing or decreasing), }
-f(x) = S = \sum_{i=1}^{n} g_i(x). \\
-&\text{Then } f(x)\text{ ``contains'' } h(x) \text{ as a term if }
-\exists j \in \{1,\dots,n\} \ \text{with } g_j(x) \equiv h(x).
-\end{aligned}
-}
-\]
-
-Define the error term as the contribution of all other indices:
-\[
-J = \{1,\dots,n\} \setminus \{j\},
-\qquad \mathbb{E}(x) = \sum_{k \in J} g_k(x).
-\]
-
-The procedure for finding an error term $\mathbb{E}(x)$ is the following:
-
-\[
-\begin{aligned}
-f^{(-n)}(x) \ \text{contains } f(x) &\implies \mathbb{E}(x) = f^{(-n)}(x) - \sgn{g_j}f(x), \\
-f^{(n)}(x) \ \text{contains } f(x) &\implies \mathbb{E}(x) = f^{(n)}(x) - \sgn{g_j}f(x).
-\end{aligned}
-\]
-
-By the Cauchy formula for repeated integration~\cite{CauchyRepeatedIntegration} we have:
-
-\[
-\begin{aligned}
-f^{(-n)}(x) &= \int_a^x \int_a^{\sigma_1} \dots \int_a^{\sigma_{n - 1}} f(\sigma_n)\,d\sigma_n \, d\sigma_{n - 1} \dots d\sigma_1 \\
-&= \frac{1}{(n - 1)!}\int_a^x (x - \sigma)^{n - 1}f(\sigma)\,d\sigma.
-\end{aligned}
-\]
-
-The \textit{Caputo fractional derivative} is constructed using Cauchy's formula, bridging definitions of $f^{(-n)}(x)$ and $f^{(n)}(x)$~\cite{Caputo1967}:
-
-\[
-{}^C D^{\nu}_a f(\sigma) = \frac{1}{\Gamma(\lceil \nu \rceil - \nu)}
-\int_a^{\sigma} \frac{f^{(\lceil\nu\rceil)}(t)}{(\sigma-t)^{\nu-\lceil\nu\rceil+1}} \, dt.
-\]
-
-\subsection{Finding error statistics of $\mathrm{sinc}(x)$ for a LPF Design}
-
 One of the fundamental results in DSP is that the ideal window function
 \[
 w(t) = \mathrm{sinc}(t)
 \]
-in the time domain corresponds to a perfect rectangular pulse in the frequency domain~\cite{OppenheimDSP}. However, as the envelope $\tfrac{1}{x}$ decays the amplitude of $\sin(x)$ monotonically, the function has an infinite domain that is impossible to capture discretely. This implies the existence of an associated error term $\mathbb{E}(x)$ that depends on the truncation point $x$.
+in the time domain corresponds to a perfect rectangular pulse in the frequency domain~\cite{OppenheimDSP}. However, as the envelope $\tfrac{1}{x}$ decays the amplitude of $\sin(x)$ monotonically, the function has an infinite domain that is impossible to capture discretely. Thus, there is an associated truncation error $T(x)$, namely, it is the error between the tail \& partial power series. This implies the existence of an associated error term $\mathbb{E}(x)$ that depends on the truncation point $x$. The second contributor is \textit{coefficient quantization error}.
 
-\paragraph{Derivative of sinc}
+\subsection{Optimal Coefficient Quantization via Projection Methods}
 
+Consider a function $f(x)$ represented as a polynomial series:
+\begin{equation}
+f(x) = \sum_{n=0}^{N} c_n x^{2n}
+\end{equation}
+where $c_n$ are the series coefficients. In fixed-point hardware implementations, these coefficients must be quantized to dyadic rationals of the form $\tilde{c}_n = a_n/2^{m_n}$, where $a_n \in \mathbb{Z}$ and $m_n$ determines the bit precision allocated to coefficient $n$.
+
+The quantization error for coefficient $n$ is:
+\begin{equation}
+\epsilon_n = c_n - \tilde{c}_n
+\end{equation}
+
+The total approximation error introduced by coefficient quantization is:
+\begin{equation}
+E(x) = f(x) - \tilde{f}(x) = \sum_{n=0}^{N} \epsilon_n x^{2n}
+\end{equation}
+
+Our objective is to determine the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$ that minimizes the projected error under a total bit budget constraint $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ for a LPF. Framing the problem in terms of an analytically continued series, $R(x)$, exposes a singular metric that packs in both 'phase' and 'bit' quantization error, expressed as a sensitivity matrix. This is effective on the computational front, allowing for a signal to be dually low-passed 
+\& re-weighted according to tolerance error. As will be shown, it also a neccessery ingredient for autonomously reducing memory pressure via. a parameterized 'sacrifice on accuracy'.
+
+\subsection{Projection Operator and Error Metric}
+
+Rather than minimizing the error in the standard $L^2$ norm, we introduce a projection operator $R(x)$ that captures the application-specific error weighting. The projected error is defined as:
+\begin{equation}
+\mathcal{E}_{\text{proj}} = \langle E(x), R(x) \rangle = \int_{0}^{x_{\max}} E(x) \cdot \overline{R(x)} \, dx
+\label{eq:projected_error}
+\end{equation}
+where $\overline{R(x)}$ denotes the complex conjugate of $R(x)$, and $\langle \cdot, \cdot \rangle$ represents the inner product in $L^2[0, x_{\max}]$.
+
+Substituting the error polynomial:
+\begin{equation}
+\mathcal{E}_{\text{proj}} = \int_{0}^{x_{\max}} \left[\sum_{n=0}^{N} \epsilon_n x^{2n}\right] \overline{R(x)} \, dx = \sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx
+\end{equation}
+
+\subsection{Sensitivity Matrix Construction}
+
+The sensitivity of the projected error to coefficient $n$ is defined as:
+\begin{equation}
+S_n = \left|\frac{\partial \mathcal{E}_{\text{proj}}}{\partial \epsilon_n}\right| = \left|\int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|
+\label{eq:sensitivity}
+\end{equation}
+
+This represents how strongly a unit error in coefficient $c_n$ affects the overall projected error. For a complex projector $R(x) = R_{\text{real}}(x) + iR_{\text{imag}}(x)$, we can decompose the sensitivity into real and imaginary components:
+\begin{equation}
+S_n^{\text{real}} = \left|\int_{0}^{x_{\max}} x^{2n} R_{\text{real}}(x) \, dx\right|, \quad
+S_n^{\text{imag}} = \left|\int_{0}^{x_{\max}} x^{2n} R_{\text{imag}}(x) \, dx\right|
+\end{equation}
+
+The \textit{phase sensitivity} and \textit{magnitude sensitivity} can be defined as:
+\begin{align}
+S_n^{\text{phase}} &= S_n^{\text{imag}} \label{eq:phase_sens} \\
+S_n^{\text{mag}} &= S_n^{\text{real}} \label{eq:mag_sens}
+\end{align}
+
+The complete sensitivity matrix is:
+\begin{equation}
+\mathbf{S} = \begin{bmatrix}
+S_0^{\text{mag}} & S_0^{\text{phase}} \\
+S_1^{\text{mag}} & S_1^{\text{phase}} \\
+\vdots & \vdots \\
+S_N^{\text{mag}} & S_N^{\text{phase}}
+\end{bmatrix}
+\end{equation}
+
+\subsection{Quantization Error Bounds}
+
+For dyadic quantization with $m_n$ bits allocated to coefficient $n$, the quantization error is bounded by:
+\begin{equation}
+|\epsilon_n| \leq \frac{1}{2^{m_n+1}}
+\label{eq:quant_bound}
+\end{equation}
+
+The worst-case projected error is therefore:
+\begin{equation}
+|\mathcal{E}_{\text{proj}}| \leq \sum_{n=0}^{N} S_n |\epsilon_n| \leq \sum_{n=0}^{N} \frac{S_n}{2^{m_n+1}}
+\label{eq:error_bound}
+\end{equation}
+
+\subsection{Optimal Bit Allocation Strategy}
+
+\subsubsection{Method 1: Sensitivity-Proportional Allocation}
+
+Allocate bits proportionally to sensitivity:
+\begin{equation}
+m_n = m_{\text{base}} + \left\lfloor \alpha \cdot \frac{S_n}{S_{\max}} \right\rfloor
+\label{eq:prop_alloc}
+\end{equation}
+where $S_{\max} = \max_n S_n$, $m_{\text{base}}$ is the minimum bit allocation, and $\alpha$ controls the dynamic range of bit allocation (typically $\alpha \in [3, 8]$).
+
+The allocation is subject to the constraint:
+\begin{equation}
+\sum_{n=0}^{N} m_n = B_{\text{total}}
+\end{equation}
+
+\subsubsection{Method 2: Weighted Phase-Magnitude Allocation}
+
+For applications requiring different emphasis on phase versus magnitude accuracy, define a weighted sensitivity:
+\begin{equation}
+S_n^{\text{weighted}} = \sqrt{w_{\text{mag}} (S_n^{\text{mag}})^2 + w_{\text{phase}} (S_n^{\text{phase}})^2}
+\label{eq:weighted_sens}
+\end{equation}
+where $w_{\text{mag}}$ and $w_{\text{phase}}$ are application-dependent weights satisfying $w_{\text{mag}} + w_{\text{phase}} = 1$.
+
+\subsubsection{Method 3: Greedy Optimization}
+
+For the global optimum under constraint \eqref{eq:error_bound}, we employ a greedy algorithm. The algorithm proceeds as follows:
+
+\medskip
+\noindent\textbf{Greedy Bit Allocation Algorithm:}
+\begin{enumerate}
+\item Initialize $m_n = 1$ for all $n \in \{0, \ldots, N\}$
+\item Set $B_{\text{remaining}} = B_{\text{total}} - (N+1)$
+\item While $B_{\text{remaining}} > 0$:
+    \begin{enumerate}
+    \item Compute the error reduction for adding one bit to coefficient $n$:
+    \begin{equation}
+    \Delta_n = S_n \left(\frac{1}{2^{m_n+1}} - \frac{1}{2^{m_n+2}}\right) \quad \text{for all } n
+    \end{equation}
+    \item Find the coefficient with maximum error reduction: $n^* = \arg\max_n \Delta_n$
+    \item Increment the bit allocation: $m_{n^*} \gets m_{n^*} + 1$
+    \item Decrement the remaining budget: $B_{\text{remaining}} \gets B_{\text{remaining}} - 1$
+    \end{enumerate}
+\item Return the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$
+\end{enumerate}
+
+\medskip
+\noindent This greedy approach is optimal for the additive error model in \eqref{eq:error_bound} and has computational complexity $O(B_{\text{total}} \cdot N)$.
+
+\subsection{Evaluation of Projected Error}
+
+After bit allocation, the actual projected error can be computed as:
+\begin{equation}
+\mathcal{E}_{\text{proj}} = \left|\sum_{n=0}^{N} (c_n - \tilde{c}_n) \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|
+\end{equation}
+
+For numerical evaluation, discretize the integral:
+\begin{equation}
+\mathcal{E}_{\text{proj}} \approx \left|\sum_{n=0}^{N} \epsilon_n \sum_{k=0}^{K-1} x_k^{2n} \overline{R(x_k)} \Delta x\right|
+\end{equation}
+where $x_k = k \cdot x_{\max} / K$ and $\Delta x = x_{\max} / K$.
+
+The real and imaginary components of the error are:
+\begin{align}
+\mathcal{E}_{\text{real}} &= \text{Re}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right] \\
+\mathcal{E}_{\text{imag}} &= \text{Im}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right]
+\end{align}
+
+\newpage
+\subsection{Projector Derivation for Sinc Function}
+
+The power series for $\mathrm{sinc}(x)$ is given as:
 \[
 \begin{aligned}
-\frac{d}{dx} \mathrm{sinc}(x)
-&= \frac{\cos(x)}{x} - x^{-2}\sin(x)
-= \frac{x\cos(x) - \sin(x)}{x^2} \\
-&= \frac{1}{x}\cos(x) - \mathrm{sinc}(x).
+\mathrm{sinc}(x) &= \sum_{n=0}^\infty \frac{-1^n}{\Gamma(2n)}x^{2n + 1}
 \end{aligned}
 \]
 
-Thus,
-\[
-f'(x) \text{ contains } f(x)
-\quad \implies \quad \mathbb{E}(x) = \frac{1}{x}\cos(x).
-\]
-
-\paragraph{Power series expansion of $\frac{\cos(x)}{x}$}
-
+But due to the necessity of considering truncated power series, introduce the upper bound $N$.Then re-indexing to $2N$ we obtain:
 \[
 \begin{aligned}
-\mathbb{E}(x) &= \frac{1}{x} \left|\sum_{n = 0}^{\infty} \frac{(-1)^n x^{2n}}{(2n)!}\right|
-= \left|\sum_{n = 0}^{\infty} \frac{(-1)^n x^{2n-1}}{(2n)!}\right|.
+\mathrm{sinc}(x) &= \sum_{k = 0}^{2N} \frac{(-1)^{\left\lfloor k/2 \right\rfloor} x^{k+1}}{\Gamma(k)}
+&= \sum_{k = 0}^{2N} \delta_{k \equiv 0 \, (\mathrm{mod}\,2)} \cdot \frac{i^k \cdot x^{k+1}}{\Gamma(k)}
 \end{aligned}
 \]
 
-\paragraph{Discrete truncation}
+Implicitly allowing for the analytic continuation of $E$ ($E: \mathbb{R} \to \mathbb{R} \rightarrow E: \mathbb{C} \to \mathbb{C}$) due to the introduction of the \emph{Kronecker delta}\cite{}.This projector naturally selects even-indexed coefficients, which are precisely the non-zero terms in the sinc Taylor series. 
 
-In practice, we require
-\[
-\mathbb{E}(x, N) \leq T \quad \text{for some } N \in \mathbb{N}, \ N \geq 1,
-\]
-where $\mathbb{E}(x, N)$ is the partial sum of $\mathbb{E}(x)$, and the choice of $0 < T < f(x)$ determines the minimum $N$ such that $\mathbb{E}(x, N)$ is bounded. Another stipulate is that $N$ is minimal \textit{W.R.T} $T$.
-
-\[
-\implies \mathbb{E}(x) = \left|\sum_{n = 0}^{N} \frac{(-1)^n x^{2n-1}}{(2n)!}\right| \leq T.
-\]
-
-\paragraph{Re-indexing with Kronecker delta}
-
-Re-indexing to $2N$, we obtain
-\[
-\sum_{k = 0}^{2N} \delta_{k \equiv 0 \, (\mathrm{mod}\,2)} \cdot \frac{(-1)^{k/2} x^{k-1}}{k!},
-\]
-which implicitly allows $E: \mathbb{R} \to \mathbb{R}$ to be re-written as
-$E: \mathbb{C} \to \mathbb{C}$ due to the introduction of the \emph{Kronecker delta}\cite{}:
+\medskip
+Using the fact that we can exchange the sum \& integrand due to linearity\cite{} and using the contour representation of the kroenecker delta for term extraction\cite{} (I.e. as a \textit{cauchy kernel}) we derive:
 
 \[
 \begin{aligned}
-\mathbb{E}(x) &= \left|\sum_{k = 0}^{2N} \frac{1 + (-1)^k}{2} \cdot \frac{i^k x^{k - 1}}{k!}\right| \\
-&= \sum_{k=0}^{2N} \delta_{k \equiv 0 \, (\mathrm{mod}\,2)} \frac{(-1)^{k/2} x^{k-1}}{k!} \\
-&= \frac{1}{2\pi i} \oint_{|z|=1} \frac{1 + z^2}{2z}
-\sum_{k=0}^{2N} \frac{(-1)^{k/2} x^{k-1} z^{-k}}{k!} \, dz \\
-&= \frac{1}{2\pi i} \oint_{|z|=1} \frac{1 + z^2}{2z} \cdot \frac{1}{x}
-\sum_{k=0}^{2N} \frac{(ix/z)^k}{k!} \, dz.
+\frac{1}{2\pi i}\oint_\gamma \sum_{k=0}^{2N} \frac{1}{\zeta(1 - \zeta)^2} \frac{i^k \cdot x^{k+1}}{\Gamma(k)} d\zeta
+\end{aligned}
+\]\eqref{}
+
+Then let 
+\[
+\begin{aligned}
+S &:= \sum_{k=0}^{2N} \frac{i^k \cdot x^{k+1}}{\Gamma(k)} \\
+M &:= 2N \\
+\implies S &= -i \sum_{j=1}^{M+1} \frac{(ix)^j}{\Gamma(j)} \\
+&= -i \left( \exp(ix) - 1 - \sum_{j=M+2}^{\infty} \frac{(ix)^j}{\Gamma(j)} \right)
+\end{aligned}
+\]\eqref{}
+
+We may then use the incomplete-gamma identity\cite{} for the power series of $e^x$ yielding:
+
+\[
+\begin{aligned}
+S &= - i \left[ \exp(ix)\left(\frac{\Gamma(n+2, ix)}{\Gamma(n+2)} - 1\right) \right]
+&= i - \frac{i\,\exp(ix)\,\Gamma(n+2, ix)}{\Gamma(n+2)}
+\end{aligned}
+\]\eqref{}
+
+The projector identity*\cite{} finally gives:
+
+\[
+\begin{aligned}
+\mathbb{P}(x) &= \frac{1}{2\pi i}\oint_\gamma \mathrm{B}(z)\mathrm{A}(\frac{x}{z})dz \\
+\implies R(x) &= \frac{1}{2\pi \Gamma(M + 2)}\oint_\gamma \frac{\Gamma(M + 2) - \exp(\frac{ix}{z}) \Gamma(M + 2, \frac{ix}{z})}{z(1-z)^2}dz
+\end{aligned}
+\]\eqref{}
+
+Which can be expressed more robustly using a change of variable $\frac{x}{z} \to \theta$
+
+\[
+\begin{aligned}
+\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} (\Gamma(K) - e^{i\theta}\Gamma(K, i\theta))(\frac{\theta}{\theta^2 - x^2})d\theta
+\end{aligned}
+\]\eqref{}
+
+Where C is the unit image circle.
+\medskip
+
+By the residue theorem, evaluating at the poles $\theta = \pm x$:
+\[
+\begin{aligned}
+\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta \Gamma(K)}{\theta^2 - x^2} d\theta = \frac{1}{2\Gamma(K)} \cdot 2\pi i \left[\text{Res}_{\theta=x} + \text{Res}_{\theta=-x}\right] \Gamma(K)
 \end{aligned}
 \]
 
-Here, $\Im(\mathbb{E}(x))$ corresponds to the \textit{phase error} and
-$\Re(\mathbb{E}(x))$ corresponds to the \textit{quantization error}. Extending onto the complex plane requires $T \in \mathbb{C}$, expressed as $a + bi$, where $a$ is the quantization error threshold and $b$ the relative phase error threshold.
-
-\paragraph{Error bounds via alternating series test}
-
-Because $\cos(x)$ is an alternating series, we can use the alternating series error test~\cite{Rudin1976}:
+The residues are:
 \[
-\mathbb{E}(x) \approx |\cos(x) - \cos_N(x)|.
+\begin{aligned}
+\text{Res}_{\theta=x} \frac{\theta}{\theta^2 - x^2} &= \lim_{\theta \to x} \frac{\theta(\theta - x)}{(\theta-x)(\theta+x)} = \frac{x}{2x} = \frac{1}{2} \\
+\text{Res}_{\theta=-x} \frac{\theta}{\theta^2 - x^2} &= \lim_{\theta \to -x} \frac{\theta(\theta + x)}{(\theta-x)(\theta+x)} = \frac{-x}{-2x} = \frac{1}{2}
+\end{aligned}
 \]
 
-Applying Stirling’s approximation~\cite{StirlingApprox}:
+Therefore:
+\begin{equation}
+\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta \Gamma(K)}{\theta^2 - x^2} d\theta = \frac{2\pi i}{2\Gamma(K)} \cdot \Gamma(K) \cdot 1 = i
+\end{equation}
+
+For the second integral involving the incomplete gamma function:
+\begin{equation}
+\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} d\theta
+\end{equation}
+
+This can be evaluated by recognizing that for $\theta = x$:
+\[
+\begin{aligned}
+\text{Res}_{\theta=x} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} = \frac{x e^{ix}\Gamma(K, ix)}{2x} = \frac{e^{ix}\Gamma(K, ix)}{2}
+\end{aligned}
+\]
+
+And for $\theta = -x$:
+\[
+\begin{aligned}
+\text{Res}_{\theta=-x} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} = \frac{-x e^{-ix}\Gamma(K, -ix)}{-2x} = \frac{e^{-ix}\Gamma(K, -ix)}{2}
+\end{aligned}
+\]
+
+The exact solution to this part of the integral split is:
+\[
+\begin{aligned}
+& i + \frac{1}{\Gamma(K)}\left[ \frac{ae^ix + be^ix}{2i} \right] \\
+& a := \Gamma(k, ix) \\
+& b := \Gamma(k, -ix)
+\end{aligned}
+\]\eqref{}
+Where similarity to the complex exponential form of $cos(x)$ is noted.
+
+This can be simplified using the properties of complex conjugation\eqref{} to:
+\[
+\begin{aligned}
+i \left[ 1 - \frac{\Re(e^{ix}\Gamma(K, ix))}{\Gamma(K)} \right]
+\end{aligned}
+\]
+
+\textit{Hartog's theorem}\cite{} further reduces the expression $\Re(e^{ix}\Gamma(K, ix))$ to:
+\[
+\begin{aligned}
+\Re\left(\omega^{K}\sum_{j=0}^{\infty}\frac{\omega^{j}\,\Gamma(K)}{\Gamma(K+j+1)}\right) \\
+&= \Re\left(\frac{\omega^K}{K}\sum_{j=1}^{\infty}\frac{\omega^{j}}{\Gamma(K+j)}\right) \\
+&= \Re\left(\frac{\omega^K}{\Gamma(K+1)}\sum_{j=1}^{\infty}\frac{\omega^j}{K^{(j)}}\right)
+\end{aligned}
+\] Where $K^{(j)}$ is the rising factorial.
+\medskip
+
+Noticing that the outside term $\frac{\omega^K}{\Gamma(K+1)}$ will always be real-valued because $K \in \mathbb{N} \text{, } K \geq 1 \text{, } N \geq 1$ \& $K = M + 2 = 2N + 2 \implies K$ is even) means it can be moved outside. We subsequently conclude, using the linearity of $\Re$ over a series sum, that $\iff \text{j is even}$ will a term be emitted. Thus:
 
 \[
-\mathbb{E}(x) \leq \frac{|x|^{K}}{\sqrt{2\pi K}} \left(\frac{K}{e}\right)^{K},
-\qquad K = \frac{N + 1}{2}.
+\begin{aligned}
+&= {\omega^K}{\Gamma(K+1)} \sum_{j=1}^{\infty} \frac{\omega^{2j}}{K^{(2j)}} \\
+&= {\omega^K}{\Gamma(K+1)} \sum_{j=0}^{\infty} \frac{(-1)^{j+1}x^{2j+2}}{K^{(2j+2)}}
+\end{aligned}
 \]
+
+This can be represented in terms of the hypogeometric series*\cite{}. Substituting values we finally arrive at the answer:
+
+\[
+\begin{aligned}
+\boxed{i\!\left(1 - \frac{x^{2}\,\omega^{K}}{K+1}\,\mathbb{H}\right)} \\
+\mathbb{H} := \pFq{1}{2}{1,\frac{K}{2}+1,\frac{K}{2}+\frac{3}{2}}{}{\frac{-x^2}{4}}
+\end{aligned}
+\]
+
+Where for the special case $K=0 \rightarrow \mathbb{H} = \mathrm{sinc}(x)$.
+
+\subsubsection{Approximation of the projector function}
+
+We can forgo an exact solution for an approximate solution using the mirror property\cite{} of incomplete gamma functions \& assuming $x > 0 \text{, } x \in \mathbb{R}$. This is so that we can exploit the fact that the dominant contribution comes from the positive pole:
+
+\begin{equation}
+\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} d\theta \approx \frac{2\pi i}{2\pi \Gamma(K)} \cdot \frac{e^{ix}\Gamma(K, ix)}{2} = \frac{i e^{ix}\Gamma(K, ix)}{2\Gamma(K)}
+\end{equation}
+
+Combining both terms from \eqref{}:
+\[
+\begin{aligned}
+&\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \left(\Gamma(K) - e^{i\theta}\Gamma(K, i\theta)\right)\left(\frac{\theta}{\theta^2 - x^2}\right)d\theta \nonumber \\
+&= i - \frac{i e^{ix}\Gamma(K, ix)}{2\Gamma(K)}
+\end{aligned}
+\]\label{eq:final_unsimplified_result}
+
+Simplifying:
+\[
+\begin{aligned}
+&= i\left(1 - \frac{e^{ix}\Gamma(K, ix)}{2\Gamma(K)}\right)
+\end{aligned}
+\]
+
+This can be rewritten in terms of the regularized incomplete gamma function $Q(K, ix) = \Gamma(K, ix)/\Gamma(K)$:
+\begin{equation}
+\boxed{
+= i\left(1 - \frac{e^{ix}Q(K, ix)}{2}\right)
+}\label{eq:final_result}
+\end{equation}
