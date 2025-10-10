@@ -26,7 +26,7 @@ The total approximation error introduced by coefficient quantization is:
 E(x) = f(x) - \tilde{f}(x) = \sum_{n=0}^{N} \epsilon_n x^{2n}
 \end{equation}
 
-Our objective is to determine the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$ that minimizes the projected error under a total bit budget constraint $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ for a LPF. Framing the problem in terms of an analytically continued series, $R(x)$, exposes a singular metric that packs in both 'phase' and 'bit' quantization error, expressed as a sensitivity matrix. This is effective on the computational front, allowing for a signal to be dually low-passed 
+Our objective is to determine the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$ that minimizes the projected error under a total bit budget constraint $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ for a LPF. Framing the problem in terms of an analytically continued series, $R(x)$, exposes a singular metric that packs in both 'phase' and 'bit' quantization error, expressed as a sensitivity matrix. This is effective on the computational front, allowing for a signal to be dually low-passed
 \& re-weighted according to tolerance error. As will be shown, it also a neccessery ingredient for autonomously reducing memory pressure via. a parameterized 'sacrifice on accuracy'.
 
 \subsection{Projection Operator and Error Metric}
@@ -141,19 +141,19 @@ For the global optimum under constraint \eqref{eq:error_bound}, we employ a gree
 
 After bit allocation, the actual projected error can be computed as:
 \begin{equation}
-\mathcal{E}_{\text{proj}} = \left|\sum_{n=0}^{N} (c_n - \tilde{c}_n) \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|
+\mathcal{E}_{\text{proj}} = \left|\sum_{n=0}^{N} (c_n - \tilde{c}_n) \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|.
 \end{equation}
 
 For numerical evaluation, discretize the integral:
 \begin{equation}
-\mathcal{E}_{\text{proj}} \approx \left|\sum_{n=0}^{N} \epsilon_n \sum_{k=0}^{K-1} x_k^{2n} \overline{R(x_k)} \Delta x\right|
+\mathcal{E}_{\text{proj}} \approx \left|\sum_{n=0}^{N} \epsilon_n \sum_{k=0}^{K-1} x_k^{2n} \overline{R(x_k)} \Delta x\right|,
 \end{equation}
 where $x_k = k \cdot x_{\max} / K$ and $\Delta x = x_{\max} / K$.
 
 The real and imaginary components of the error are:
 \begin{align}
-\mathcal{E}_{\text{real}} &= \text{Re}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right] \\
-\mathcal{E}_{\text{imag}} &= \text{Im}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right]
+\mathcal{E}_{\text{real}} &= \mathrm{Re}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right], \\
+\mathcal{E}_{\text{imag}} &= \mathrm{Im}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right].
 \end{align}
 
 \newpage
@@ -161,181 +161,358 @@ The real and imaginary components of the error are:
 
 The power series for $\mathrm{sinc}(x)$ is given as:
 \[
-\begin{aligned}
-\mathrm{sinc}(x) &= \sum_{n=0}^\infty \frac{-1^n}{\Gamma(2n)}x^{2n + 1}
-\end{aligned}
+\mathrm{sinc}(x) = \frac{\sin(x)}{x} = \sum_{n=0}^\infty \frac{(-1)^n}{\Gamma(2n+2)}x^{2n}.
 \]
 
-But due to the necessity of considering truncated power series, introduce the upper bound $N$.Then re-indexing to $2N$ we obtain:
+Due to the necessity of considering truncated power series, we introduce the upper bound $N$. Re-indexing over $n \in \{0,\dots,2N\}$ and using the Kronecker delta to select even terms:
+\begin{equation}\label{eq:sinc_proj}
+\mathrm{sinc}_N(x) = \sum_{n=0}^{2N} \delta_{\,n \equiv 0 \pmod{2}} \cdot \frac{(-1)^{n/2}}{\Gamma(n+2)}x^{n}
+= \sum_{n=0}^{2N} \delta_{\,n \equiv 0 \pmod{2}} \cdot \frac{i^n}{\Gamma(n+2)}x^{n},
+\end{equation}
+where the second equality holds because $i^n = (-1)^{n/2}$ when $n$ is even.
+
+\subsubsection{Analytic Projector via Contour Integration}
+
+The introduction of the Kronecker delta $\delta_{\,n \equiv 0 \pmod{2}}$ serves dual purposes: selecting even coefficients and facilitating analytic continuation. To make this precise, we let $\Omega \subset \mathbb{C}$ be a simply connected domain containing $[0, x_{\max}]$. Consider the space:
 \[
-\begin{aligned}
-\mathrm{sinc}(x) &= \sum_{k = 0}^{2N} \frac{(-1)^{\left\lfloor k/2 \right\rfloor} x^{k+1}}{\Gamma(k)}
-&= \sum_{k = 0}^{2N} \delta_{k \equiv 0 \, (\mathrm{mod}\,2)} \cdot \frac{i^k \cdot x^{k+1}}{\Gamma(k)}
-\end{aligned}
+\mathcal{A}(\Omega) = \{ f: \Omega \to \mathbb{C} \mid f \text{ is holomorphic on } \Omega \}.
 \]
 
-Implicitly allowing for the analytic continuation of $E$ ($E: \mathbb{R} \to \mathbb{R} \rightarrow E: \mathbb{C} \to \mathbb{C}$) due to the introduction of the \emph{Kronecker delta}\cite{}.This projector naturally selects even-indexed coefficients, which are precisely the non-zero terms in the sinc Taylor series. 
+For $f \in \mathcal{A}(\Omega)$ with Taylor expansion about $z=0$:
+\[
+f(z) = \sum_{k=0}^{\infty} a_k z^k, \quad a_k = \frac{1}{2\pi i} \oint_{\gamma} \frac{f(\zeta)}{\zeta^{k+1}} \, d\zeta,
+\]
+where $\gamma$ is a simple closed contour in $\Omega$ enclosing the origin.
+
+The projector $\mathbb{P}_N: \mathcal{A}(\Omega) \to \mathcal{P}_{2N}^{\text{even}}$ is defined via the modified Cauchy integral:
+\[
+\mathbb{P}_N[f](z) = \frac{1}{2\pi i} \oint_{\gamma} K_N(\zeta) \, f\!\left(\frac{z}{\zeta}\right) \frac{d\zeta}{\zeta}
+\]
+where $K_N(\zeta)$ is the \emph{selection kernel}:
+\[
+K_N(\zeta) = \sum_{n=0}^{N} \zeta^{2n} = \frac{1 - \zeta^{2N+2}}{1 - \zeta^2}.
+\]
+
+This kernel satisfies the projection property:
+\[
+\frac{1}{2\pi i} \oint_{|\zeta|=1} K_N(\zeta) \, \zeta^{-k-1} \, d\zeta = \begin{cases}
+1 & \text{if } k \in \{0, 2, 4, \ldots, 2N\}, \\
+0 & \text{otherwise.}
+\end{cases}
+\]
+
+\begin{lemma}[Parity selector via contour integral]\label{lem:kronecker-even-delta}
+For $n\in\mathbb{N}_0$ and any $0<r<1$, define
+\[
+I_n \;=\; \frac{1}{2\pi i}\oint_{|z|=r}\frac{dz}{z^{\,n+1}(1-z^2)}.
+\]
+Then
+\[
+I_n \;=\; \begin{cases}
+1,& \text{if $n$ is even},\\[4pt]
+0,& \text{if $n$ is odd}.
+\end{cases}
+\]
+\begin{proof}
+Let $h(z)=\dfrac{1}{1-z^2}$. For $|z|<1$,
+\[
+h(z)=\sum_{m=0}^{\infty} z^{2m}.
+\]
+Writing $h(z)=\sum_{k=0}^{\infty} a_k z^k$, we have $a_k=1$ if $k$ is even and $a_k=0$ if $k$ is odd. By Cauchy’s coefficient formula,
+\[
+I_n=\frac{1}{2\pi i}\oint_{|z|=r}\frac{h(z)}{z^{n+1}}\,dz=a_n,
+\]
+so $I_n=1$ when $n$ is even and $I_n=0$ when $n$ is odd.
 
 \medskip
-Using the fact that we can exchange the sum \& integrand due to linearity\cite{} and using the contour representation of the kroenecker delta for term extraction\cite{} (I.e. as a \textit{cauchy kernel}) we derive:
-
+\noindent\textit{Residue viewpoint.}
+The integrand $\dfrac{1}{z^{n+1}(1-z^2)}$ has singularities at $z=0,\pm1$, but for $0<r<1$ only $z=0$ lies inside the contour. Hence the integral collapses to the single residue at $z=0$:
 \[
-\begin{aligned}
-\frac{1}{2\pi i}\oint_\gamma \sum_{k=0}^{2N} \frac{1}{\zeta(1 - \zeta)^2} \frac{i^k \cdot x^{k+1}}{\Gamma(k)} d\zeta
-\end{aligned}
-\]\eqref{}
-
-Then let 
-\[
-\begin{aligned}
-S &:= \sum_{k=0}^{2N} \frac{i^k \cdot x^{k+1}}{\Gamma(k)} \\
-M &:= 2N \\
-\implies S &= -i \sum_{j=1}^{M+1} \frac{(ix)^j}{\Gamma(j)} \\
-&= -i \left( \exp(ix) - 1 - \sum_{j=M+2}^{\infty} \frac{(ix)^j}{\Gamma(j)} \right)
-\end{aligned}
-\]\eqref{}
-
-We may then use the incomplete-gamma identity\cite{} for the power series of $e^x$ yielding:
-
-\[
-\begin{aligned}
-S &= - i \left[ \exp(ix)\left(\frac{\Gamma(n+2, ix)}{\Gamma(n+2)} - 1\right) \right]
-&= i - \frac{i\,\exp(ix)\,\Gamma(n+2, ix)}{\Gamma(n+2)}
-\end{aligned}
-\]\eqref{}
-
-The projector identity*\cite{} finally gives:
-
-\[
-\begin{aligned}
-\mathbb{P}(x) &= \frac{1}{2\pi i}\oint_\gamma \mathrm{B}(z)\mathrm{A}(\frac{x}{z})dz \\
-\implies R(x) &= \frac{1}{2\pi \Gamma(M + 2)}\oint_\gamma \frac{\Gamma(M + 2) - \exp(\frac{ix}{z}) \Gamma(M + 2, \frac{ix}{z})}{z(1-z)^2}dz
-\end{aligned}
-\]\eqref{}
-
-Which can be expressed more robustly using a change of variable $\frac{x}{z} \to \theta$
-
-\[
-\begin{aligned}
-\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} (\Gamma(K) - e^{i\theta}\Gamma(K, i\theta))(\frac{\theta}{\theta^2 - x^2})d\theta
-\end{aligned}
-\]\eqref{}
-
-Where C is the unit image circle.
-\medskip
-
-By the residue theorem, evaluating at the poles $\theta = \pm x$:
-\[
-\begin{aligned}
-\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta \Gamma(K)}{\theta^2 - x^2} d\theta = \frac{1}{2\Gamma(K)} \cdot 2\pi i \left[\text{Res}_{\theta=x} + \text{Res}_{\theta=-x}\right] \Gamma(K)
-\end{aligned}
+I_n \;=\; \operatorname{Res}_{z=0}\!\left(\frac{1}{z^{n+1}(1-z^2)}\right).
 \]
-
-The residues are:
+Expanding $\dfrac{1}{1-z^2}=\sum_{m=0}^{\infty}z^{2m}$ gives the Laurent series
 \[
-\begin{aligned}
-\text{Res}_{\theta=x} \frac{\theta}{\theta^2 - x^2} &= \lim_{\theta \to x} \frac{\theta(\theta - x)}{(\theta-x)(\theta+x)} = \frac{x}{2x} = \frac{1}{2} \\
-\text{Res}_{\theta=-x} \frac{\theta}{\theta^2 - x^2} &= \lim_{\theta \to -x} \frac{\theta(\theta + x)}{(\theta-x)(\theta+x)} = \frac{-x}{-2x} = \frac{1}{2}
-\end{aligned}
+\frac{1}{z^{n+1}(1-z^2)}=\sum_{m=0}^{\infty} z^{\,2m-n-1},
 \]
+so the residue (coefficient of $z^{-1}$) is $1$ iff $2m=n$, and $0$ otherwise. Equivalently, using $\operatorname{Res}_{z=0}\!\big(\frac{h(z)}{z^{n+1}}\big)=\frac{h^{(n)}(0)}{n!}$ for analytic $h$ with $h(z)=\frac{1}{1-z^2}$, we have $h^{(n)}(0)=n!$ for even $n$ and $0$ for odd $n$, yielding the same conclusion.
+\end{proof}
+\end{lemma}
 
-Therefore:
-\begin{equation}
-\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta \Gamma(K)}{\theta^2 - x^2} d\theta = \frac{2\pi i}{2\Gamma(K)} \cdot \Gamma(K) \cdot 1 = i
-\end{equation}
-
-For the second integral involving the incomplete gamma function:
-\begin{equation}
-\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} d\theta
-\end{equation}
-
-This can be evaluated by recognizing that for $\theta = x$:
+Using the contour representation of the Kronecker delta (Lemma~\ref{lem:kronecker-even-delta}),
+we can drop the Kronecker delta and express
 \[
-\begin{aligned}
-\text{Res}_{\theta=x} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} = \frac{x e^{ix}\Gamma(K, ix)}{2x} = \frac{e^{ix}\Gamma(K, ix)}{2}
-\end{aligned}
+\mathbb{P}_N[\mathrm{sinc}](z\zeta)
+= \sum_{n=0}^{2N} \left[\frac{1}{2\pi i}\oint_{|\zeta| = r < 1} \frac{1}{\zeta^{\,n+1}(1 - \zeta^2)} \, d\zeta\right] \frac{i^n z^n}{\Gamma(n+2)}.
 \]
-
-And for $\theta = -x$:
+Since the sum is finite, we may interchange the sum and the integral:
 \[
-\begin{aligned}
-\text{Res}_{\theta=-x} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} = \frac{-x e^{-ix}\Gamma(K, -ix)}{-2x} = \frac{e^{-ix}\Gamma(K, -ix)}{2}
-\end{aligned}
-\]
-
-The exact solution to this part of the integral split is:
-\[
-\begin{aligned}
-& i + \frac{1}{\Gamma(K)}\left[ \frac{ae^ix + be^ix}{2i} \right] \\
-& a := \Gamma(k, ix) \\
-& b := \Gamma(k, -ix)
-\end{aligned}
-\]\eqref{}
-Where similarity to the complex exponential form of $cos(x)$ is noted.
-
-This can be simplified using the properties of complex conjugation\eqref{} to:
-\[
-\begin{aligned}
-i \left[ 1 - \frac{\Re(e^{ix}\Gamma(K, ix))}{\Gamma(K)} \right]
-\end{aligned}
-\]
-
-\textit{Hartog's theorem}\cite{} further reduces the expression $\Re(e^{ix}\Gamma(K, ix))$ to:
-\[
-\begin{aligned}
-\Re\left(\omega^{K}\sum_{j=0}^{\infty}\frac{\omega^{j}\,\Gamma(K)}{\Gamma(K+j+1)}\right) \\
-&= \Re\left(\frac{\omega^K}{K}\sum_{j=1}^{\infty}\frac{\omega^{j}}{\Gamma(K+j)}\right) \\
-&= \Re\left(\frac{\omega^K}{\Gamma(K+1)}\sum_{j=1}^{\infty}\frac{\omega^j}{K^{(j)}}\right)
-\end{aligned}
-\] Where $K^{(j)}$ is the rising factorial.
-\medskip
-
-Noticing that the outside term $\frac{\omega^K}{\Gamma(K+1)}$ will always be real-valued because $K \in \mathbb{N} \text{, } K \geq 1 \text{, } N \geq 1$ \& $K = M + 2 = 2N + 2 \implies K$ is even) means it can be moved outside. We subsequently conclude, using the linearity of $\Re$ over a series sum, that $\iff \text{j is even}$ will a term be emitted. Thus:
-
-\[
-\begin{aligned}
-&= {\omega^K}{\Gamma(K+1)} \sum_{j=1}^{\infty} \frac{\omega^{2j}}{K^{(2j)}} \\
-&= {\omega^K}{\Gamma(K+1)} \sum_{j=0}^{\infty} \frac{(-1)^{j+1}x^{2j+2}}{K^{(2j+2)}}
-\end{aligned}
-\]
-
-This can be represented in terms of the hypogeometric series*\cite{}. Substituting values we finally arrive at the answer:
-
-\[
-\begin{aligned}
-\boxed{i\!\left(1 - \frac{x^{2}\,\omega^{K}}{K+1}\,\mathbb{H}\right)} \\
-\mathbb{H} := \pFq{1}{2}{1,\frac{K}{2}+1,\frac{K}{2}+\frac{3}{2}}{}{\frac{-x^2}{4}}
-\end{aligned}
-\]
-
-Where for the special case $K=0 \rightarrow \mathbb{H} = \mathrm{sinc}(x)$.
-
-\subsubsection{Approximation of the projector function}
-
-We can forgo an exact solution for an approximate solution using the mirror property\cite{} of incomplete gamma functions \& assuming $x > 0 \text{, } x \in \mathbb{R}$. This is so that we can exploit the fact that the dominant contribution comes from the positive pole:
-
-\begin{equation}
-\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \frac{\theta e^{i\theta}\Gamma(K, i\theta)}{\theta^2 - x^2} d\theta \approx \frac{2\pi i}{2\pi \Gamma(K)} \cdot \frac{e^{ix}\Gamma(K, ix)}{2} = \frac{i e^{ix}\Gamma(K, ix)}{2\Gamma(K)}
-\end{equation}
-
-Combining both terms from \eqref{}:
-\[
-\begin{aligned}
-&\frac{1}{2\pi \Gamma(K)}\oint_{C_\theta} \left(\Gamma(K) - e^{i\theta}\Gamma(K, i\theta)\right)\left(\frac{\theta}{\theta^2 - x^2}\right)d\theta \nonumber \\
-&= i - \frac{i e^{ix}\Gamma(K, ix)}{2\Gamma(K)}
-\end{aligned}
-\]\label{eq:final_unsimplified_result}
-
-Simplifying:
-\[
-\begin{aligned}
-&= i\left(1 - \frac{e^{ix}\Gamma(K, ix)}{2\Gamma(K)}\right)
-\end{aligned}
-\]
-
-This can be rewritten in terms of the regularized incomplete gamma function $Q(K, ix) = \Gamma(K, ix)/\Gamma(K)$:
-\begin{equation}
 \boxed{
-= i\left(1 - \frac{e^{ix}Q(K, ix)}{2}\right)
-}\label{eq:final_result}
+\mathbb{P}_N[\mathrm{sinc}](z)
+= \frac{1}{2\pi i}\oint_{|\zeta| = r < 1} \frac{1}{1 - \zeta^2}
+\left[\sum_{n=0}^{2N} \frac{(iz/\zeta)^n}{\Gamma(n+2)}\right] \frac{d\zeta}{\zeta} \equiv \mathbb{P}_N[f](z)
+}
+\]
+This contour-based projector inherently filters even coefficients—the only non-vanishing terms in the $\mathrm{sinc}$ expansion.
+
+\subsubsection{Evaluating the integral}
+
+\[
+\omega := \frac{i z}{\zeta},\qquad
+S_{\infty}(\omega) := \sum_{n=0}^{\infty} \frac{\omega^{n}}{\Gamma(n+2)}.
+\]
+
+\[
+S_{\infty}(\omega)
+= \sum_{n=0}^{\infty} \frac{\omega^{n}}{(n+1)!}
+= \frac{1}{\omega}\sum_{k=1}^{\infty}\frac{\omega^{k}}{k!}
+= \frac{e^{\omega}-1}{\omega},
+\]
+with the removable value \(S_{\infty}(0)=1\).
+\medskip
+
+\noindent \emph{Note:} The swap of sum and integral is still justified since $\left|\zeta\right| = r > 0 \implies \left|\omega\right| = \frac{\left|z\right|}{r}$ is bounded, so the exponential series is uniformly convergent on the contour.
+\medskip
+
+\[
+S_{2N}(\omega) := \sum_{n=0}^{2N}\frac{\omega^{n}}{\Gamma(n+2)}
+= \sum_{n=0}^{2N}\frac{\omega^{n}}{(n+1)!}
+= \frac{1}{\omega}\sum_{k=1}^{2N+1}\frac{\omega^{k}}{k!}
+= \frac{E_{2N+1}(\omega)-1}{\omega},
+\]
+where \(E_m(z):=\sum_{k=0}^{m}\frac{z^{k}}{k!}\) is the truncated exponential polynomial.
+
+\[
+\Gamma(m+1,z)=m!\,e^{-z}\sum_{k=0}^{m}\frac{z^{k}}{k!}
+\;\Longleftrightarrow\;
+E_m(z)=\frac{e^{z}\,\Gamma(m+1,z)}{m!}.
+\]
+Hence, with \(m=2N+1\),
+\[
+S_{2N}(\omega)
+= \frac{1}{\omega}\!\left(\frac{e^{\omega}\,\Gamma(2N+2,\omega)}{(2N+1)!}-1\right)
+= \frac{e^{\omega}\,\Gamma(2N+2,\omega)}{\omega\,(2N+1)!}-\frac{1}{\omega}.
+\]
+
+\[
+S_{\infty}(\omega)-S_{2N}(\omega)
+= \frac{1}{\omega}\sum_{k=2N+2}^{\infty}\frac{\omega^{k}}{k!}
+\quad\Rightarrow\quad
+\bigl|S_{\infty}(\omega)-S_{2N}(\omega)\bigr|
+\le \frac{e^{|\omega|}}{|\omega|}\,\frac{|\omega|^{\,2N+2}}{(2N+2)!}.
+\]
+
+Performing a change of variable $\frac{iz}{\zeta} \to \omega$ on the integral \& substituting:
+\[
+\mathbb{P}_N[\mathrm{sinc}](z) = \frac{1}{2\pi i}\oint_{|\omega| = |z|/r} \frac{1}{\omega^2 + z^2}
+\left[\frac{e^\omega \Gamma(2N+2, \omega)}{(2N+1)!}- 1\right] d\omega
+\]\eqref{}
+
+\[
+\mathbb{P}_N[\mathrm{sinc}](z)
+= \frac{1}{2\pi i}\oint_{|\omega|=\frac{|z|}{r}}
+\frac{H(\omega)}{\omega^2+z^2}\,d\omega,
+\qquad 0<r<1,
+\]
+with either choice
+\[
+H(\omega)=E_{2N+1}(\omega)-1
+\quad\text{or}\quad
+H(\omega)=\frac{e^{\omega}\,\Gamma(2N+2,\omega)}{(2N+1)!}-1,
+\]
+and \(E_{2N+1}(\omega)=\sum_{k=0}^{2N+1}\omega^k/k!\).
+
+\[
+\omega^2+z^2=(\omega-iz)(\omega+iz),\quad
+\omega=\pm iz \text{ are simple poles inside the contour}.
+\]
+For any analytic \(H\),
+\[
+\operatorname{Res}_{\omega=\pm iz}\frac{H(\omega)}{\omega^2+z^2}
+=\frac{H(\pm iz)}{(\omega^2+z^2)'}\bigg|_{\omega=\pm iz}
+=\frac{H(\pm iz)}{2(\pm i z)}.
+\]
+\bigskip
+\noindent \textbf{Note: }
+\[
+\lim_{N\to\infty}\mathbb{P}_N[\mathrm{sinc}](z)
+=\frac{e^{iz}-e^{-iz}}{2\,i\,z}
+=\frac{\sin z}{z}.
+\]
+\emph{This is as expected. The phasor error contribution is solely contingent upon the effect of truncation (I.e. spectral bleed/leakage)}
+\bigskip
+
+\noindent Hence
+\[
+\mathbb{P}_N[\mathrm{sinc}](z)
+=\frac{1}{2\pi i}\oint \frac{H(\omega)}{\omega^2+z^2}\,d\omega
+=\frac{H(iz)-H(-iz)}{2\,i\,z}.
+\]
+
+\[
+=\frac{E_{2N+1}(iz)-E_{2N+1}(-iz)}{2\,i\,z}
+=\sum_{m=0}^{N}\frac{(-1)^m\,z^{2m}}{(2m+1)!}.
+\]
+
+\[
+=\frac{e^{iz}\Gamma(2N+2,iz)-e^{-iz}\Gamma(2N+2,-iz)}{2\,i\,z\,(2N+1)!}.
+\]
+
+\[
+\boxed{\;
+=\frac{\Im\!\big(e^{iz}\Gamma(2N+2,iz)\big)}{z\,(2N+1)!}.
+\;}
+\]
+This result is worth noting for the simplicity \& expectedness of its decomposition. We showed, via. standard complex analytic methods, that the partial sum $\mathrm{sinc}_N(z)$ can be rigorously expressed in it's incomplete upper gamma function form\cite{}. Moreover, that the projector error itself $\mathbb{E}(\mathbb{P}_N)$, depends precisely on the upper gamma function's bound $N_{\text{gamma}} \propto N_{\text{sinc}}, N_{\text{gamma}} = 2(N_{\text{sinc}}+1)$.
+\bigskip
+
+\begin{lemma}[For $x = z \in \mathbb{R}$, the truncation projector can be written in terms of a hypergeometric series]
+
+\begin{proof}
+Let
+\[
+\begin{aligned}
+\theta &:= i z\\
+S &:= 2(N+1)
+\end{aligned}
+\]
+
+A holomorphic extension of the upper incomplete gamma function\cite{} given as:
+\[
+\begin{aligned}
+\gamma(S, \theta) &= \theta^S \Gamma(S) \gamma^{*}(S, \theta)\\
+\Gamma(S, \theta) &= \Gamma(S) - \gamma(S, \theta)\\
+\gamma^{*}(S, \theta) :&= e^{-\theta} \sum_{k=0}^\infty \frac{\theta^k}{\Gamma(S + k + 1)}
+\end{aligned}
+\]
+
+can be applied to the expression $\Im(e^{\theta}\Gamma(S, \theta))$ as follows:
+
+\[
+\begin{aligned}
+\Im(e^\theta \Gamma(S, \theta)) = \Im(\Gamma(S)e^\theta) - \Im\left(\Gamma(S)\theta^S \sum_{k=0}^\infty \frac{\theta^k}{\Gamma(S + k + 1)}\right)
+\end{aligned}
+\]
+
+Clearly,
+\[
+\Im(\Gamma(S)e^\theta) = \Gamma(S)\sin(z)
+\]
+Since $S \in \mathbb{N}_0, S \geq 1 \implies \Gamma(S) = (S - 1)!$ and $z \in \mathbb{R}$
+
+\[
+\Gamma(S)\,\theta^S \sum_{k=0}^{\infty} \frac{\theta^{k}}{\Gamma(S+k+1)}
+= \theta^{S-1} \sum_{k=1}^{\infty} \frac{\theta^{k}\,\Gamma(S)}{\Gamma(S+k)}
+= \theta^{S-1} \sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k},
+\]
+\[
+\text{where } (S)_k := \frac{\Gamma(S+k)}{\Gamma(S)} \text{ is the rising Pochhammer symbol.}
+\]
+
+\noindent The outside term $\theta^{S-1}$ will always be imaginary-valued, that is $\Re(\theta^{S-1}) = 0$ because $S - 1 = 2N + 1 \text{ is odd} \implies \theta^{S-1} \text{ is imaginary}$. We subsequently conclude, using the linearity of the $\Im$ operator over a series, that $\iff \text{k is even}$ will a term be included. Thus:
+
+\[
+\Im\!\left(\theta^{S-1} \sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right)
+= -\,i\,\theta^{S-1}\,\Re\!\left(\sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right)
+= -\,i\,\theta^{S-1}\sum_{k=1}^{\infty} \frac{\theta^{2k}}{(S)_{2k}}.
+\]
+
+
+$\sum_{k=1}^\infty \frac{\theta^{2k}}{(S)_{2k}}$ can be represented in terms of the general hypergeometric series $\mathcal{H}_S(z)$ \cite{} as:
+\[
+\mathcal{H}_S(z) := {}_1F_2\!\left(1;\,\frac{S}{2}+1,\;\frac{S}{2}+\frac{3}{2};\,-\frac{z^2}{4}\right).
+\]
+
+\[
+\sum_{k=1}^{\infty}\frac{\theta^{2k}}{(S)_{2k}}
+= -\,\frac{z^{2}}{S(S+1)}\,\mathcal{H}_S(z).
+\]
+
+\[
+-\,i\,\theta^{S-1}\sum_{k=1}^{\infty}\frac{\theta^{2k}}{(S)_{2k}}
+= \frac{i\,\theta^{S-1}\,z^{2}}{S(S+1)}\,\mathcal{H}_S(z)
+\equiv \frac{(-1)^{N+1}\,z^{S+1}}{S(S+1)}\,\mathcal{H}_S(z).
+\]
+
+\[
+\boxed{
+\implies \Im\!\big(e^{\theta}\Gamma(2N+2,iz)\big) = \Gamma(z)\sin(z) - \frac{(-1)^{N+1}\,z^{S+1}}{S(S+1)}\,\mathcal{H}_S(z)
+}
+\] as desired.
+\end{proof}
+\end{lemma}
+
+For which a table of values is given as reference \eqref{eq:hypergeom_sinc_table}
+\bigskip
+
+\noindent Substituting values we finally arrive at the general solution for the projector onto the truncated power series of $\mathrm{sinc}(x)$:
+\[
+\begin{aligned}
+\mathbb{P}_N[\mathrm{sinc}](z) &= \frac{1}{\Gamma(S)z} \left[\Gamma(S)\sin(z) - \frac{i\theta^{S-1}z^2}{S(S+1)} \mathcal{H}_S(z) \right]\\
+&= \boxed{
+\mathrm{sinc}(z) + \frac{(-1)^N z^S}{\Gamma(S+2)} \mathcal{H}_S(z)
+}
+\end{aligned}
+\]
+\bigskip
+
+As expected:
+\[
+R_N(z) := \mathrm{sinc}(z) - \mathbb{P}_N[\mathrm{sinc}](z) = \frac{(-1)^N z^S}{\Gamma(S+2)}\mathcal{H}_S(z)
+\]
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.4]{../resources/imgs/sinc_remainder.png}
+\caption[Sinc remainder plot]{Plot of the remainder term $R_N(z)$}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.7]{../resources/imgs/truncation_error_slices.png}
+\caption[Truncation error]{Logarithmic plot of the remainder term where the common definition given for $\mathrm{sinc}, \mathrm{sinc}(\pi z),$ is used. The decay point $N^{*} \approx \frac{\pi z - 3}{2} \propto z$ reflects the \emph{(trivial)} fact that higher $z$ needs a compensatory higher $N$ for lower absolute error $|\mathbb{E}|$. \textbf{Note: }\emph{Per\eqref{eq:truncation_decay_turnp} $\forall z \in a, |\mathbb{E}_N(z)| \gg \forall z \in b$ even though $|R_N(a)| < |R_N(b)|$ can hold true for $a \in [0, N^{*}), b \in [N^{*}, \infty)$}}
+\end{figure}
+
+\begin{lemma}[$\mathcal{H}_S(z)$ does not allow any further elementary decomposition]
+
+\begin{proof}
+It is known that any 3 ${}_1F_2$ series with the same argument, with parameters differing by integers, are linearly related\cite{}
+
+Let $x \;:=\; -\frac{z^2}{4}.$
+\begin{equation}\label{eq:H_raise}
+x\,\mathcal{H}_{S+2}(z)
+=\left(\frac{S}{2}+1\right)\left(\frac{S}{2}+\frac{3}{2}\right)\big[\mathcal{H}_S(z)-1\big].
+\tag{R+}
 \end{equation}
+
+\begin{equation}\label{eq:H_lower}
+x\,\mathcal{H}_S(z)
+=\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)\big[\mathcal{H}_{S-2}(z)-1\big].
+\tag{R-}
+\end{equation}
+
+\begin{equation}\label{eq:H_contiguous}
+\left(\frac{S}{2}+1\right)\left(\frac{S}{2}+\frac{3}{2}\right)\mathcal{H}_{S+2}(z)
+-\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)\mathcal{H}_{S-2}(z)
+= -\left[\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)+x\right].
+\tag{C}
+\end{equation}
+
+\[
+\Big[\phi(\phi+b-1)(\phi+c-1)-x(\phi+1)\Big]\,y=0,
+\qquad
+\phi:=x\frac{d}{dx},\quad b=\frac{S}{2}+1,\quad c=\frac{S}{2}+\frac{3}{2}.
+\]
+\end{proof}
+\end{lemma}
+
+
+\subsubsection{Introducing coefficient rounding to the projector}
+
+\noindent Although deriving the statement using complex analysis may seem contrived it is motivated by four (4) concrete principles:
+
+\begin{enumerate}
+\item The fact that any analytic $H(\omega)$ can be evaluated in a systemic fashion (I.e. in terms of it's residue.)
+\item The fact that both the relative phase and quantization error (for sufficiently large $N$) can be dually evaluated
+\item We may pick the $H(\omega)$ kernel in such a way that error is minimized relative to each term (that is, on a per-term basis) in the power series of $\mathrm{sinc}(z)$ itself. This is of the form $H(\omega) \circ p(z)$.
+\item We may also pick the $H(\omega)$ kernel in such a way that error is minimized relative to the application. This is of the form $H(\omega) \circledast p(z)$
+\end{enumerate}

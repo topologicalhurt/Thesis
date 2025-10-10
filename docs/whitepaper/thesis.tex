@@ -9,25 +9,9 @@
 \usepackage{thmtools}
 
 \DeclareMathOperator{\sgn}{sgn}
-\newtheorem{lemma}{Lemma}
+\newtheorem{lemma}{Lemma}[section]
 \newtheorem{theorem}{Theorem}
 \newtheorem{corollary}{Corollary}
-
-\newmuskip\pFqmuskip
-
-\newcommand*\pFq[6][8]{%
-  \begingroup % only local assignments
-  \pFqmuskip=#1mu\relax
-  % make the comma math active
-  \mathcode`\,=\string"8000
-  % and define it to be \pFqcomma
-  \begingroup\lccode`\~=`\,
-  \lowercase{\endgroup\let~}\pFqcomma
-  % typeset the formula
-  {}_{#2}F_{#3}{\left[\genfrac..{0pt}{}{#4}{#5};#6\right]}%
-  \endgroup
-}
-\newcommand{\pFqcomma}{\mskip\pFqmuskip}
 
 %\makenomenclature
 
@@ -37,7 +21,7 @@
 \begin{document}
 
 	%-------------- Information For The Title Page
-	\title{FPGA based Hardware Scheduling approach for optimising DSP pipelines}
+	\title{Hardware Scheduling approach on FPGA's for optimising DSP based workflows}
 	\author{Connor Sinclair}
 	\date{2025}
 	\degree{Bachelor of Software Engineering (Hons.)}
