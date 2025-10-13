@@ -3,7 +3,7 @@ filelock==3.19.1
 IPython==9.2.0
 ipywidgets==8.1.7
 keyring==25.6.0
-matplotlib==3.10.3
+matplotlib==3.10.7
 numpy==2.3.0
 pytest==8.4.2
 PyYAML==6.0.2
