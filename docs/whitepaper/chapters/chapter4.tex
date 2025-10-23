@@ -6,7 +6,28 @@ One of the fundamental results in DSP is that the ideal window function
 \[
 w(t) = \mathrm{sinc}(t)
 \]
-in the time domain corresponds to a perfect rectangular pulse in the frequency domain~\cite{OppenheimDSP}. However, as the envelope $\tfrac{1}{x}$ decays the amplitude of $\sin(x)$ monotonically, the function has an infinite domain that is impossible to capture discretely. Thus, there is an associated truncation error $T(x)$, namely, it is the error between the tail \& partial power series. This implies the existence of an associated error term $\mathbb{E}(x)$ that depends on the truncation point $x$. The second contributor is \textit{coefficient quantization error}.
+in the time domain corresponds to a perfect rectangular pulse in the frequency domain~\cite{OppenheimDSP}. However, as the envelope $\tfrac{1}{x}$ decays the amplitude of $\sin(x)$ monotonically, the function has an infinite domain that is impossible to capture discretely. Thus, there is an associated truncation error $T(x)$ expressed as the error between the tail \& partial power series. This implies the existence of an associated error term $\mathbb{E}(x)$ that is at-least dependent upon the truncation point $N$.
+\bigskip
+
+\noindent The objective of this chapter is to do the following:
+
+\begin{enumerate}
+\item Establish a general method, unified under a bit allocation algorithm, to evaluate the absolute error $|\mathbb{E}|$ of the ideal LPF function $sinc(t)$ both in regards to compositions of the argument E.g. $sinc(t) \circ p(z), z \in \mathbb{C}$ \& convolutions (of course corresponding to multiplications in the frequency domain) of the form $sinc(t) \circledast p(z)$.
+\item Derive a projector $R(x): \mathbb{R} \to \mathbb{C}$ which dually embeds magnitude \& phase error in relation to the truncation point, $N$ \emph{WLOG} for parameters introduced in the following section.
+\item Extend the idea of the projector to an orthonormal basis (namely, the \emph{Shannon Wavelett basis\cite{}}), introducing a general support kernel  $\widehat{H}(\omega)$. It is shown that all analytic functions are suitable candidates for 'sensitivity' based adjustments when expressed in terms of the aforementioned kernel in a manner befitting of FPGA's (\& hardware more generally.)
+\item As a final theoretic step, illustrate the methods overall sensibleness (universal correctness not permitting), motivating the construction with some specific examples that show how compute can be saved.
+\item Produce a hardware design that leverages properties of the construction to \textbf{(A)} Solve a bit allocation problem for a dyadic polynomial interpolating a non-arbitrary (sinusoidal) waveform \textbf{(B)} Apply a basic FIR, based on phase accumulation error inferred from the sensitivity matrix, to bandlimit the same signal with an edge guard \textbf{(C)} Make a dynamic adjustment to a coefficient search for a better interpolating polynomial by imposing a tighter bound (subject to magnitude sensitivity.)
+\item Show results versus. established (or naive) methods.
+\end{enumerate}
+
+Further considerations this paper omits:
+
+\begin{itemize}
+\item In a local sense: regularizing the poor temporal, but excellent frequency, resolution (decaying $\propto \frac{1}{t}$)\cite{} of the Shannon Wavelett basis \& the excellent temporal, but poor frequency resolution of, for example, Haar functions.
+\item Proving correctness to a standard incumbent of E.g. algorithmic proofs.
+\item A priori selection of parameters (I.e. how one makes the choice for $N$)
+\item Extending the idea of a single bandlimited example to bins, which naturally involves justifying the solution as a distribution. An intelligent parametric EQ design, for example, might need to infer how error correlates between bands (bins.)
+\end{itemize}
 
 \subsection{Optimal Coefficient Quantization via Projection Methods}
 
@@ -14,7 +35,7 @@ Consider a function $f(x)$ represented as a polynomial series:
 \begin{equation}
 f(x) = \sum_{n=0}^{N} c_n x^{2n}
 \end{equation}
-where $c_n$ are the series coefficients. In fixed-point hardware implementations, these coefficients must be quantized to dyadic rationals of the form $\tilde{c}_n = a_n/2^{m_n}$, where $a_n \in \mathbb{Z}$ and $m_n$ determines the bit precision allocated to coefficient $n$.
+where $c_n$ are the series coefficients. As discussed, in fixed-point hardware implementations, these coefficients must be quantized to dyadic rationals of the form $\tilde{c}_n = a_n/2^{m_n}$, where $a_n \in \mathbb{Z}$ and $m_n$ determines the bit precision allocated to coefficient $n$.
 
 The quantization error for coefficient $n$ is:
 \begin{equation}
@@ -26,8 +47,9 @@ The total approximation error introduced by coefficient quantization is:
 E(x) = f(x) - \tilde{f}(x) = \sum_{n=0}^{N} \epsilon_n x^{2n}
 \end{equation}
 
-Our objective is to determine the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$ that minimizes the projected error under a total bit budget constraint $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ for a LPF. Framing the problem in terms of an analytically continued series, $R(x)$, exposes a singular metric that packs in both 'phase' and 'bit' quantization error, expressed as a sensitivity matrix. This is effective on the computational front, allowing for a signal to be dually low-passed
-\& re-weighted according to tolerance error. As will be shown, it also a neccessery ingredient for autonomously reducing memory pressure via. a parameterized 'sacrifice on accuracy'.
+Here, our objective is to determine the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$ that minimizes the projected error under a total bit budget constraint $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ for a LPF. Partially as a 'free bonus', but mainly by design, framing the problem in terms of an analytically continued series allows the projector $R(x)$ to expose a singular metric that packs in both 'phase' and 'bit' quantization error. This is effective on the computational front because hardware scheduling needs to reflexively adapt to error statistics in order to make intelligent inferences\cite{}. Finally, $sinc(x)$ is studied specifically for it's ability to be expressed within an orthonormal basis, the resulting hardware solution is then optimum in the sense that savings per atom are extensible to more complex waveforms. The approach is particularly well suited to subtractive synthesis, for example\cite{}.
+
+Ultimately, the approach outlined here has several advantages which can't be  decoupled from any of the other contingent sections.\eqref{}
 
 \subsection{Projection Operator and Error Metric}
 
@@ -506,7 +528,7 @@ x\,\mathcal{H}_S(z)
 \end{lemma}
 
 
-\subsubsection{Introducing coefficient rounding to the projector}
+\section{Extending definition of the projector to accomodate generic $H(\omega)$}
 
 \noindent Although deriving the statement using complex analysis may seem contrived it is motivated by four (4) concrete principles:
 
@@ -516,3 +538,53 @@ x\,\mathcal{H}_S(z)
 \item We may pick the $H(\omega)$ kernel in such a way that error is minimized relative to each term (that is, on a per-term basis) in the power series of $\mathrm{sinc}(z)$ itself. This is of the form $H(\omega) \circ p(z)$.
 \item We may also pick the $H(\omega)$ kernel in such a way that error is minimized relative to the application. This is of the form $H(\omega) \circledast p(z)$
 \end{enumerate}
+
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\odd}{\mathrm{odd}}
+\newcommand{\even}{\mathrm{even}}
+
+\paragraph{Setup.}
+Given a \emph{mask} $S\subset\mathbb{N}_0$ on the even indices, define the 0/1 selector
+\[
+s_n:=\begin{cases}1,& n\in S,\\ 0,& n\notin S,\end{cases}
+\qquad
+K_S(\zeta):=\sum_{n\ge 0} s_n\,\zeta^{2n}.
+\]
+
+\paragraph{Fourier-side representation (masked wave–forming).}
+Assume $f$ admits the Fourier representation
+\[
+f(z)=\frac{1}{2\pi}\int_{\mathbb{R}}\widehat f(\omega)\,e^{i\omega z}\,d\omega,
+\qquad \widehat f\in L^1(\mathbb{R})\cap L^2(\mathbb{R})\ (\text{e.g.\ compactly supported bandlimited}).
+\]
+Then, by termwise integration (Tonelli/Fubini under the stated integrability),
+\[
+\boxed{\quad
+\PP_S[f](z)=\frac{1}{2\pi}\int_{\mathbb{R}}\widehat f(\omega)\,
+\Phi_S\!\big((i\omega z)^2\big)\,d\omega,
+\qquad
+\Phi_S(t):=\sum_{n\ge 0}s_n\,\frac{t^{\,n}}{(2n)!}\quad}
+\]
+i.e.\ the projector replaces each plane wave $e^{i\omega z}$ by the \emph{even masked kernel} $\Phi_S((i\omega z)^2)$.
+
+\paragraph{Example: $\PP_S$ acting on $\operatorname{sinc}_\pi$ and frequency “edge–shaping”.}
+Let $\operatorname{sinc}_\pi(z):=\frac{\sin(\pi z)}{\pi z}$ with Fourier transform
+\[
+\widehat{\operatorname{sinc}_\pi}(\omega)=\mathbf{1}_{[-\pi,\pi]}(\omega)
+\quad\text{(Shannon’s bandlimited model \cite{Shannon1949}).}
+\]
+Applying $\PP_S$ yields
+\[
+\PP_S[\operatorname{sinc}_\pi](z)=\frac{1}{2\pi}\int_{-\pi}^{\pi}\Phi_S\!\big((i\omega z)^2\big)\,d\omega
+=\sum_{n\ge 0} s_n\,\frac{(-1)^n}{(2n+1)!}\,(\pi z)^{2n}.
+\]
+Two masks illustrate “wave–forming” while remaining a projector ($s_n\in\{0,1\}$):
+\begin{itemize}
+\item \emph{Truncation to degree $\le 2N$:} $s_n=\mathbf{1}_{\{0\le n\le N\}}$ reproduces the classical even Taylor projection.
+\item \emph{Edge–shaping mask:} $s_n=1$ for $n\in\{0,M\}$ and $0$ otherwise. Then
+$\Phi_S((i\omega z)^2)=1+(\omega z)^{2M}/(2M)!$, increasing weight near $|\omega|=\pi$ in the band integral; in DSP terms this emphasizes band edges while preserving linear phase (cf.\ window/sidelobe tradeoffs \cite{Harris1978}).
+\end{itemize}
+
+\section{Introducing coefficient quantization kernel to the generalized support kernel}
+
+\section{Constructing an efficient dual bit-allocator/band-limiter in hardware for specific signal families}
