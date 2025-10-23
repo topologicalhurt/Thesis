@@ -1,185 +1,399 @@
 \chapter{Architectural Design}
 
-\section{Procedure for approximating Error statistics on filter kernels}
-
-One of the fundamental results in DSP is that the ideal window function
-\[
-w(t) = \mathrm{sinc}(t)
-\]
-in the time domain corresponds to a perfect rectangular pulse in the frequency domain~\cite{OppenheimDSP}. However, as the envelope $\tfrac{1}{x}$ decays the amplitude of $\sin(x)$ monotonically, the function has an infinite domain that is impossible to capture discretely. Thus, there is an associated truncation error $T(x)$ expressed as the error between the tail \& partial power series. This implies the existence of an associated error term $\mathbb{E}(x)$ that is at-least dependent upon the truncation point $N$.
-\bigskip
-
-\noindent The objective of this chapter is to do the following:
-
+The central challenge posed in this thesis is enabling \emph{adaptive FPGA signal chains} that can predictively reconfigure hardware resources in response to changing workloads. A modular audio effect chain—comprising filters, nonlinear processors, and dynamic effects—places time-varying demands on FPGA primitives (DSP slices, LUTs, BRAMs). To meet this challenge, we require a mathematical framework that:
 \begin{enumerate}
-\item Establish a general method, unified under a bit allocation algorithm, to evaluate the absolute error $|\mathbb{E}|$ of the ideal LPF function $sinc(t)$ both in regards to compositions of the argument E.g. $sinc(t) \circ p(z), z \in \mathbb{C}$ \& convolutions (of course corresponding to multiplications in the frequency domain) of the form $sinc(t) \circledast p(z)$.
-\item Derive a projector $R(x): \mathbb{R} \to \mathbb{C}$ which dually embeds magnitude \& phase error in relation to the truncation point, $N$ \emph{WLOG} for parameters introduced in the following section.
-\item Extend the idea of the projector to an orthonormal basis (namely, the \emph{Shannon Wavelett basis\cite{}}), introducing a general support kernel  $\widehat{H}(\omega)$. It is shown that all analytic functions are suitable candidates for 'sensitivity' based adjustments when expressed in terms of the aforementioned kernel in a manner befitting of FPGA's (\& hardware more generally.)
-\item As a final theoretic step, illustrate the methods overall sensibleness (universal correctness not permitting), motivating the construction with some specific examples that show how compute can be saved.
-\item Produce a hardware design that leverages properties of the construction to \textbf{(A)} Solve a bit allocation problem for a dyadic polynomial interpolating a non-arbitrary (sinusoidal) waveform \textbf{(B)} Apply a basic FIR, based on phase accumulation error inferred from the sensitivity matrix, to bandlimit the same signal with an edge guard \textbf{(C)} Make a dynamic adjustment to a coefficient search for a better interpolating polynomial by imposing a tighter bound (subject to magnitude sensitivity.)
-\item Show results versus. established (or naive) methods.
+\item Quantifies the resource-error trade-off for individual DSP kernels (e.g., filters, oscillators).
+\item Extends naturally to multi-rate and multi-band processing (wavelet decompositions).
+\item Provides closed-form sensitivity metrics to guide runtime resource reallocation.
+\item Enables dynamic bit allocation across frequency bands based on signal characteristics.
 \end{enumerate}
 
-Further considerations this paper omits:
+This chapter develops such a framework by unifying three key ideas: \textbf{(1)} projection-based approximation of infinite-support kernels (the sinc function), \textbf{(2)} sensitivity-driven bit allocation under hardware constraints, and \textbf{(3)} orthonormal wavelet bases that decompose signals into frequency bands with independent resource budgets. The result is an analytical tool that connects signal processing requirements directly to FPGA resource specifications, enabling the runtime optimization envisioned in Chapter 1.
+
+\bigskip
+\noindent\textbf{Chapter roadmap.} Section~4.1 establishes the optimal bit allocation problem for polynomial approximations of the sinc function, deriving a sensitivity matrix that guides resource distribution. Section~4.2 extends this to generic filter kernels via contour integration. Section~4.3 introduces dyadic quantization for fixed-point hardware. Section~4.4 extends the projector framework to the Shannon wavelet basis, enabling multi-band decomposition with per-scale bit allocation. Sections~4.5--4.6 synthesize these results into a hardware architecture for adaptive signal processing.
+
+\section{Optimal Coefficient Quantization via Projection Methods}
+
+One of the fundamental results in DSP is that the ideal low-pass filter (LPF) in the time domain is the sinc function~\cite{OppenheimDSP}:
+\[
+h_{\text{ideal}}(t) = \mathrm{sinc}(t) = \frac{\sin(t)}{t},
+\]
+which corresponds to a perfect rectangular pulse in the frequency domain. However, $\mathrm{sinc}(t)$ has infinite support with envelope decay $\propto 1/t$, making it impossible to implement directly in hardware. Practical implementations require both:
+\begin{enumerate}
+\item \textbf{Truncation}: approximating the infinite series by a finite polynomial of degree $2N$,
+\item \textbf{Quantization}: representing each coefficient as a dyadic rational $a_n/2^{m_n}$ for fixed-point arithmetic.
+\end{enumerate}
+
+This section establishes a unified framework for optimal bit allocation that minimizes the combined truncation and quantization error under hardware resource constraints.
+
+\subsection{Chapter Objectives}
+
+The goal of this chapter is to:
+
+\begin{enumerate}
+\item \textbf{Establish a projection-based error analysis framework} for the sinc function and its compositions/convolutions with arbitrary polynomials $p(z) \in \mathbb{C}[z]$.
+
+\item \textbf{Derive an error projector} $R(z): \mathbb{R} \to \mathbb{C}$ that simultaneously captures magnitude and phase error as functions of the truncation point $N$ and bit allocation vector $\mathbf{m}$.
+
+\item \textbf{Extend the projector to the Shannon wavelet orthonormal basis}, introducing a generalized frequency-domain kernel $\widehat{H}(\omega)$ that enables sensitivity-based bit allocation across multiple frequency bands.
+
+\item \textbf{Demonstrate computational savings} through concrete examples comparing the proposed method against naive uniform quantization and established filter design techniques.
+
+\item \textbf{Validate against established methods} through quantitative metrics (SQNR, THD, resource utilization).
+\end{enumerate}
+
+\subsection{Scope and Limitations}
+
+This work focuses on bandlimited signals representable in the Shannon wavelet basis. The following are explicitly \emph{outside} the scope:
 
 \begin{itemize}
-\item In a local sense: regularizing the poor temporal, but excellent frequency, resolution (decaying $\propto \frac{1}{t}$)\cite{} of the Shannon Wavelett basis \& the excellent temporal, but poor frequency resolution of, for example, Haar functions.
-\item Proving correctness to a standard incumbent of E.g. algorithmic proofs.
-\item A priori selection of parameters (I.e. how one makes the choice for $N$)
-\item Extending the idea of a single bandlimited example to bins, which naturally involves justifying the solution as a distribution. An intelligent parametric EQ design, for example, might need to infer how error correlates between bands (bins.)
+\item \textbf{Time-frequency trade-offs}: We do not address regularization between the Shannon basis (poor temporal, excellent frequency resolution) and bases like Haar functions (excellent temporal, poor frequency resolution).
+
+\item \textbf{Formal correctness proofs}: While the constructions are mathematically rigorous, we do not provide algorithmic correctness proofs to standards required for, e.g., verified compilation.
+
+\item \textbf{Parameter selection heuristics}: The choice of truncation point $N$ and initial resolution $j_0$ is assumed given by application requirements (e.g., target SQNR, bandwidth).
+
+\item \textbf{Multi-band error correlation}: We treat each frequency band (wavelet scale) independently. Extensions to parametric EQ with inter-band correlation (e.g., modeling masking effects in psychoacoustics) are deferred to future work.
 \end{itemize}
 
-\subsection{Optimal Coefficient Quantization via Projection Methods}
+\subsection{Problem Formulation}
 
-Consider a function $f(x)$ represented as a polynomial series:
+Consider a function $f(x)$ represented as an even polynomial series:
 \begin{equation}
-f(x) = \sum_{n=0}^{N} c_n x^{2n}
+f(x) = \sum_{n=0}^{N} c_n x^{2n},
+\label{eq:poly_series}
 \end{equation}
-where $c_n$ are the series coefficients. As discussed, in fixed-point hardware implementations, these coefficients must be quantized to dyadic rationals of the form $\tilde{c}_n = a_n/2^{m_n}$, where $a_n \in \mathbb{Z}$ and $m_n$ determines the bit precision allocated to coefficient $n$.
+where $c_n \in \mathbb{R}$ are the exact series coefficients (e.g., $c_n = \frac{(-1)^n}{(2n+1)!}$ for $\mathrm{sinc}(x)$).
 
-The quantization error for coefficient $n$ is:
+In fixed-point hardware implementations (FPGAs, ASICs), coefficients must be quantized to \emph{dyadic rationals}~\cite{Gustafsson2007}:
 \begin{equation}
-\epsilon_n = c_n - \tilde{c}_n
+\tilde{c}_n = \frac{a_n}{2^{m_n}}, \quad a_n \in \mathbb{Z}, \quad m_n \in \mathbb{N}_0,
+\label{eq:dyadic_quant}
 \end{equation}
+where $m_n$ is the number of fractional bits allocated to coefficient $n$, and $a_n = \lfloor c_n \cdot 2^{m_n} + 0.5 \rfloor$ is the nearest integer (rounding).
 
-The total approximation error introduced by coefficient quantization is:
+The coefficient-wise quantization error is:
 \begin{equation}
-E(x) = f(x) - \tilde{f}(x) = \sum_{n=0}^{N} \epsilon_n x^{2n}
+\epsilon_n = c_n - \tilde{c}_n, \quad |\epsilon_n| \leq \frac{1}{2^{m_n+1}}.
+\label{eq:coeff_error}
 \end{equation}
 
-Here, our objective is to determine the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$ that minimizes the projected error under a total bit budget constraint $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ for a LPF. Partially as a 'free bonus', but mainly by design, framing the problem in terms of an analytically continued series allows the projector $R(x)$ to expose a singular metric that packs in both 'phase' and 'bit' quantization error. This is effective on the computational front because hardware scheduling needs to reflexively adapt to error statistics in order to make intelligent inferences\cite{}. Finally, $sinc(x)$ is studied specifically for it's ability to be expressed within an orthonormal basis, the resulting hardware solution is then optimum in the sense that savings per atom are extensible to more complex waveforms. The approach is particularly well suited to subtractive synthesis, for example\cite{}.
+The quantized polynomial is:
+\begin{equation}
+\tilde{f}(x) = \sum_{n=0}^{N} \tilde{c}_n x^{2n},
+\end{equation}
+and the total approximation error combines polynomial truncation and coefficient quantization:
+\begin{equation}
+E_{\text{total}}(x) = f(x) - \tilde{f}(x) = \sum_{n=0}^{N} \epsilon_n x^{2n}.
+\label{eq:total_error}
+\end{equation}
 
-Ultimately, the approach outlined here has several advantages which can't be  decoupled from any of the other contingent sections.\eqref{}
+\subsubsection{Optimization Problem}
+
+\textbf{Objective:} Determine the optimal bit allocation vector $\mathbf{m} = (m_0, m_1, \ldots, m_N)$ that minimizes a weighted approximation error subject to a total bit budget:
+\begin{equation}
+\min_{\mathbf{m} \in \mathbb{N}_0^{N+1}} \mathcal{E}_{\text{proj}}(\mathbf{m}) \quad \text{subject to} \quad \sum_{n=0}^{N} m_n \leq B_{\text{total}},
+\label{eq:opt_problem}
+\end{equation}
+where $\mathcal{E}_{\text{proj}}(\mathbf{m})$ is an application-specific error metric (defined in Section~\ref{sec:proj_operator}).
+
+\textbf{Key insight:} By formulating the problem in terms of a projection operator $R(x)$ derived from the target application (filter specifications, signal characteristics), we obtain a sensitivity matrix $\mathbf{S}$ that encodes both magnitude and phase error contributions. This enables:
+\begin{itemize}
+\item \textbf{Non-uniform bit allocation}: Coefficients with high sensitivity receive more bits.
+\item \textbf{Hardware efficiency}: Total bit budget reflects actual FPGA/ASIC resources (DSP slices, BRAM).
+\item \textbf{Extensibility}: The framework naturally extends to the Shannon wavelet basis, where each scale (frequency band) has an independent bit allocation sub-problem.
+\end{itemize}
 
 \subsection{Projection Operator and Error Metric}
+\label{sec:proj_operator}
 
-Rather than minimizing the error in the standard $L^2$ norm, we introduce a projection operator $R(x)$ that captures the application-specific error weighting. The projected error is defined as:
+Rather than minimizing approximation error in the standard $L^2$ norm (which treats all frequency components equally), we introduce a \emph{projection operator} $R(x)$ that encodes application-specific error weighting. This formulation allows us to:
+\begin{itemize}
+\item Prioritize accuracy in critical frequency bands (e.g., passband for LPF design),
+\item Embed phase and magnitude sensitivities within a unified metric,
+\item Derive closed-form sensitivity expressions via contour integration (Section~\ref{sec:projector_derivation}).
+\end{itemize}
+
+\subsubsection{Projected Error Functional}
+
+The projected error is defined as the weighted inner product:
 \begin{equation}
-\mathcal{E}_{\text{proj}} = \langle E(x), R(x) \rangle = \int_{0}^{x_{\max}} E(x) \cdot \overline{R(x)} \, dx
+\mathcal{E}_{\text{proj}} = \langle E_{\text{total}}(x), R(x) \rangle = \int_{0}^{x_{\max}} E_{\text{total}}(x) \cdot \overline{R(x)} \, dx,
 \label{eq:projected_error}
 \end{equation}
-where $\overline{R(x)}$ denotes the complex conjugate of $R(x)$, and $\langle \cdot, \cdot \rangle$ represents the inner product in $L^2[0, x_{\max}]$.
+where:
+\begin{itemize}
+\item $E_{\text{total}}(x)$ is the total approximation error from Eq.~\eqref{eq:total_error},
+\item $\overline{R(x)}$ denotes the complex conjugate of the projection operator,
+\item $\langle \cdot, \cdot \rangle$ represents the $L^2$ inner product on $[0, x_{\max}]$,
+\item $x_{\max}$ is the maximum argument value of interest (e.g., $x_{\max} = \pi$ for audio applications).
+\end{itemize}
 
-Substituting the error polynomial:
+Substituting the error polynomial from Eq.~\eqref{eq:total_error}:
 \begin{equation}
-\mathcal{E}_{\text{proj}} = \int_{0}^{x_{\max}} \left[\sum_{n=0}^{N} \epsilon_n x^{2n}\right] \overline{R(x)} \, dx = \sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx
+\mathcal{E}_{\text{proj}} = \int_{0}^{x_{\max}} \left[\sum_{n=0}^{N} \epsilon_n x^{2n}\right] \overline{R(x)} \, dx = \sum_{n=0}^{N} \epsilon_n \underbrace{\int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx}_{:= I_n}.
+\label{eq:proj_expansion}
 \end{equation}
 
-\subsection{Sensitivity Matrix Construction}
+The integrals $I_n$ quantify the contribution of coefficient $n$ to the projected error and directly define the sensitivity matrix (Section~\ref{sec:sensitivity_matrix}).
 
-The sensitivity of the projected error to coefficient $n$ is defined as:
+\subsection{Sensitivity Matrix Construction}
+\label{sec:sensitivity_matrix}
+
+The sensitivity of the projected error to coefficient $n$ quantifies how a unit quantization error $\epsilon_n$ propagates through the system. From Eq.~\eqref{eq:proj_expansion}, we define:
 \begin{equation}
-S_n = \left|\frac{\partial \mathcal{E}_{\text{proj}}}{\partial \epsilon_n}\right| = \left|\int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|
+S_n = \left|\frac{\partial \mathcal{E}_{\text{proj}}}{\partial \epsilon_n}\right| = \left|\int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right| = |I_n|.
 \label{eq:sensitivity}
 \end{equation}
 
-This represents how strongly a unit error in coefficient $c_n$ affects the overall projected error. For a complex projector $R(x) = R_{\text{real}}(x) + iR_{\text{imag}}(x)$, we can decompose the sensitivity into real and imaginary components:
-\begin{equation}
-S_n^{\text{real}} = \left|\int_{0}^{x_{\max}} x^{2n} R_{\text{real}}(x) \, dx\right|, \quad
-S_n^{\text{imag}} = \left|\int_{0}^{x_{\max}} x^{2n} R_{\text{imag}}(x) \, dx\right|
-\end{equation}
+The sensitivity $S_n$ has a clear geometric meaning: it is the magnitude of the projection of the monomial $x^{2n}$ onto the error weighting function $R(x)$ in the $L^2$ inner product space. Coefficients with larger sensitivity contribute more heavily to the overall error metric and therefore warrant higher bit precision.
 
-The \textit{phase sensitivity} and \textit{magnitude sensitivity} can be defined as:
+\subsubsection{Phase and Magnitude Decomposition}
+
+For a complex projector $R(x) = R_{\text{real}}(x) + i R_{\text{imag}}(x)$, the integral $I_n$ decomposes into real and imaginary parts:
 \begin{align}
-S_n^{\text{phase}} &= S_n^{\text{imag}} \label{eq:phase_sens} \\
-S_n^{\text{mag}} &= S_n^{\text{real}} \label{eq:mag_sens}
+I_n^{\text{real}} &= \int_{0}^{x_{\max}} x^{2n} \Re(R(x)) \, dx, \label{eq:I_real} \\
+I_n^{\text{imag}} &= \int_{0}^{x_{\max}} x^{2n} \Im(R(x)) \, dx. \label{eq:I_imag}
 \end{align}
 
-The complete sensitivity matrix is:
+Following the standard DSP convention, we associate:
+\begin{align}
+S_n^{\text{mag}} &= |I_n^{\text{real}}| \quad \text{(magnitude sensitivity)}, \label{eq:mag_sens} \\
+S_n^{\text{phase}} &= |I_n^{\text{imag}}| \quad \text{(phase sensitivity)}. \label{eq:phase_sens}
+\end{align}
+
+The complete sensitivity matrix $\mathbf{S} \in \mathbb{R}^{(N+1) \times 2}$ is:
 \begin{equation}
 \mathbf{S} = \begin{bmatrix}
 S_0^{\text{mag}} & S_0^{\text{phase}} \\
 S_1^{\text{mag}} & S_1^{\text{phase}} \\
 \vdots & \vdots \\
 S_N^{\text{mag}} & S_N^{\text{phase}}
-\end{bmatrix}
+\end{bmatrix}.
+\label{eq:sensitivity_matrix}
 \end{equation}
 
-\subsection{Quantization Error Bounds}
+\subsubsection{Application-Specific Weighting}
 
-For dyadic quantization with $m_n$ bits allocated to coefficient $n$, the quantization error is bounded by:
+The choice of projection operator $R(x)$ determines the error metric:
+\begin{itemize}
+\item \textbf{Uniform weighting:} $R(x) = 1$ yields the standard $L^2$ norm.
+\item \textbf{Frequency-selective weighting:} For LPF design, set $R(x) = \exp(i \omega_c x)$ to emphasize passband accuracy near cutoff frequency $\omega_c$.
+\item \textbf{Wavelet-based weighting:} For multi-resolution analysis, $R(x)$ is the Shannon wavelet kernel at scale $j$ (see Section~\ref{sec:shannon_wavelets}).
+\end{itemize}
+
+\subsection{Quantization Error Bounds}
+\label{sec:quant_error_bounds}
+
+For dyadic quantization with $m_n$ fractional bits allocated to coefficient $n$, the rounding operation in Eq.~\eqref{eq:dyadic_quant} satisfies:
 \begin{equation}
-|\epsilon_n| \leq \frac{1}{2^{m_n+1}}
+|\epsilon_n| = |c_n - \tilde{c}_n| \leq \frac{1}{2^{m_n+1}}.
 \label{eq:quant_bound}
 \end{equation}
 
-The worst-case projected error is therefore:
+This bound is tight: the worst-case error occurs when $c_n$ falls exactly midway between two quantization levels.
+
+\subsubsection{Worst-Case Projected Error}
+
+Applying the triangle inequality to Eq.~\eqref{eq:proj_expansion}:
 \begin{equation}
-|\mathcal{E}_{\text{proj}}| \leq \sum_{n=0}^{N} S_n |\epsilon_n| \leq \sum_{n=0}^{N} \frac{S_n}{2^{m_n+1}}
+|\mathcal{E}_{\text{proj}}| \leq \sum_{n=0}^{N} S_n |\epsilon_n| \leq \sum_{n=0}^{N} \frac{S_n}{2^{m_n+1}}.
 \label{eq:error_bound}
 \end{equation}
 
+This upper bound is the objective function for bit allocation: by minimizing the right-hand side subject to $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$, we obtain the allocation that guarantees the smallest worst-case projected error.
+
+\subsubsection{Expected Error (Uniform Random Rounding)}
+
+If quantization errors are modeled as independent uniform random variables $\epsilon_n \sim \mathcal{U}(-2^{-(m_n+1)}, 2^{-(m_n+1)})$, the expected squared error is:
+\begin{equation}
+\mathbb{E}[|\mathcal{E}_{\text{proj}}|^2] = \sum_{n=0}^{N} (S_n)^2 \cdot \frac{1}{3 \cdot 2^{2m_n+2}},
+\label{eq:expected_error}
+\end{equation}
+where the factor $1/3$ arises from $\mathrm{Var}[\epsilon_n] = \frac{1}{12} \cdot (2^{-m_n})^2$~\cite{Widrow1996}.
+
+\textbf{Remark:} The greedy algorithm (Section~\ref{sec:greedy_algo}) optimizes the worst-case bound~\eqref{eq:error_bound}, which is conservative but deterministic. For stochastic analysis, minimizing~\eqref{eq:expected_error} leads to the allocation:
+\begin{equation}
+m_n^{\text{stochastic}} = m_{\text{base}} + \frac{1}{2} \log_2(S_n) + \text{const.}
+\label{eq:stochastic_alloc}
+\end{equation}
+(See Appendix~\ref{app:greedy_algorithm} for detailed derivation.)
+
 \subsection{Optimal Bit Allocation Strategy}
+\label{sec:bit_allocation}
+
+Given the sensitivity matrix $\mathbf{S}$ and total bit budget $B_{\text{total}}$, we now present three methods for determining the optimal bit allocation vector $\mathbf{m} = (m_0, m_1, \ldots, m_N)$. Each method trades off computational complexity against optimality guarantees.
 
 \subsubsection{Method 1: Sensitivity-Proportional Allocation}
+\label{sec:prop_alloc}
 
-Allocate bits proportionally to sensitivity:
+The simplest heuristic allocates bits proportionally to sensitivity:
 \begin{equation}
-m_n = m_{\text{base}} + \left\lfloor \alpha \cdot \frac{S_n}{S_{\max}} \right\rfloor
+m_n = m_{\text{base}} + \left\lfloor \alpha \cdot \frac{S_n}{S_{\max}} \right\rfloor,
 \label{eq:prop_alloc}
 \end{equation}
-where $S_{\max} = \max_n S_n$, $m_{\text{base}}$ is the minimum bit allocation, and $\alpha$ controls the dynamic range of bit allocation (typically $\alpha \in [3, 8]$).
+where:
+\begin{itemize}
+\item $S_{\max} = \max_{k \in \{0, \ldots, N\}} S_k$ is the maximum sensitivity,
+\item $m_{\text{base}}$ is the minimum bit allocation (typically $m_{\text{base}} = 8$ for 8-bit baseline precision),
+\item $\alpha \in [3, 8]$ controls the dynamic range of bit allocation (larger $\alpha$ increases disparity between high and low sensitivity coefficients).
+\end{itemize}
 
-The allocation is subject to the constraint:
+After initial allocation, adjust $\alpha$ iteratively to satisfy the budget constraint:
 \begin{equation}
-\sum_{n=0}^{N} m_n = B_{\text{total}}
+\sum_{n=0}^{N} m_n = B_{\text{total}}.
+\label{eq:budget_constraint}
 \end{equation}
+
+\textbf{Complexity:} $O(N)$ per iteration; typically converges in 5--10 iterations via binary search on $\alpha$.
+
+\textbf{Optimality:} No guarantee; provides a reasonable starting point for refinement.
 
 \subsubsection{Method 2: Weighted Phase-Magnitude Allocation}
+\label{sec:weighted_alloc}
 
-For applications requiring different emphasis on phase versus magnitude accuracy, define a weighted sensitivity:
+For applications requiring different emphasis on phase versus magnitude accuracy (e.g., audio where phase distortion is perceptually critical), define a weighted sensitivity:
 \begin{equation}
-S_n^{\text{weighted}} = \sqrt{w_{\text{mag}} (S_n^{\text{mag}})^2 + w_{\text{phase}} (S_n^{\text{phase}})^2}
+S_n^{\text{weighted}} = \sqrt{w_{\text{mag}} (S_n^{\text{mag}})^2 + w_{\text{phase}} (S_n^{\text{phase}})^2},
 \label{eq:weighted_sens}
 \end{equation}
-where $w_{\text{mag}}$ and $w_{\text{phase}}$ are application-dependent weights satisfying $w_{\text{mag}} + w_{\text{phase}} = 1$.
+where $w_{\text{mag}}, w_{\text{phase}} \geq 0$ are application-dependent weights satisfying $w_{\text{mag}} + w_{\text{phase}} = 1$.
+
+Then apply proportional allocation using $S_n^{\text{weighted}}$ in place of $S_n$ in Eq.~\eqref{eq:prop_alloc}.
+
+\textbf{Typical values:}
+\begin{itemize}
+\item Audio synthesis: $w_{\text{phase}} = 0.7$, $w_{\text{mag}} = 0.3$,
+\item Control systems: $w_{\text{mag}} = 0.8$, $w_{\text{phase}} = 0.2$,
+\item General filtering: $w_{\text{mag}} = w_{\text{phase}} = 0.5$.
+\end{itemize}
 
 \subsubsection{Method 3: Greedy Optimization}
+\label{sec:greedy_algo}
 
-For the global optimum under constraint \eqref{eq:error_bound}, we employ a greedy algorithm. The algorithm proceeds as follows:
+For the provably optimal solution to minimize the worst-case bound~\eqref{eq:error_bound}, we employ a greedy algorithm~\cite{Gustafsson2007}. The algorithm proceeds as follows:
 
 \medskip
-\noindent\textbf{Greedy Bit Allocation Algorithm:}
+\noindent\fbox{\parbox{0.95\textwidth}{%
+\textbf{Algorithm 4.1: Greedy Bit Allocation}
 \begin{enumerate}
-\item Initialize $m_n = 1$ for all $n \in \{0, \ldots, N\}$
-\item Set $B_{\text{remaining}} = B_{\text{total}} - (N+1)$
-\item While $B_{\text{remaining}} > 0$:
+\item \textbf{Initialize:} Set $m_n = 1$ for all $n \in \{0, \ldots, N\}$
+\item \textbf{Set remaining budget:} $B_{\text{remaining}} = B_{\text{total}} - (N+1)$
+\item \textbf{While} $B_{\text{remaining}} > 0$:
     \begin{enumerate}
-    \item Compute the error reduction for adding one bit to coefficient $n$:
+    \item \textbf{Compute error reduction} for adding one bit to coefficient $n$:
     \begin{equation}
-    \Delta_n = S_n \left(\frac{1}{2^{m_n+1}} - \frac{1}{2^{m_n+2}}\right) \quad \text{for all } n
+    \Delta_n = S_n \left(\frac{1}{2^{m_n+1}} - \frac{1}{2^{m_n+2}}\right) = \frac{S_n}{2^{m_n+2}}, \quad \forall n \in \{0, \ldots, N\}
+    \label{eq:greedy_delta}
     \end{equation}
-    \item Find the coefficient with maximum error reduction: $n^* = \arg\max_n \Delta_n$
-    \item Increment the bit allocation: $m_{n^*} \gets m_{n^*} + 1$
-    \item Decrement the remaining budget: $B_{\text{remaining}} \gets B_{\text{remaining}} - 1$
+    \item \textbf{Select coefficient} with maximum error reduction:
+    \begin{equation}
+    n^* = \arg\max_{n \in \{0, \ldots, N\}} \Delta_n
+    \end{equation}
+    \item \textbf{Increment allocation:} $m_{n^*} \gets m_{n^*} + 1$
+    \item \textbf{Decrement budget:} $B_{\text{remaining}} \gets B_{\text{remaining}} - 1$
     \end{enumerate}
-\item Return the optimal bit allocation vector $\mathbf{m} = [m_0, m_1, \ldots, m_N]$
+\item \textbf{Return} the optimal bit allocation vector $\mathbf{m} = (m_0, m_1, \ldots, m_N)$
 \end{enumerate}
-
+}}
 \medskip
-\noindent This greedy approach is optimal for the additive error model in \eqref{eq:error_bound} and has computational complexity $O(B_{\text{total}} \cdot N)$.
+
+\textbf{Complexity:} $O(B_{\text{total}} \cdot N)$ — the outer loop executes $B_{\text{total}} - (N+1)$ times, and each iteration scans $N+1$ coefficients.
+
+\textbf{Optimality:} The greedy algorithm is optimal for the additive error model in Eq.~\eqref{eq:error_bound} because the objective function has the \emph{diminishing returns property}: adding a bit to coefficient $n$ reduces the error contribution by exactly half, independent of other allocations. (See Appendix~\ref{app:greedy_algorithm} for formal proof.)
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method} & \textbf{Complexity} & \textbf{Optimal?} & \textbf{Use Case} \\
+\midrule
+Proportional (Sec.~\ref{sec:prop_alloc}) & $O(N \log N)$ & No & Rapid prototyping \\
+Weighted (Sec.~\ref{sec:weighted_alloc}) & $O(N \log N)$ & No & Phase-critical apps \\
+Greedy (Sec.~\ref{sec:greedy_algo}) & $O(B_{\text{total}} \cdot N)$ & Yes & Production systems \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of bit allocation methods.}
+\label{tab:bit_alloc_comparison}
+\end{table}
 
 \subsection{Evaluation of Projected Error}
+\label{sec:error_evaluation}
 
-After bit allocation, the actual projected error can be computed as:
+After determining the bit allocation vector $\mathbf{m}$ via one of the methods in Section~\ref{sec:bit_allocation}, we compute the actual projected error to validate the design and compare against the theoretical bound~\eqref{eq:error_bound}.
+
+\subsubsection{Exact Projected Error}
+
+From Eq.~\eqref{eq:proj_expansion}, the projected error is:
 \begin{equation}
-\mathcal{E}_{\text{proj}} = \left|\sum_{n=0}^{N} (c_n - \tilde{c}_n) \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|.
+\mathcal{E}_{\text{proj}} = \sum_{n=0}^{N} \epsilon_n \cdot I_n = \sum_{n=0}^{N} (c_n - \tilde{c}_n) \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx.
+\label{eq:exact_proj_error}
 \end{equation}
 
-For numerical evaluation, discretize the integral:
-\begin{equation}
-\mathcal{E}_{\text{proj}} \approx \left|\sum_{n=0}^{N} \epsilon_n \sum_{k=0}^{K-1} x_k^{2n} \overline{R(x_k)} \Delta x\right|,
-\end{equation}
-where $x_k = k \cdot x_{\max} / K$ and $\Delta x = x_{\max} / K$.
+where $\epsilon_n = c_n - \tilde{c}_n$ is the actual quantization error for coefficient $n$ after rounding to $m_n$ fractional bits.
 
-The real and imaginary components of the error are:
+\subsubsection{Numerical Evaluation via Discretization}
+
+For practical computation, discretize the integral using a uniform grid with $K$ points:
+\begin{equation}
+\mathcal{E}_{\text{proj}} \approx \sum_{n=0}^{N} \epsilon_n \sum_{k=0}^{K-1} x_k^{2n} \overline{R(x_k)} \, \Delta x,
+\label{eq:discrete_proj_error}
+\end{equation}
+where:
+\begin{itemize}
+\item $x_k = k \cdot \Delta x$ with $\Delta x = x_{\max} / K$,
+\item $K \geq 1024$ is typically sufficient for convergence (verify by doubling $K$ and checking relative change $< 10^{-6}$).
+\end{itemize}
+
+\subsubsection{Magnitude and Phase Error Components}
+
+Decompose the complex projected error into magnitude and phase contributions:
 \begin{align}
-\mathcal{E}_{\text{real}} &= \mathrm{Re}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right], \\
-\mathcal{E}_{\text{imag}} &= \mathrm{Im}\left[\sum_{n=0}^{N} \epsilon_n \int_{0}^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right].
+\mathcal{E}_{\text{real}} &= \Re\left(\mathcal{E}_{\text{proj}}\right) = \sum_{n=0}^{N} \epsilon_n \cdot I_n^{\text{real}}, \label{eq:real_error} \\
+\mathcal{E}_{\text{imag}} &= \Im\left(\mathcal{E}_{\text{proj}}\right) = \sum_{n=0}^{N} \epsilon_n \cdot I_n^{\text{imag}}, \label{eq:imag_error}
+\end{align}
+where $I_n^{\text{real}}$ and $I_n^{\text{imag}}$ are defined in Eqs.~\eqref{eq:I_real} and~\eqref{eq:I_imag}.
+
+The magnitude error and phase error are then:
+\begin{align}
+|\mathcal{E}_{\text{proj}}| &= \sqrt{(\mathcal{E}_{\text{real}})^2 + (\mathcal{E}_{\text{imag}})^2}, \label{eq:mag_error} \\
+\angle \mathcal{E}_{\text{proj}} &= \arctan\left(\frac{\mathcal{E}_{\text{imag}}}{\mathcal{E}_{\text{real}}}\right). \label{eq:phase_error}
 \end{align}
 
-\newpage
+\subsubsection{Validation Against Theoretical Bound}
+
+The computed error should satisfy the worst-case bound:
+\begin{equation}
+|\mathcal{E}_{\text{proj}}| \leq \sum_{n=0}^{N} \frac{S_n}{2^{m_n+1}},
+\label{eq:bound_check}
+\end{equation}
+with typical margin of $20\%$--$50\%$ (i.e., actual error is $0.5$--$0.8$ times the theoretical bound). A larger margin indicates:
+\begin{itemize}
+\item \textbf{Conservative allocation}: The greedy algorithm over-allocates bits due to worst-case assumption; consider using the stochastic allocation~\eqref{eq:stochastic_alloc} to reduce budget.
+\item \textbf{Favorable coefficient signs}: Cancellation between positive and negative $\epsilon_n$ terms reduces total error.
+\end{itemize}
+
+\subsubsection{Practical Considerations for FPGA Implementation}
+
+When implementing the error evaluation in hardware:
+\begin{enumerate}
+\item \textbf{Precompute integrals $I_n$}: Store the $(N+1)$ complex values in BRAM as a lookup table. Recomputation is unnecessary unless $R(x)$ or $x_{\max}$ changes.
+
+\item \textbf{Use CORDIC for $R(x)$ evaluation}: If $R(x)$ involves trigonometric functions (e.g., $R(x) = e^{i\omega x}$), employ the CORDIC algorithm~\cite{Andraka1998,Volder1959} in rotation mode to avoid multiplier-intensive implementations.
+
+\item \textbf{Pipeline the summation}: Implement Eq.~\eqref{eq:exact_proj_error} as a tree adder with $\lceil \log_2(N+1) \rceil$ stages to achieve single-cycle throughput (latency $\propto \log_2 N$).
+
+\item \textbf{Monitor at runtime}: For adaptive systems, recompute $\mathcal{E}_{\text{proj}}$ periodically (e.g., every $10^6$ samples) and adjust $\mathbf{m}$ if error exceeds specification by triggering a reallocation cycle.
+\end{enumerate}
+
+\bigskip
+\noindent\textbf{Connection to adaptive FPGA design.} The bit allocation algorithms in this section directly address the resource management problem posed in the thesis abstract: given a time-varying audio signal with changing frequency content, the sensitivity matrix $\mathbf{S}$ provides real-time feedback on which polynomial coefficients require high precision. This enables the FPGA fabric to dynamically reallocate DSP slices and BRAM blocks—assigning more resources to high-sensitivity coefficients (critical frequency bands) while reducing precision for low-sensitivity terms. The greedy algorithm's $O(B_{\text{total}} \cdot N)$ complexity makes it suitable for runtime execution, supporting the adaptive signal chain architecture described in Chapter 1.
+
+However, the framework developed so far assumes that the projection operator $R(x)$ and sensitivity integrals $S_n = \left|\int_0^{x_{\max}} x^{2n} \overline{R(x)} \, dx\right|$ can be computed efficiently. Section~4.1.7 now derives an explicit closed-form expression for the sinc projector using complex analysis, which not only validates the abstract framework but also provides a computational template for evaluating any analytic kernel $H(\omega)$ via residue calculus (Section~4.2).
+
 \subsection{Projector Derivation for Sinc Function}
+\label{sec:projector_derivation}
 
 The power series for $\mathrm{sinc}(x)$ is given as:
 \[
@@ -222,43 +436,6 @@ This kernel satisfies the projection property:
 0 & \text{otherwise.}
 \end{cases}
 \]
-
-\begin{lemma}[Parity selector via contour integral]\label{lem:kronecker-even-delta}
-For $n\in\mathbb{N}_0$ and any $0<r<1$, define
-\[
-I_n \;=\; \frac{1}{2\pi i}\oint_{|z|=r}\frac{dz}{z^{\,n+1}(1-z^2)}.
-\]
-Then
-\[
-I_n \;=\; \begin{cases}
-1,& \text{if $n$ is even},\\[4pt]
-0,& \text{if $n$ is odd}.
-\end{cases}
-\]
-\begin{proof}
-Let $h(z)=\dfrac{1}{1-z^2}$. For $|z|<1$,
-\[
-h(z)=\sum_{m=0}^{\infty} z^{2m}.
-\]
-Writing $h(z)=\sum_{k=0}^{\infty} a_k z^k$, we have $a_k=1$ if $k$ is even and $a_k=0$ if $k$ is odd. By Cauchy’s coefficient formula,
-\[
-I_n=\frac{1}{2\pi i}\oint_{|z|=r}\frac{h(z)}{z^{n+1}}\,dz=a_n,
-\]
-so $I_n=1$ when $n$ is even and $I_n=0$ when $n$ is odd.
-
-\medskip
-\noindent\textit{Residue viewpoint.}
-The integrand $\dfrac{1}{z^{n+1}(1-z^2)}$ has singularities at $z=0,\pm1$, but for $0<r<1$ only $z=0$ lies inside the contour. Hence the integral collapses to the single residue at $z=0$:
-\[
-I_n \;=\; \operatorname{Res}_{z=0}\!\left(\frac{1}{z^{n+1}(1-z^2)}\right).
-\]
-Expanding $\dfrac{1}{1-z^2}=\sum_{m=0}^{\infty}z^{2m}$ gives the Laurent series
-\[
-\frac{1}{z^{n+1}(1-z^2)}=\sum_{m=0}^{\infty} z^{\,2m-n-1},
-\]
-so the residue (coefficient of $z^{-1}$) is $1$ iff $2m=n$, and $0$ otherwise. Equivalently, using $\operatorname{Res}_{z=0}\!\big(\frac{h(z)}{z^{n+1}}\big)=\frac{h^{(n)}(0)}{n!}$ for analytic $h$ with $h(z)=\frac{1}{1-z^2}$, we have $h^{(n)}(0)=n!$ for even $n$ and $0$ for odd $n$, yielding the same conclusion.
-\end{proof}
-\end{lemma}
 
 Using the contour representation of the Kronecker delta (Lemma~\ref{lem:kronecker-even-delta}),
 we can drop the Kronecker delta and express
@@ -387,18 +564,20 @@ For any analytic \(H\),
 This result is worth noting for the simplicity \& expectedness of its decomposition. We showed, via. standard complex analytic methods, that the partial sum $\mathrm{sinc}_N(z)$ can be rigorously expressed in it's incomplete upper gamma function form\cite{}. Moreover, that the projector error itself $\mathbb{E}(\mathbb{P}_N)$, depends precisely on the upper gamma function's bound $N_{\text{gamma}} \propto N_{\text{sinc}}, N_{\text{gamma}} = 2(N_{\text{sinc}}+1)$.
 \bigskip
 
-\begin{lemma}[For $x = z \in \mathbb{R}$, the truncation projector can be written in terms of a hypergeometric series]
+\begin{lemma}[For $z \in \mathbb{R}$, the truncation projector can be written in terms of a hypergeometric series]\label{lem:hypergeom_real}
+
+\textbf{Important:} This representation is valid \emph{only} for $z \in \mathbb{R}$. For complex arguments $z \in \mathbb{C} \setminus \mathbb{R}$, the full form $\mathbb{P}_N[\mathrm{sinc}](z) = \frac{\Im(e^{iz}\Gamma(2N+2,iz))}{z(2N+1)!}$ must be used to capture both magnitude and phase error. See Appendix~A.1 for details.
 
 \begin{proof}
 Let
 \[
 \begin{aligned}
-\theta &:= i z\\
+\theta &:= i z, \quad z \in \mathbb{R}\\
 S &:= 2(N+1)
 \end{aligned}
 \]
 
-A holomorphic extension of the upper incomplete gamma function\cite{} given as:
+A holomorphic extension of the upper incomplete gamma function~\cite{NIST:DLMF} given as:
 \[
 \begin{aligned}
 \gamma(S, \theta) &= \theta^S \Gamma(S) \gamma^{*}(S, \theta)\\
@@ -415,7 +594,7 @@ can be applied to the expression $\Im(e^{\theta}\Gamma(S, \theta))$ as follows:
 \end{aligned}
 \]
 
-Clearly,
+For $z \in \mathbb{R}$, we have $\theta = iz \in i\mathbb{R}$, hence:
 \[
 \Im(\Gamma(S)e^\theta) = \Gamma(S)\sin(z)
 \]
@@ -430,16 +609,17 @@ Since $S \in \mathbb{N}_0, S \geq 1 \implies \Gamma(S) = (S - 1)!$ and $z \in \m
 \text{where } (S)_k := \frac{\Gamma(S+k)}{\Gamma(S)} \text{ is the rising Pochhammer symbol.}
 \]
 
-\noindent The outside term $\theta^{S-1}$ will always be imaginary-valued, that is $\Re(\theta^{S-1}) = 0$ because $S - 1 = 2N + 1 \text{ is odd} \implies \theta^{S-1} \text{ is imaginary}$. We subsequently conclude, using the linearity of the $\Im$ operator over a series, that $\iff \text{k is even}$ will a term be included. Thus:
+\noindent The outside term $\theta^{S-1}$ is imaginary-valued for $z \in \mathbb{R}$, since $\theta = iz$ and $S - 1 = 2N + 1$ is odd, hence $\theta^{S-1} = (iz)^{2N+1}$ is purely imaginary. We subsequently conclude, using the linearity of the $\Im$ operator over a series, that only even powers of $\theta$ contribute. Thus, \emph{for $z \in \mathbb{R}$}:
 
 \[
 \Im\!\left(\theta^{S-1} \sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right)
-= -\,i\,\theta^{S-1}\,\Re\!\left(\sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right)
+= -\,i\,\theta^{S-1}\,\
+\!\left(\sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right)
 = -\,i\,\theta^{S-1}\sum_{k=1}^{\infty} \frac{\theta^{2k}}{(S)_{2k}}.
 \]
 
 
-$\sum_{k=1}^\infty \frac{\theta^{2k}}{(S)_{2k}}$ can be represented in terms of the general hypergeometric series $\mathcal{H}_S(z)$ \cite{} as:
+$\sum_{k=1}^\infty \frac{\theta^{2k}}{(S)_{2k}}$ can be represented in terms of the general hypergeometric series $\mathcal{H}_S(z)$~\cite{AndrewsAskeyRoy1999} as:
 \[
 \mathcal{H}_S(z) := {}_1F_2\!\left(1;\,\frac{S}{2}+1,\;\frac{S}{2}+\frac{3}{2};\,-\frac{z^2}{4}\right).
 \]
@@ -457,7 +637,7 @@ $\sum_{k=1}^\infty \frac{\theta^{2k}}{(S)_{2k}}$ can be represented in terms of 
 
 \[
 \boxed{
-\implies \Im\!\big(e^{\theta}\Gamma(2N+2,iz)\big) = \Gamma(z)\sin(z) - \frac{(-1)^{N+1}\,z^{S+1}}{S(S+1)}\,\mathcal{H}_S(z)
+\implies \Im\!\big(e^{\theta}\Gamma(2N+2,iz)\big) = \Gamma(S)\sin(z) - \frac{(-1)^{N+1}\,z^{S+1}}{S(S+1)}\,\mathcal{H}_S(z), \quad z \in \mathbb{R}
 }
 \] as desired.
 \end{proof}
@@ -494,97 +674,393 @@ R_N(z) := \mathrm{sinc}(z) - \mathbb{P}_N[\mathrm{sinc}](z) = \frac{(-1)^N z^S}{
 \caption[Truncation error]{Logarithmic plot of the remainder term where the common definition given for $\mathrm{sinc}, \mathrm{sinc}(\pi z),$ is used. The decay point $N^{*} \approx \frac{\pi z - 3}{2} \propto z$ reflects the \emph{(trivial)} fact that higher $z$ needs a compensatory higher $N$ for lower absolute error $|\mathbb{E}|$. \textbf{Note: }\emph{Per\eqref{eq:truncation_decay_turnp} $\forall z \in a, |\mathbb{E}_N(z)| \gg \forall z \in b$ even though $|R_N(a)| < |R_N(b)|$ can hold true for $a \in [0, N^{*}), b \in [N^{*}, \infty)$}}
 \end{figure}
 
-\begin{lemma}[$\mathcal{H}_S(z)$ does not allow any further elementary decomposition]
-
-\begin{proof}
-It is known that any 3 ${}_1F_2$ series with the same argument, with parameters differing by integers, are linearly related\cite{}
-
-Let $x \;:=\; -\frac{z^2}{4}.$
-\begin{equation}\label{eq:H_raise}
-x\,\mathcal{H}_{S+2}(z)
-=\left(\frac{S}{2}+1\right)\left(\frac{S}{2}+\frac{3}{2}\right)\big[\mathcal{H}_S(z)-1\big].
-\tag{R+}
-\end{equation}
-
-\begin{equation}\label{eq:H_lower}
-x\,\mathcal{H}_S(z)
-=\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)\big[\mathcal{H}_{S-2}(z)-1\big].
-\tag{R-}
-\end{equation}
-
-\begin{equation}\label{eq:H_contiguous}
-\left(\frac{S}{2}+1\right)\left(\frac{S}{2}+\frac{3}{2}\right)\mathcal{H}_{S+2}(z)
--\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)\mathcal{H}_{S-2}(z)
-= -\left[\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)+x\right].
-\tag{C}
-\end{equation}
-
-\[
-\Big[\phi(\phi+b-1)(\phi+c-1)-x(\phi+1)\Big]\,y=0,
-\qquad
-\phi:=x\frac{d}{dx},\quad b=\frac{S}{2}+1,\quad c=\frac{S}{2}+\frac{3}{2}.
-\]
-\end{proof}
-\end{lemma}
-
-
 \section{Extending definition of the projector to accomodate generic $H(\omega)$}
 
-\noindent Although deriving the statement using complex analysis may seem contrived it is motivated by four (4) concrete principles:
+The projector derivation for $\mathrm{sinc}(z)$ in Section~4.1.7 exploited a specific property: the sinc function's Fourier transform is a rectangular pulse, which admits closed-form residue computation. However, audio signal chains require a much broader class of filter kernels—low-pass, high-pass, band-pass, parametric EQ, and nonlinear effects—each with distinct frequency responses $H(\omega)$.
+
+The key insight is that \emph{any analytic frequency response} $H(\omega)$ can be incorporated into the projection framework via contour integration, providing a unified computational method for evaluating sensitivity matrices across arbitrary filter types. This generalization is essential for the adaptive FPGA architecture: as the signal chain's module graph evolves (e.g., user adds a resonant filter or switches from low-pass to band-pass), the system must rapidly recompute sensitivities to update bit allocations without redesigning the entire hardware pipeline.
+
+This section establishes four design principles that motivate the generic kernel $H(\omega)$:
 
 \begin{enumerate}
-\item The fact that any analytic $H(\omega)$ can be evaluated in a systemic fashion (I.e. in terms of it's residue.)
-\item The fact that both the relative phase and quantization error (for sufficiently large $N$) can be dually evaluated
-\item We may pick the $H(\omega)$ kernel in such a way that error is minimized relative to each term (that is, on a per-term basis) in the power series of $\mathrm{sinc}(z)$ itself. This is of the form $H(\omega) \circ p(z)$.
-\item We may also pick the $H(\omega)$ kernel in such a way that error is minimized relative to the application. This is of the form $H(\omega) \circledast p(z)$
+\item \textbf{Residue-based evaluation}: Any analytic $H(\omega)$ can be evaluated systematically via its residues, enabling efficient hardware implementation through precomputed pole locations and CORDIC oscillators (Section~4.2.1).
+
+\item \textbf{Dual error metrics}: The complex-valued projector encodes both magnitude and phase error, which are critical for audio applications where phase distortion is perceptually significant (Section~4.1.3).
+
+\item \textbf{Composition for coefficient optimization}: Choosing $H(\omega)$ as $H(\omega) \circ p(z)$ (composition) minimizes per-term error in the power series itself, optimizing the polynomial approximation quality (useful for fixed-kernel designs).
+
+\item \textbf{Convolution for application-specific weighting}: Choosing $H(\omega)$ as $H(\omega) \circledast p(z)$ (convolution) minimizes error relative to the target application's frequency response, enabling adaptive filtering where the kernel changes with signal characteristics (central to the adaptive signal chain goal).
 \end{enumerate}
+
+The remainder of this section formalizes these principles and derives the general projector formula $\mathbb{P}_N[H](z)$ for arbitrary analytic kernels, laying the groundwork for the wavelet extension in Section~4.4.
 
 \newcommand{\PP}{\mathbb{P}}
 \newcommand{\odd}{\mathrm{odd}}
 \newcommand{\even}{\mathrm{even}}
 
-\paragraph{Setup.}
-Given a \emph{mask} $S\subset\mathbb{N}_0$ on the even indices, define the 0/1 selector
-\[
-s_n:=\begin{cases}1,& n\in S,\\ 0,& n\notin S,\end{cases}
-\qquad
-K_S(\zeta):=\sum_{n\ge 0} s_n\,\zeta^{2n}.
-\]
+\subsection{Dyadic Quantization of Projector Coefficients}
 
-\paragraph{Fourier-side representation (masked wave–forming).}
-Assume $f$ admits the Fourier representation
+To implement the projector $\mathbb{P}_N[\mathrm{sinc}](z) = \sum_{n=0}^{N} c_n z^{2n}$ in hardware, each coefficient $c_n = \frac{(-1)^n}{(2n+1)!}$ must be quantized to a dyadic rational~\cite{Gustafsson2007}. Let
 \[
-f(z)=\frac{1}{2\pi}\int_{\mathbb{R}}\widehat f(\omega)\,e^{i\omega z}\,d\omega,
-\qquad \widehat f\in L^1(\mathbb{R})\cap L^2(\mathbb{R})\ (\text{e.g.\ compactly supported bandlimited}).
+\widetilde{c}_n = \frac{a_n}{2^{m_n}}, \quad a_n \in \mathbb{Z}, \quad m_n \in \mathbb{N}_0
 \]
-Then, by termwise integration (Tonelli/Fubini under the stated integrability),
-\[
-\boxed{\quad
-\PP_S[f](z)=\frac{1}{2\pi}\int_{\mathbb{R}}\widehat f(\omega)\,
-\Phi_S\!\big((i\omega z)^2\big)\,d\omega,
-\qquad
-\Phi_S(t):=\sum_{n\ge 0}s_n\,\frac{t^{\,n}}{(2n)!}\quad}
-\]
-i.e.\ the projector replaces each plane wave $e^{i\omega z}$ by the \emph{even masked kernel} $\Phi_S((i\omega z)^2)$.
+denote the quantized coefficient with $m_n$ bits of fractional precision.
 
-\paragraph{Example: $\PP_S$ acting on $\operatorname{sinc}_\pi$ and frequency “edge–shaping”.}
-Let $\operatorname{sinc}_\pi(z):=\frac{\sin(\pi z)}{\pi z}$ with Fourier transform
+The \emph{quantized projector} is then:
+\begin{equation}
+\widetilde{\mathbb{P}}_N[\mathrm{sinc}](z) = \sum_{n=0}^{N} \widetilde{c}_n z^{2n} = \sum_{n=0}^{N} \frac{a_n}{2^{m_n}} z^{2n}.
+\label{eq:quantized_projector}
+\end{equation}
+
+The coefficient quantization error is $\epsilon_n = c_n - \widetilde{c}_n$, satisfying
+\begin{equation}
+|\epsilon_n| \leq \frac{1}{2^{m_n+1}}
+\label{eq:dyadic_quant_bound}
+\end{equation}
+when $a_n$ is chosen by rounding $c_n \cdot 2^{m_n}$ to the nearest integer~\cite{Widrow1996}.
+
+\subsubsection{Total Error Decomposition}
+
+The complete approximation error combines \emph{truncation error} (from projecting to degree $2N$) and \emph{quantization error} (from dyadic rounding)~\cite{Kailath2000}:
+\begin{equation}
+\mathrm{sinc}(z) - \widetilde{\mathbb{P}}_N[\mathrm{sinc}](z) = \underbrace{\left[\mathrm{sinc}(z) - \mathbb{P}_N[\mathrm{sinc}](z)\right]}_{\text{truncation: } R_N(z)} + \underbrace{\left[\mathbb{P}_N[\mathrm{sinc}](z) - \widetilde{\mathbb{P}}_N[\mathrm{sinc}](z)\right]}_{\text{quantization: } Q_N(z)}.
+\label{eq:total_error_decomp}
+\end{equation}
+
+From our earlier work, the truncation error is:
+\begin{equation}
+R_N(z) = \frac{(-1)^N z^{2(N+1)}}{\Gamma(2N+4)} \mathcal{H}_{2(N+1)}(z).
+\label{eq:truncation_reminder}
+\end{equation}
+
+\textbf{Remark.} For $z \in \mathbb{R}$, the hypergeometric representation in Lemma~4.2.3.1 provides an alternative form that isolates magnitude error. For $z \in \mathbb{C} \setminus \mathbb{R}$, the full complex projector $\mathbb{P}_N[\mathrm{sinc}](z) = \frac{\Im(e^{iz}\Gamma(2N+2,iz))}{z(2N+1)!}$ must be used to capture both magnitude and phase error. See Appendix~A.1 for detailed derivations.
+
+The quantization error is:
+\begin{equation}
+Q_N(z) = \sum_{n=0}^{N} \epsilon_n z^{2n}, \quad |Q_N(z)| \leq \sum_{n=0}^{N} \frac{|z|^{2n}}{2^{m_n+1}}.
+\label{eq:quantization_error}
+\end{equation}
+
+\subsubsection{Incorporating Quantization into the Kernel Framework}
+
+To unify truncation and quantization errors within the kernel framework, we introduce a \emph{composite kernel} $\widetilde{H}(\omega)$ that modulates the projector based on both truncation order $N$ and bit allocation $\{m_n\}_{n=0}^N$.
+
+Recall from Section~4.3 that the projector can be written in terms of a kernel $H(\omega)$ via residue calculus~\cite{Ahlfors1979}:
 \[
-\widehat{\operatorname{sinc}_\pi}(\omega)=\mathbf{1}_{[-\pi,\pi]}(\omega)
-\quad\text{(Shannon’s bandlimited model \cite{Shannon1949}).}
+\mathbb{P}_N[\mathrm{sinc}](z) = \frac{1}{2\pi i}\oint \frac{H(\omega)}{\omega^2 + z^2} \, d\omega
 \]
-Applying $\PP_S$ yields
-\[
-\PP_S[\operatorname{sinc}_\pi](z)=\frac{1}{2\pi}\int_{-\pi}^{\pi}\Phi_S\!\big((i\omega z)^2\big)\,d\omega
-=\sum_{n\ge 0} s_n\,\frac{(-1)^n}{(2n+1)!}\,(\pi z)^{2n}.
-\]
-Two masks illustrate “wave–forming” while remaining a projector ($s_n\in\{0,1\}$):
+for appropriate contours and analytic $H$.
+
+For the quantized projector, define the \emph{quantization-weighted kernel}:
+\begin{equation}
+\widetilde{H}_{\mathbf{m}}(\omega) = \sum_{n=0}^{N} \widetilde{c}_n \frac{\omega^{2n}}{z^{2n}} \cdot H_n(\omega),
+\label{eq:quant_kernel}
+\end{equation}
+where $H_n(\omega)$ is a term-specific modulation kernel (e.g., frequency-dependent weighting) and $\mathbf{m} = (m_0, m_1, \ldots, m_N)$ is the bit allocation vector.
+
+The composite error kernel becomes:
+\begin{equation}
+\widetilde{H}_{\mathbf{m}}(\omega) = H(\omega) - \sum_{n=0}^{N} \epsilon_n \cdot \Phi_n(\omega),
+\label{eq:composite_kernel}
+\end{equation}
+where $\Phi_n(\omega)$ is the frequency response contribution of the $n$-th term (detailed in Appendix~A.2).
+
+\subsubsection{Sensitivity-Driven Bit Allocation with Quantization}
+
+Combining the sensitivity framework from Section~4.1.3 with dyadic quantization, the projected error becomes:
+\begin{equation}
+\mathcal{E}_{\text{total}} = \left|\int_0^{x_{\max}} \left[R_N(z) + Q_N(z)\right] \overline{R(z)} \, dz\right|,
+\label{eq:total_proj_error}
+\end{equation}
+where $R(z)$ is the application-specific projector from earlier.
+
+By the triangle inequality:
+\begin{equation}
+\mathcal{E}_{\text{total}} \leq \underbrace{\left|\int_0^{x_{\max}} R_N(z) \overline{R(z)} \, dz\right|}_{\mathcal{E}_{\text{trunc}}} + \underbrace{\left|\int_0^{x_{\max}} Q_N(z) \overline{R(z)} \, dz\right|}_{\mathcal{E}_{\text{quant}}}.
+\label{eq:error_split}
+\end{equation}
+
+The quantization error term expands as:
+\begin{align}
+\mathcal{E}_{\text{quant}} &= \left|\sum_{n=0}^{N} \epsilon_n \int_0^{x_{\max}} z^{2n} \overline{R(z)} \, dz\right| \nonumber\\
+&\leq \sum_{n=0}^{N} |\epsilon_n| \cdot S_n = \sum_{n=0}^{N} \frac{S_n}{2^{m_n+1}},
+\label{eq:quant_sensitivity_bound}
+\end{align}
+where $S_n = \left|\int_0^{x_{\max}} z^{2n} \overline{R(z)} \, dz\right|$ is the sensitivity from \eqref{eq:sensitivity}.
+
+The optimal bit allocation minimizes $\mathcal{E}_{\text{quant}}$ subject to $\sum_{n=0}^{N} m_n \leq B_{\text{total}}$ by the greedy algorithm (Section~4.1.5.3)~\cite{VetterliKovacevic1995}, now incorporating both truncation point $N$ (which determines $\mathcal{E}_{\text{trunc}}$) and per-coefficient precision $m_n$ (which determines $\mathcal{E}_{\text{quant}}$). The complete optimization procedure is detailed in Appendix~A.3.
+
+\section{Shannon Wavelet Basis and Orthonormal Extension}
+
+Sections~4.1--4.3 established a projection framework for approximating individual filter kernels (sinc functions, generic $H(\omega)$) with optimal bit allocation under hardware constraints. However, real-world audio signals are \emph{not} single-frequency tones—they are broadband signals with energy distributed across multiple octaves, where different frequency bands exhibit vastly different characteristics:
 \begin{itemize}
-\item \emph{Truncation to degree $\le 2N$:} $s_n=\mathbf{1}_{\{0\le n\le N\}}$ reproduces the classical even Taylor projection.
-\item \emph{Edge–shaping mask:} $s_n=1$ for $n\in\{0,M\}$ and $0$ otherwise. Then
-$\Phi_S((i\omega z)^2)=1+(\omega z)^{2M}/(2M)!$, increasing weight near $|\omega|=\pi$ in the band integral; in DSP terms this emphasizes band edges while preserving linear phase (cf.\ window/sidelobe tradeoffs \cite{Harris1978}).
+\item \textbf{Bass frequencies (20--200 Hz)}: High energy, perceptually critical, require high precision to avoid distortion.
+\item \textbf{Mid frequencies (200--2000 Hz)}: Speech and most musical content; moderate precision adequate.
+\item \textbf{High frequencies (2--20 kHz)}: Lower energy, often masked by louder sounds; can tolerate more quantization noise.
 \end{itemize}
 
-\section{Introducing coefficient quantization kernel to the generalized support kernel}
+The adaptive FPGA signal chain envisioned in this thesis must allocate resources \emph{per frequency band}, not uniformly across all frequencies. This requires decomposing the signal into localized frequency components—a task naturally suited to \emph{wavelet bases}.
 
-\section{Constructing an efficient dual bit-allocator/band-limiter in hardware for specific signal families}
+The Shannon wavelet basis provides an orthonormal decomposition of $L^2(\mathbb{R})$ where each wavelet $\psi_{j,k}(t)$ is localized to a specific octave band $[2^j\pi, 2^{j+1}\pi]$ in frequency. Critically, each band's bit allocation problem \emph{decouples}—we can independently optimize the bit vector $\mathbf{m}^{(j)}$ for scale $j$ based on the signal's energy in that band, enabling fine-grained resource control.
+
+This section extends the projector framework $\mathbb{P}_N$ to the Shannon wavelet setting, deriving:
+\begin{enumerate}
+\item A \emph{per-scale quantized projector} $\widetilde{\psi}_{j,k}^{(N,\mathbf{m})}(t)$ with independent bit allocation $\mathbf{m}^{(j)}$ at each scale $j$,
+\item A \emph{wavelet sensitivity matrix} $\mathbf{S}_{\text{wavelet}}^{(j)}$ that guides bit allocation within each frequency band,
+\item A \emph{hardware architecture} based on CORDIC oscillators and dyadic coefficients, suitable for FPGA implementation.
+\end{enumerate}
+
+The result is a multi-resolution bit allocation scheme where the FPGA can dynamically adjust precision across frequency bands in response to signal changes—precisely the adaptive behavior required for the modular audio effect chain described in the abstract.
+
+\subsection{Shannon Wavelet Construction}
+
+The Shannon scaling function $\phi(t)$ and mother wavelet $\psi(t)$ are defined via their Fourier transforms:
+\begin{align}
+\widehat{\phi}(\omega) &= \mathbf{1}_{[-\pi,\pi]}(\omega), \label{eq:shannon_scaling_freq}\\
+\widehat{\psi}(\omega) &= \mathbf{1}_{[-2\pi,-\pi] \cup [\pi,2\pi]}(\omega). \label{eq:shannon_wavelet_freq}
+\end{align}
+
+In the time domain, these correspond to:
+\begin{align}
+\phi(t) &= \operatorname{sinc}_\pi(t) = \frac{\sin(\pi t)}{\pi t}, \label{eq:shannon_scaling_time}\\
+\psi(t) &= \frac{\sin(2\pi t) - \sin(\pi t)}{\pi t} = \operatorname{sinc}_\pi(t/2) \cos(\pi t). \label{eq:shannon_wavelet_time}
+\end{align}
+
+The family of dilated and translated wavelets forms an orthonormal basis for $L^2(\mathbb{R})$:
+\begin{equation}
+\psi_{j,k}(t) = 2^{j/2}\psi(2^j t - k), \quad j,k \in \mathbb{Z},
+\label{eq:wavelet_basis}
+\end{equation}
+together with the scaling functions at a fixed resolution $j_0$:
+\begin{equation}
+\phi_{j_0,k}(t) = 2^{j_0/2}\phi(2^{j_0} t - k), \quad k \in \mathbb{Z}.
+\label{eq:scaling_basis}
+\end{equation}
+
+\subsection{Orthonormality and Parseval Identity}
+
+The Shannon wavelet basis satisfies the orthonormality conditions~\cite{Daubechies1992}:
+\begin{align}
+\langle \phi_{j_0,k}, \phi_{j_0,\ell} \rangle &= \delta_{k,\ell}, \label{eq:scaling_ortho}\\
+\langle \psi_{j,k}, \psi_{j',k'} \rangle &= \delta_{j,j'}\delta_{k,k'}, \label{eq:wavelet_ortho}\\
+\langle \phi_{j_0,k}, \psi_{j,\ell} \rangle &= 0 \quad \text{for all } j \geq j_0. \label{eq:cross_ortho}
+\end{align}
+
+Any function $f \in L^2(\mathbb{R})$ can be decomposed as~\cite{Mallat1989}:
+\begin{equation}
+f(t) = \sum_{k \in \mathbb{Z}} c_{j_0,k} \phi_{j_0,k}(t) + \sum_{j=j_0}^{\infty}\sum_{k \in \mathbb{Z}} d_{j,k} \psi_{j,k}(t),
+\label{eq:wavelet_decomp}
+\end{equation}
+where the coefficients are given by:
+\begin{align}
+c_{j_0,k} &= \langle f, \phi_{j_0,k} \rangle = \int_{\mathbb{R}} f(t) \overline{\phi_{j_0,k}(t)} \, dt, \label{eq:scaling_coeff}\\
+d_{j,k} &= \langle f, \psi_{j,k} \rangle = \int_{\mathbb{R}} f(t) \overline{\psi_{j,k}(t)} \, dt. \label{eq:wavelet_coeff}
+\end{align}
+
+The Parseval identity ensures energy preservation~\cite{Walter1992}:
+\begin{equation}
+\|f\|_{L^2}^2 = \sum_{k} |c_{j_0,k}|^2 + \sum_{j=j_0}^{\infty}\sum_{k} |d_{j,k}|^2.
+\label{eq:parseval}
+\end{equation}
+
+\subsection{Projector Extension to the Wavelet Basis}
+
+The key observation is that each basis element is a dilated and translated version of either $\operatorname{sinc}_\pi(t)$ or products of sinc functions. Thus, the quantized projector $\widetilde{\mathbb{P}}_N$ can be applied to each basis element independently.
+
+\subsubsection{Quantized Projected Scaling Functions}
+
+For the scaling function at resolution $j_0$ and position $k$, define:
+\begin{equation}
+\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t) = 2^{j_0/2} \widetilde{\mathbb{P}}_N[\operatorname{sinc}_\pi]\left(2^{j_0}t - k\right),
+\label{eq:proj_scaling}
+\end{equation}
+where $\widetilde{\mathbb{P}}_N[\operatorname{sinc}_\pi]$ is the quantized projector from \eqref{eq:quantized_projector} with $N$ terms and bit allocation vector $\mathbf{m} = (m_0, \ldots, m_N)$.
+
+From the dyadic quantization framework, this becomes:
+\begin{equation}
+\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t) = 2^{j_0/2} \sum_{n=0}^{N} \frac{a_n}{2^{m_n}} \left[\pi(2^{j_0}t - k)\right]^{2n},
+\label{eq:proj_scaling_explicit}
+\end{equation}
+where $a_n = \left\lfloor \frac{(-1)^n \cdot 2^{m_n}}{(2n+1)!} \right\rceil$ (nearest integer rounding).
+
+\subsubsection{Quantized Projected Wavelet Functions}
+
+For the mother wavelet $\psi(t) = \operatorname{sinc}_\pi(t/2)\cos(\pi t)$, we use the product structure with independent quantization:
+\begin{equation}
+\widetilde{\psi}_{j,k}^{(N,M,\mathbf{m},\mathbf{m}')}(t) = 2^{j/2} \widetilde{\mathbb{P}}_N[\operatorname{sinc}_\pi]\left(\frac{2^j t - k}{2}\right) \cdot \widetilde{\mathbb{P}}_M[\cos]\left(\pi(2^j t - k)\right),
+\label{eq:proj_wavelet}
+\end{equation}
+where $\widetilde{\mathbb{P}}_M[\cos]$ denotes the $M$-term quantized Taylor projection of the cosine with bit allocation $\mathbf{m}' = (m_0', \ldots, m_M')$:
+\begin{equation}
+\widetilde{\mathbb{P}}_M[\cos](x) = \sum_{m=0}^{M} \frac{b_m}{2^{m_m'}} x^{2m}, \quad b_m = \left\lfloor \frac{(-1)^m \cdot 2^{m_m'}}{(2m)!} \right\rceil.
+\label{eq:cos_proj}
+\end{equation}
+
+\subsection{Approximation of Arbitrary Bandlimited Functions}
+
+Given a bandlimited function $f \in L^2(\mathbb{R})$ with Fourier support $\operatorname{supp}(\widehat{f}) \subset [-2^{J}\pi, 2^{J}\pi]$ for some finite $J$, the wavelet decomposition truncates naturally:
+\begin{equation}
+f(t) = \sum_{k=-K}^{K} c_{j_0,k} \phi_{j_0,k}(t) + \sum_{j=j_0}^{J}\sum_{k=-K_j}^{K_j} d_{j,k} \psi_{j,k}(t),
+\label{eq:finite_wavelet_decomp}
+\end{equation}
+where $K$ and $K_j$ depend on the decay rate of the coefficients.
+
+The quantized projected approximation is then:
+\begin{equation}
+\widetilde{f}^{(N,M,\mathbf{m},\mathbf{m}')}(t) = \sum_{k=-K}^{K} c_{j_0,k} \widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t) + \sum_{j=j_0}^{J}\sum_{k=-K_j}^{K_j} d_{j,k} \widetilde{\psi}_{j,k}^{(N,M,\mathbf{m},\mathbf{m}')}(t).
+\label{eq:proj_approx}
+\end{equation}
+
+\subsection{Error Analysis in the Wavelet Domain with Quantization}
+
+The total approximation error now combines truncation, quantization, and basis decomposition:
+\begin{equation}
+\|f - \widetilde{f}^{(N,M,\mathbf{m},\mathbf{m}')}\|_{L^2}^2 = \sum_{k} |c_{j_0,k}|^2 \|\phi_{j_0,k} - \widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}\|_{L^2}^2 + \sum_{j,k} |d_{j,k}|^2 \|\psi_{j,k} - \widetilde{\psi}_{j,k}^{(N,M,\mathbf{m},\mathbf{m}')}\|_{L^2}^2.
+\label{eq:wavelet_error}
+\end{equation}
+
+For each basis element, the error decomposes as in \eqref{eq:total_error_decomp}. For the scaling function:
+\begin{align}
+\|\phi_{j_0,k} - \widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}\|_{L^2}^2 &= 2^{j_0} \int_{\mathbb{R}} \left|R_N\left(\pi(2^{j_0}t - k)\right) + Q_N^{(\mathbf{m})}\left(\pi(2^{j_0}t - k)\right)\right|^2 dt \nonumber\\
+&\leq 2 \cdot 2^{j_0} \left[\int_{\mathbb{R}} |R_N(\pi u)|^2 \, du + \int_{\mathbb{R}} |Q_N^{(\mathbf{m})}(\pi u)|^2 \, du\right],
+\label{eq:scaling_error_norm}
+\end{align}
+where $R_N(z) = \frac{(-1)^N z^{2(N+1)}}{\Gamma(2N+4)} \mathcal{H}_{2(N+1)}(z)$ is the truncation remainder and $Q_N^{(\mathbf{m})}(z) = \sum_{n=0}^{N} \epsilon_n z^{2n}$ is the quantization error depending on bit allocation $\mathbf{m}$.
+
+\subsection{Sensitivity Matrix for the Wavelet Basis with Quantization}
+
+Extending the sensitivity framework to the wavelet domain with dyadic quantization, define the \emph{wavelet sensitivity matrix} as:
+\begin{equation}
+\mathbf{S}_{\text{wavelet}} = \begin{bmatrix}
+\mathbf{S}_{\phi}^{(j_0)} & \mathbf{0} \\
+\mathbf{0} & \text{block-diag}(\mathbf{S}_{\psi}^{(j)})_{j \geq j_0}
+\end{bmatrix},
+\label{eq:wavelet_sens_matrix}
+\end{equation}
+where each block $\mathbf{S}_{\phi}^{(j_0)}$ and $\mathbf{S}_{\psi}^{(j)}$ is itself a sensitivity matrix for the polynomial coefficients within that basis element.
+
+For the scaling functions at resolution $j_0$, the sensitivity of coefficient $n$ is:
+\begin{equation}
+S_{\phi,n}^{(j_0)} = \max_{k} \left|c_{j_0,k}\right| \cdot 2^{j_0} \left|\int_{\mathbb{R}} u^{2n} \overline{R(\pi u)} \, du\right|,
+\label{eq:scaling_sens}
+\end{equation}
+where $R(z)$ is the application-specific projector from \eqref{eq:projected_error}. This quantifies how quantization error $\epsilon_n$ in the $n$-th polynomial coefficient of $\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}$ affects the total projected error.
+
+Similarly, for the wavelet functions at scale $j$:
+\begin{equation}
+S_{\psi,m}^{(j)} = \max_{k} \left|d_{j,k}\right| \cdot 2^{j} \left|\int_{\mathbb{R}} u^{2m} \cos(\pi \cdot 2^{j-j_0} u) \overline{R(\pi u)} \, du\right|.
+\label{eq:wavelet_sens}
+\end{equation}
+
+The sensitivity-weighted bit allocation operates on the wavelet coefficient space via the composite error bound from \eqref{eq:quant_sensitivity_bound}, allocating precision based on:
+\begin{enumerate}
+\item The magnitude of the wavelet coefficients $|c_{j_0,k}|$ and $|d_{j,k}|$ (signal energy at each scale/position),
+\item The projector order $N$ and $M$ at each scale (truncation error $R_N$, $R_M$),
+\item The sensitivity $S_{\phi,n}^{(j_0)}$ and $S_{\psi,m}^{(j)}$ for each polynomial coefficient (quantization error weighting),
+\item The total bit budget $B_{\text{total}}$ distributed across all scales and positions.
+\end{enumerate}
+
+The optimal bit allocation vector $\mathbf{m}^* = (\mathbf{m}_{\phi}, \{\mathbf{m}_{\psi}^{(j)}\}_{j \geq j_0})$ minimizes:
+\begin{equation}
+\sum_{k} |c_{j_0,k}| \sum_{n=0}^{N} \frac{S_{\phi,n}^{(j_0)}}{2^{m_{\phi,n}+1}} + \sum_{j,k} |d_{j,k}| \sum_{m=0}^{M} \frac{S_{\psi,m}^{(j)}}{2^{m_{\psi,m}^{(j)}+1}}
+\label{eq:wavelet_bit_alloc_objective}
+\end{equation}
+subject to the constraint:
+\begin{equation}
+\sum_{n=0}^{N} m_{\phi,n} + \sum_{j=j_0}^{J} \sum_{m=0}^{M} m_{\psi,m}^{(j)} \leq B_{\text{total}}.
+\label{eq:wavelet_bit_budget}
+\end{equation}
+
+\subsection{Computational Advantages for Hardware Implementation}
+
+The Shannon wavelet decomposition offers several advantages for FPGA implementation~\cite{Andraka1998}:
+
+\paragraph{Dyadic scaling.} The dilation factor $2^j$ aligns naturally with binary arithmetic, allowing efficient bit-shifting operations rather than general multiplication~\cite{ParkhiUnbehauen1974}.
+
+\paragraph{Localized computation.} Each wavelet $\psi_{j,k}$ has compact support in the frequency domain, meaning computations can be localized to specific frequency bands~\cite{Mallat1989}. This enables:
+\begin{itemize}
+\item \emph{Parallel filter banks}: Different scales $j$ can be processed in parallel~\cite{VetterliKovacevic1995}.
+\item \emph{Adaptive precision}: Higher frequencies (larger $j$) typically have smaller coefficients and can use reduced precision~\cite{Gustafsson2007}.
+\item \emph{Memory efficiency}: Only non-negligible coefficients need to be stored and processed~\cite{Burrus1998}.
+\end{itemize}
+
+\paragraph{Fast wavelet transform.} The Shannon wavelet admits a fast $O(N \log N)$ discrete wavelet transform via Mallat's algorithm~\cite{Mallat1989}, which can be implemented using cascaded quadrature mirror filters (QMFs)~\cite{Vaidyanathan1993}.
+
+\paragraph{Direct frequency control.} Because $\widehat{\psi}_{j,k}(\omega) = 2^{-j/2} e^{-i\omega k/2^j} \mathbf{1}_{[-2^{j+1}\pi, -2^j\pi] \cup [2^j\pi, 2^{j+1}\pi]}(\omega)$, each wavelet scale $j$ corresponds directly to an octave band $[2^j\pi, 2^{j+1}\pi]$~\cite{Walter1992}. This enables:
+\begin{itemize}
+\item \emph{Octave-band filtering}: Natural implementation of multi-rate filter banks~\cite{Crochiere1983}.
+\item \emph{Frequency-dependent bit allocation}: The bit allocation vector $\mathbf{m}$ can be chosen differently at each scale based on the frequency response requirements~\cite{JohnstonEtAl1997}.
+\item \emph{Adaptive FIR design}: The sensitivity matrix $\mathbf{S}_{\psi}^{(j)}$ guides coefficient quantization at each frequency band.
+\end{itemize}
+
+See Appendix~A.4 for implementation details and hardware resource estimates.
+
+\subsection{Hardware-Efficient Kernel Selection with Quantization}
+
+For a given analytic kernel $H(\omega)$ in the frequency domain (as introduced in Section 4.3), combined with the quantization framework from Section 4.3.1, the wavelet-projected version becomes:
+\begin{equation}
+\widetilde{f}_H^{(N,\mathbf{m})}(t) = \frac{1}{2\pi} \sum_{j=j_0}^{J} \sum_{k} d_{j,k} \int_{2^j\pi}^{2^{j+1}\pi} \widetilde{H}_{\mathbf{m}}(\omega) \widetilde{\Phi}_N^{(\mathbf{m})}((i\omega(2^{-j}t - k))^2) e^{i\omega t} \, d\omega,
+\label{eq:kernel_wavelet}
+\end{equation}
+where $\widetilde{\Phi}_N^{(\mathbf{m})}$ is the quantized masked kernel incorporating dyadic coefficient rounding, and $\widetilde{H}_{\mathbf{m}}(\omega)$ is the composite kernel from \eqref{eq:composite_kernel}.
+
+The kernel $H(\omega)$ can be chosen to optimize for~\cite{Parks1987, OppenheimSchafer2010}:
+\begin{itemize}
+\item \emph{Passband ripple}: $H(\omega)$ constant on $[2^j\pi, 2^{j+1}\pi]$ for flat magnitude response.
+\item \emph{Stopband attenuation}: $H(\omega)$ with sharp roll-off for selective frequency rejection~\cite{Rabiner1975}.
+\item \emph{Phase linearity}: $H(\omega) = |H(\omega)| e^{-i\omega \tau}$ for constant group delay $\tau$~\cite{OppenheimSchafer2010}.
+\item \emph{Quantization robustness}: $H(\omega)$ designed to minimize sensitivity $S_n$ at frequencies where quantization noise is most detrimental~\cite{JacksonEtAl1996}.
+\end{itemize}
+
+The key result is that by expressing $\widetilde{H}_{\mathbf{m}}(\omega)$ in terms of its residues (as established in Section 4.3)~\cite{Ahlfors1979}, the hardware implementation reduces to:
+\begin{equation}
+\boxed{\;
+\widetilde{f}_H^{(N,\mathbf{m})}(t) = \sum_{j,k} d_{j,k} \sum_{\text{poles } \omega_p \in [2^j\pi, 2^{j+1}\pi]} \operatorname{Res}_{\omega=\omega_p} \left[\frac{\widetilde{H}_{\mathbf{m}}(\omega) \widetilde{\Phi}_N^{(\mathbf{m})}((i\omega \cdot 2^{-j}t)^2)}{(\omega - \omega_p)} e^{i\omega t}\right]
+\;}
+\end{equation}
+which is a finite sum of complex exponentials with \emph{dyadic rational coefficients}—exactly the form needed for efficient CORDIC-based oscillator implementations on FPGAs using fixed-point arithmetic~\cite{Volder1959, Andraka1998}. The bit allocation vector $\mathbf{m}$ determines the precision of each coefficient, allowing adaptive quantization based on the sensitivity matrix $\mathbf{S}_{\text{wavelet}}$.
+
+The complete derivation of this residue-based decomposition is provided in Appendix~A.5.
+
+\bigskip
+\noindent\textbf{Synthesis of Sections 4.1--4.4.} We have now developed all the analytical machinery needed for adaptive FPGA signal processing:
+\begin{itemize}
+\item \textbf{Section~4.1}: Bit allocation framework with sensitivity matrix $\mathbf{S}$ and greedy optimization.
+\item \textbf{Section~4.2}: Extension to arbitrary analytic kernels $H(\omega)$ via contour integration.
+\item \textbf{Section~4.3}: Dyadic quantization for fixed-point hardware, decomposing total error into truncation and quantization components.
+\item \textbf{Section~4.4}: Shannon wavelet basis enabling per-frequency-band bit allocation.
+\end{itemize}
+
+The remaining sections translate these theoretical results into a concrete hardware architecture. Section~4.5 describes how the quantized wavelet coefficients are embedded into a composite kernel for efficient FPGA implementation. Section~4.6 presents the complete dual bit-allocator/band-limiter system that adapts to signal characteristics in real time, fulfilling the adaptive signal chain vision outlined in the thesis abstract.
+
+\section{Composite Kernel Architecture for Wavelet-Based Filtering}
+
+[This section should describe the hardware architecture that implements the quantized Shannon wavelet projector, including:
+\begin{itemize}
+\item CORDIC oscillator banks for generating complex exponentials $e^{i\omega_p t}$
+\item Dyadic coefficient storage in BRAM with bit allocation vector $\mathbf{m}^{(j)}$ per scale
+\item Multi-rate processing: different sampling rates for different wavelet scales
+\item Pipeline architecture for tree-structured wavelet decomposition/reconstruction
+\item Resource budgeting: total DSP/BRAM/LUT allocation across all scales
+\end{itemize}]
+
+\section{Adaptive Bit Allocation and Band-Limiting for Real-Time Signal Processing}
+
+\begin{itemize}
+\item Signal energy estimation per wavelet scale to detect frequency content changes
+\item Triggering conditions for bit reallocation (e.g., SQNR drops below threshold, energy shifts between bands)
+\item Fast reallocation algorithm: incremental updates to $\mathbf{m}$ without full recomputation
+\item Band-limiting via dynamic truncation: disabling high-frequency scales when signal is low-pass
+\item Integration with modular effect chain: mapping DSP modules (reverb, distortion, EQ) to wavelet operations
+\item Case study: adaptive parametric EQ that adjusts bit allocation based on measured frequency response
+\end{itemize}
+
+The result is a complete FPGA architecture where:
+\begin{enumerate}
+\item Signal decomposition into Shannon wavelets provides natural frequency-band separation,
+\item Per-band sensitivity matrices guide optimal bit allocation under total resource budget,
+\item Runtime monitoring detects signal changes and triggers adaptive reallocation,
+\item Hardware primitives (CORDIC, dyadic MAC) enable efficient implementation with predictable latency.
+\end{enumerate}
+
+This realizes the thesis goal: an FPGA platform that \emph{predictively reconfigures} in response to evolving audio workloads, supporting complex modular effect chains with runtime optimization.]

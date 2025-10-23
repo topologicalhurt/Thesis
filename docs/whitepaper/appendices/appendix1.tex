@@ -1,1 +1,470 @@
 \chapter{Appendix}
+
+\section{Auxiliary Lemmas}
+
+\begin{lemma}[Parity selector via contour integral]\label{lem:kronecker-even-delta}
+For $n\in\mathbb{N}_0$ and any $0<r<1$, define
+\[
+I_n \;=\; \frac{1}{2\pi i}\oint_{|z|=r}\frac{dz}{z^{\,n+1}(1-z^2)}.
+\]
+Then
+\[
+I_n \;=\; \begin{cases}
+1,& \text{if $n$ is even},\\[4pt]
+0,& \text{if $n$ is odd}.
+\end{cases}
+\]
+\begin{proof}
+Let $h(z)=\dfrac{1}{1-z^2}$. For $|z|<1$,
+\[
+h(z)=\sum_{m=0}^{\infty} z^{2m}.
+\]
+Writing $h(z)=\sum_{k=0}^{\infty} a_k z^k$, we have $a_k=1$ if $k$ is even and $a_k=0$ if $k$ is odd. By Cauchy’s coefficient formula,
+\[
+I_n=\frac{1}{2\pi i}\oint_{|z|=r}\frac{h(z)}{z^{n+1}}\,dz=a_n,
+\]
+so $I_n=1$ when $n$ is even and $I_n=0$ when $n$ is odd.
+
+\medskip
+\noindent\textit{Residue viewpoint.}
+The integrand $\dfrac{1}{z^{n+1}(1-z^2)}$ has singularities at $z=0,\pm1$, but for $0<r<1$ only $z=0$ lies inside the contour. Hence the integral collapses to the single residue at $z=0$:
+\[
+I_n \;=\; \operatorname{Res}_{z=0}\!\left(\frac{1}{z^{n+1}(1-z^2)}\right).
+\]
+Expanding $\dfrac{1}{1-z^2}=\sum_{m=0}^{\infty}z^{2m}$ gives the Laurent series
+\[
+\frac{1}{z^{n+1}(1-z^2)}=\sum_{m=0}^{\infty} z^{\,2m-n-1},
+\]
+so the residue (coefficient of $z^{-1}$) is $1$ iff $2m=n$, and $0$ otherwise. Equivalently, using $\operatorname{Res}_{z=0}\!\big(\frac{h(z)}{z^{n+1}}\big)=\frac{h^{(n)}(0)}{n!}$ for analytic $h$ with $h(z)=\frac{1}{1-z^2}$, we have $h^{(n)}(0)=n!$ for even $n$ and $0$ for odd $n$, yielding the same conclusion.
+\end{proof}
+\end{lemma}
+
+\begin{lemma}[$\mathcal{H}_S(z)$ does not allow any further elementary decomposition]
+
+\begin{proof}
+It is known that any 3 ${}_1F_2$ series with the same argument, with parameters differing by integers, are linearly related\cite{}
+
+Let $x \;:=\; -\frac{z^2}{4}.$
+\begin{equation}\label{eq:H_raise}
+x\,\mathcal{H}_{S+2}(z)
+=\left(\frac{S}{2}+1\right)\left(\frac{S}{2}+\frac{3}{2}\right)\big[\mathcal{H}_S(z)-1\big].
+\tag{R+}
+\end{equation}
+
+\begin{equation}\label{eq:H_lower}
+x\,\mathcal{H}_S(z)
+=\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)\big[\mathcal{H}_{S-2}(z)-1\big].
+\tag{R-}
+\end{equation}
+
+\begin{equation}\label{eq:H_contiguous}
+\left(\frac{S}{2}+1\right)\left(\frac{S}{2}+\frac{3}{2}\right)\mathcal{H}_{S+2}(z)
+-\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)\mathcal{H}_{S-2}(z)
+= -\left[\left(\frac{S}{2}\right)\left(\frac{S}{2}+\frac{1}{2}\right)+x\right].
+\tag{C}
+\end{equation}
+
+\[
+\Big[\phi(\phi+b-1)(\phi+c-1)-x(\phi+1)\Big]\,y=0,
+\qquad
+\phi:=x\frac{d}{dx},\quad b=\frac{S}{2}+1,\quad c=\frac{S}{2}+\frac{3}{2}.
+\]
+\end{proof}
+\end{lemma}
+
+\section{Hypergeometric Form for Real Arguments}
+
+\textbf{Restriction to Real Domain.} The hypergeometric representation of the truncation remainder derived in Lemma~4.2.3.1:
+\[
+\mathbb{P}_N[\mathrm{sinc}](z) = \mathrm{sinc}(z) + \frac{(-1)^N z^{2(N+1)}}{\Gamma(2N+4)} \mathcal{H}_{2(N+1)}(z)
+\]
+with
+\[
+\mathcal{H}_S(z) = {}_1F_2\!\left(1;\,\frac{S}{2}+1,\;\frac{S}{2}+\frac{3}{2};\,-\frac{z^2}{4}\right)
+\]
+is valid \emph{only for $z \in \mathbb{R}$}.
+
+\paragraph{Proof of restriction.} In the derivation, we used:
+\[
+\Im\!\left(\theta^{S-1} \sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right) = -\,i\,\theta^{S-1}\sum_{k=1}^{\infty} \frac{\theta^{2k}}{(S)_{2k}}, \quad \theta = iz, \; S = 2(N+1).
+\]
+This step relies on the fact that $\theta^{S-1} = (iz)^{2N+1}$ is purely imaginary (since $2N+1$ is odd), allowing us to conclude that only even powers of $\theta$ contribute to $\Im(\cdot)$.
+
+However, for $z \in \mathbb{C} \setminus \mathbb{R}$, we have $\theta = iz \notin i\mathbb{R}$, so $\theta^{2k}$ is \emph{not} purely real, and the separation:
+\[
+\Im\!\left(\sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right) = \text{(only even $k$ terms)}
+\]
+\emph{fails}. The correct approach for complex $z$ is to retain the full complex form:
+\[
+\mathbb{P}_N[\mathrm{sinc}](z) = \frac{\Im\!\big(e^{iz}\Gamma(2N+2,iz)\big)}{z\,(2N+1)!}, \quad z \in \mathbb{C}.
+\]
+
+\section{Shannon Wavelet Derivations}
+
+\paragraph{Phase error for complex $z$.} For $z = x + iy$ with $y \neq 0$:
+\begin{align*}
+e^{iz} &= e^{i(x+iy)} = e^{ix - y}, \\
+\Gamma(2N+2, iz) &= \Gamma(2N+2) - \gamma(2N+2, iz),
+\end{align*}
+where $\gamma(s, w) = \int_0^w t^{s-1} e^{-t} \, dt$ is the lower incomplete gamma function. The imaginary part captures both:
+\begin{itemize}
+\item \emph{Magnitude error}: from truncating the Taylor series to $N$ terms.
+\item \emph{Phase error}: from the complex exponential $e^{iz}$ interacting with the incomplete gamma function.
+\end{itemize}
+
+Thus, for applications requiring phase accuracy (e.g., complex filters, IQ modulation), the full complex projector must be used, and the hypergeometric form is \emph{only} a computational simplification for real-valued signals.
+
+\subsection{Frequency Response Contribution $\Phi_n(\omega)$}
+
+The term-specific frequency contribution $\Phi_n(\omega)$ in \eqref{eq:composite_kernel} arises from the Fourier transform of the $n$-th basis monomial $x^{2n}$.
+
+For a polynomial projector:
+\[
+\widetilde{\mathbb{P}}_N[f](x) = \sum_{n=0}^{N} \widetilde{c}_n x^{2n},
+\]
+the frequency response is:
+\[
+\widehat{\widetilde{\mathbb{P}}_N[f]}(\omega) = \sum_{n=0}^{N} \widetilde{c}_n \cdot \mathcal{F}\{x^{2n}\}(\omega),
+\]
+where $\mathcal{F}\{x^{2n}\}(\omega) = i^{2n} \cdot 2\pi \delta^{(2n)}(\omega)$ is the $(2n)$-th distributional derivative of the Dirac delta.
+
+For practical filter design, we regularize by restricting to a compact domain $[0, x_{\max}]$:
+\[
+\Phi_n(\omega) = \int_0^{x_{\max}} x^{2n} e^{-i\omega x} \, dx = \frac{\partial^{2n}}{\partial (i\omega)^{2n}} \left[\frac{e^{-i\omega x_{\max}} - 1}{-i\omega}\right].
+\]
+
+Using integration by parts $2n$ times:
+\[
+\Phi_n(\omega) = \sum_{k=0}^{2n} \binom{2n}{k} \frac{(2n-k)!}{\omega^{2n-k+1}} \left[(-i)^k e^{-i\omega x_{\max}} x_{\max}^k - (-i)^k \delta_{k,0}\right],
+\]
+which exhibits $O(\omega^{-(2n+1)})$ decay, ensuring well-defined frequency localization.
+
+\subsection{Greedy Bit Allocation with Truncation-Quantization Trade-off}
+
+The complete optimization problem is:
+\begin{equation}
+\min_{\substack{N \in \mathbb{N}_0 \\ \mathbf{m} \in \mathbb{N}_0^{N+1}}} \left[\mathcal{E}_{\text{trunc}}(N) + \mathcal{E}_{\text{quant}}(N, \mathbf{m})\right] \quad \text{s.t.} \quad \sum_{n=0}^{N} m_n \leq B_{\text{total}}.
+\tag{P}
+\label{eq:full_optimization}
+\end{equation}
+
+where:
+\begin{align*}
+\mathcal{E}_{\text{trunc}}(N) &= \left|\int_0^{x_{\max}} R_N(z) \overline{R(z)} \, dz\right|, \\
+\mathcal{E}_{\text{quant}}(N, \mathbf{m}) &= \sum_{n=0}^{N} \frac{S_n}{2^{m_n+1}}.
+\end{align*}
+
+\paragraph{Algorithm.}
+\begin{enumerate}
+\item \textbf{Outer loop (choose $N$):} For $N = 0, 1, 2, \ldots, N_{\max}$:
+\begin{enumerate}
+\item Compute truncation error $\mathcal{E}_{\text{trunc}}(N)$.
+\item Compute sensitivities $S_n$ for $n = 0, \ldots, N$.
+\item Solve the inner bit allocation problem for this $N$.
+\end{enumerate}
+\item \textbf{Inner loop (greedy bit allocation for fixed $N$):}
+\begin{enumerate}
+\item Initialize $m_n = 1$ for all $n \in \{0, \ldots, N\}$.
+\item Set $B_{\text{remaining}} = B_{\text{total}} - (N+1)$.
+\item While $B_{\text{remaining}} > 0$:
+\begin{itemize}
+\item Compute marginal error reduction:
+\[
+\Delta_n = S_n \left(\frac{1}{2^{m_n+1}} - \frac{1}{2^{m_n+2}}\right) = \frac{S_n}{2^{m_n+2}}.
+\]
+\item Find $n^* = \arg\max_n \Delta_n$.
+\item Update: $m_{n^*} \gets m_{n^*} + 1$, $B_{\text{remaining}} \gets B_{\text{remaining}} - 1$.
+\end{itemize}
+\item Return $\mathcal{E}_{\text{quant}}(N, \mathbf{m})$.
+\end{enumerate}
+\item \textbf{Select optimal $N^*$:}
+\[
+N^* = \arg\min_{N} \left[\mathcal{E}_{\text{trunc}}(N) + \mathcal{E}_{\text{quant}}(N, \mathbf{m}^*(N))\right].
+\]
+\end{enumerate}
+
+\paragraph{Complexity.} The outer loop runs $O(N_{\max})$ times. For each $N$, the inner greedy algorithm runs $O(B_{\text{total}} \cdot N)$ iterations. Each iteration requires $O(N)$ comparisons to find $\arg\max$. Total: $O(N_{\max} \cdot B_{\text{total}} \cdot N^2)$, which can be optimized to $O(N_{\max} \cdot B_{\text{total}} \cdot N \log N)$ using a priority queue.
+
+\subsection{Hardware Resource Estimates for Shannon Wavelet Implementation}
+
+\paragraph{FPGA resource model.} Consider a Xilinx Virtex-7 FPGA with the following primitives:
+\begin{itemize}
+\item DSP48E1 slices: $18 \times 25$-bit multipliers, 48-bit accumulators.
+\item Block RAM (BRAM): 36 Kb dual-port memory blocks.
+\item Look-up tables (LUTs): 6-input logic functions.
+\end{itemize}
+
+\paragraph{Scaling function computation.} For $\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t)$:
+\[
+\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t) = 2^{j_0/2} \sum_{n=0}^{N} \frac{a_n}{2^{m_n}} \left[\pi(2^{j_0}t - k)\right]^{2n}.
+\]
+
+\emph{Resources per basis function:}
+\begin{itemize}
+\item $(N+1)$ coefficient storage: $(N+1) \times \max_n(m_n + \lceil \log_2 |a_n| \rceil)$ bits in BRAM.
+\item Power computation $u^{2n}$ for $u = \pi(2^{j_0}t - k)$: $\lceil \log_2(N+1) \rceil$ DSP slices (using Horner's method or parallel squaring tree).
+\item Multiply-accumulate: $(N+1)$ DSP slices or time-multiplexed over $\lceil (N+1)/P \rceil$ cycles for $P$ parallel DSPs.
+\item Dyadic scaling $\frac{a_n}{2^{m_n}}$: implemented as barrel shifter using $O(m_n)$ LUTs (no DSP needed).
+\end{itemize}
+
+\emph{Example (N=4, $m_n \in [8, 16]$):}
+\begin{itemize}
+\item Coefficients: $5 \times 24$ bits $= 120$ bits $\approx 0.003$ BRAM.
+\item Power computation: 3 DSP slices (parallel).
+\item MAC: 5 DSP slices (fully parallel) or 1 DSP slice (5-cycle latency).
+\item Total per basis: 8 DSP, 120-bit BRAM, $\sim$50 LUTs.
+\end{itemize}
+
+For a 3-scale wavelet decomposition ($j_0, j_0+1, j_0+2$) with $K=32$ spatial positions per scale:
+\begin{itemize}
+\item Total DSP: $8 \times 32 \times 3 = 768$ DSPs (parallel) or $8 \times 3 = 24$ DSPs (time-multiplexed over 32 cycles).
+\item Total BRAM: $120 \times 32 \times 3 = 11520$ bits $\approx 0.32$ BRAM blocks.
+\item Throughput: 1 sample per cycle (parallel) or 1 sample per 32 cycles (multiplexed).
+\end{itemize}
+
+Virtex-7 XC7VX485T has 2800 DSP slices and 1030 BRAM blocks, so even the fully parallel implementation uses $\sim$27\% DSP and $<$1\% BRAM.
+
+\subsection{Residue-Based Decomposition for Hardware Kernels}
+
+Consider a rational kernel:
+\[
+H(\omega) = \frac{P(\omega)}{Q(\omega)}, \quad Q(\omega) = \prod_{p=1}^{M} (\omega - \omega_p)^{r_p},
+\]
+where $\omega_p \in \mathbb{C}$ are the poles with multiplicities $r_p$.
+
+The wavelet-projected integral:
+\[
+I_j(t) = \int_{2^j\pi}^{2^{j+1}\pi} H(\omega) \widetilde{\Phi}_N^{(\mathbf{m})}((i\omega \cdot 2^{-j}t)^2) e^{i\omega t} \, d\omega
+\]
+can be evaluated by:
+\begin{enumerate}
+\item Extend the integration domain to a contour $\Gamma_j$ enclosing $[2^j\pi, 2^{j+1}\pi]$ and all poles $\omega_p$ in this range.
+\item Apply the residue theorem:
+\[
+I_j(t) = 2\pi i \sum_{\omega_p \in [2^j\pi, 2^{j+1}\pi]} \operatorname{Res}_{\omega=\omega_p} \left[H(\omega) \widetilde{\Phi}_N^{(\mathbf{m})}((i\omega \cdot 2^{-j}t)^2) e^{i\omega t}\right].
+\]t
+\end{enumerate}
+
+For a simple pole $\omega_p$ (i.e., $r_p = 1$):
+\[
+\operatorname{Res}_{\omega=\omega_p} \left[\frac{P(\omega)}{Q(\omega)} F(\omega)\right] = \frac{P(\omega_p)}{Q'(\omega_p)} F(\omega_p),
+\]
+where $F(\omega) = \widetilde{\Phi}_N^{(\mathbf{m})}((i\omega \cdot 2^{-j}t)^2) e^{i\omega t}$.
+
+Expanding $\widetilde{\Phi}_N^{(\mathbf{m})}(w) = \sum_{n=0}^{N} \frac{a_n}{2^{m_n}} \frac{w^n}{(2n)!}$:
+\begin{align*}
+F(\omega_p) &= \sum_{n=0}^{N} \frac{a_n}{2^{m_n} (2n)!} \left[(i\omega_p \cdot 2^{-j}t)^2\right]^n e^{i\omega_p t} \\
+&= e^{i\omega_p t} \sum_{n=0}^{N} \frac{a_n (-1)^n}{2^{m_n} (2n)!} \left(\frac{\omega_p t}{2^j}\right)^{2n}.
+\end{align*}
+
+Thus:
+\[
+I_j(t) = 2\pi i \sum_{\omega_p} \underbrace{\frac{P(\omega_p)}{Q'(\omega_p)}}_{\text{constant}} \cdot e^{i\omega_p t} \cdot \underbrace{\sum_{n=0}^{N} \frac{a_n (-1)^n}{2^{m_n} (2n)!} \left(\frac{\omega_p t}{2^j}\right)^{2n}}_{\text{dyadic polynomial in } t}.
+\]t
+
+\paragraph{Hardware implementation.}
+\begin{itemize}
+\item Precompute constants $C_p = 2\pi i \frac{P(\omega_p)}{Q'(\omega_p)}$ (stored in BRAM).
+\item Oscillator: Generate $e^{i\omega_p t}$ using CORDIC in rotation mode (1 DSP per pole).
+\item Polynomial: Evaluate the dyadic polynomial using Horner's method ($N$ DSPs or 1 DSP with $N$-cycle latency).
+\item Accumulate: Sum over all poles $p$ (1 DSP).
+\end{itemize}
+
+For $M$ poles and $N$ terms: $M(N+1) + 1$ DSP slices (parallel) or $N+2$ DSP slices (time-multiplexed over $M$ poles).
+
+This architecture naturally supports frequency-dependent bit allocation: high-sensitivity poles can use larger $m_n$ for their polynomial coefficients, while low-sensitivity poles use reduced precision, all determined by the sensitivity matrix $\mathbf{S}_{\text{wavelet}}$.
+
+\subsection{Signal Synthesis Capabilities of Shannon Wavelet Decomposition}
+t
+\subsubsection{What Can Be Synthesized}
+
+The Shannon wavelet framework with $n$ scales starting at resolution $j_0$ can exactly represent any bandlimited signal with Fourier support in $[-2^{j_0+n}\pi, 2^{j_0+n}\pi]$. This is the Shannon-Nyquist sampling theorem extended to wavelet bases~\cite{Daubechies1992}.
+
+\paragraph{Fundamental Limitation: Bandlimited Signals Only.}
+Unlike time-domain polynomial approximation or windowed sinc functions, the Shannon wavelet \emph{cannot} represent:
+\begin{itemize}
+\item Sharp transients (step functions, clicks, impulses)
+\item Signals with infinite bandwidth
+\item Non-smooth waveforms (square waves, sawtooth without filtering)
+\end{itemize}
+
+However, \emph{any practical audio or RF signal} is effectively bandlimited by:
+\begin{itemize}
+\item Physical limits (speaker/microphone bandwidth, antenna bandwidth)
+\item Anti-aliasing filters before sampling
+\item Nyquist limit of the sampling rate
+\end{itemize}
+
+\subsubsection{Concrete Synthesis Examples}
+
+\paragraph{Example 1: Additive synthesis (organ, FM synthesis).}
+Synthesize a tone with 8 harmonics at frequency $f_0$:
+\[
+s(t) = \sum_{k=1}^{8} A_k \sin(2\pi k f_0 t + \phi_k).
+\]
+
+For $f_0 = 440$ Hz (A4) with 8 harmonics, highest frequency is $8 \times 440 = 3520$ Hz.
+
+\emph{Shannon wavelet representation:}
+\begin{itemize}
+\item Choose $j_0$ such that $2^{j_0}\pi / T_s \approx 220$ Hz (below fundamental).
+\item 3-scale decomposition covers up to $8 \times 2^{j_0}\pi / T_s \approx 7$ kHz.
+\item Each harmonic $k$ lives in scale $j = j_0 + \lfloor \log_2(k) \rfloor$.
+\item Total coefficients: $\sim$16 per harmonic $\times$ 8 harmonics = 128 coefficients.
+\end{itemize}
+
+\emph{Computational savings vs. time-domain:}
+\begin{itemize}
+\item Time-domain sinc interpolation: requires $O(L)$ samples over support $L \approx$ several periods.
+\item Shannon wavelet: $O(8)$ wavelets (one per harmonic) with compact frequency support.
+\item \textbf{Advantage:} Adding/removing harmonics is trivial (set coefficient to zero), enabling real-time additive synthesis with frequency-specific envelope control.
+\end{itemize}
+
+\paragraph{Example 2: Subtractive synthesis (sawtooth $\to$ lowpass filter).}
+Start with a bandlimited sawtooth (infinite harmonics, amplitude $\propto 1/k$):
+\[
+\text{sawtooth}(t) = \sum_{k=1}^{\infty} \frac{(-1)^{k+1}}{k} \sin(2\pi k f_0 t).
+\]
+
+Bandlimit to 32 harmonics (typical for audio):
+\begin{itemize}
+\item 5-scale Shannon decomposition ($j_0 = 0$ to $j_0 + 4$) covers 32 octaves.
+\item Apply a 2-pole lowpass filter $H(\omega) = \frac{1}{(1 + i\omega/\omega_c)^2}$ with cutoff $\omega_c$.
+\item In the wavelet domain, this is a \emph{diagonal scaling} of coefficients:
+\[
+d_{j,k}^{\text{filtered}} = H(2^{j+1/2}\pi) \cdot d_{j,k}^{\text{original}}.
+\]
+\item \textbf{Result:} Filter is a single multiplication per scale, not a convolution.
+\end{itemize}
+
+\emph{Hardware advantage:}
+\begin{itemize}
+\item Time-domain FIR: $O(N_{\text{taps}})$ MACs per sample (e.g., 128-tap filter = 128 MACs).
+\item Shannon wavelet: 5 complex multiplications (one per scale), then reconstruct.
+\item For real-time filter sweeps (cutoff $\omega_c(t)$ varies), only the scale weights change—no filter redesign needed.
+\end{itemize}
+
+\paragraph{Example 3: Phase vocoder / time-stretching.}
+Time-stretch a signal by factor $\alpha$ without changing pitch:
+\begin{itemize}
+\item Decompose into Shannon wavelets $\{d_{j,k}\}$.
+\item Modify temporal positions: $\psi_{j,k}(t) \to \psi_{j,k}(t/\alpha - k)$ (dilation in time).
+\item Frequency content (pitch) is unchanged because wavelets are shift-invariant in frequency.
+\end{itemize}
+
+\emph{Traditional phase vocoder:}
+\begin{itemize}
+\item STFT (Short-Time Fourier Transform): window size trades off time vs. frequency resolution.
+\item Shannon wavelets: \emph{native} multi-resolution—low frequencies have long windows, high frequencies have short windows automatically.
+\end{itemize}
+
+\paragraph{Example 4: Parametric EQ (audio mixing).}
+Boost/cut at specific frequency bands (e.g., bass boost at 100 Hz, treble cut at 8 kHz):
+\begin{itemize}
+\item Shannon wavelet scale $j$ corresponds to octave band $[2^j\pi, 2^{j+1}\pi]$.
+\item To boost scale $j$ by $+6$ dB: multiply all $d_{j,k}$ by $2$.
+\item To apply a shelf filter: ramp the gain across scales.
+\end{itemize}
+
+\emph{Advantage over IIR/FIR EQ:}
+\begin{itemize}
+\item IIR (biquad cascade): 2nd-order sections with stability concerns, phase distortion.
+\item FIR (Parks-McClellan): linear phase but high order ($\sim$100+ taps for sharp transitions).
+\item Shannon wavelet: natural octave bands, perfect reconstruction, no phase distortion within each band.
+\end{itemize}
+
+\subsubsection{Quantization Error in Synthesis Context}
+
+For a signal with $n$ scales, total synthesis error is:
+\[
+\mathcal{E}_{\text{total}} = \underbrace{\sum_{k} |c_{j_0,k}|^2 \mathcal{E}_{\text{quant}}^{(j_0)}}_{\text{base scale}} + \underbrace{\sum_{j=j_0}^{j_0+n-1} \sum_{k} |d_{j,k}|^2 \mathcal{E}_{\text{quant}}^{(j)}}_{\text{detail scales}},
+\]
+where $\mathcal{E}_{\text{quant}}^{(j)} = \sum_{m} S_{\psi,m}^{(j)} / 2^{m_{\psi,m}^{(j)}+1}$ from Section~4.4.6.
+
+\paragraph{Key insight for synthesis:}
+\begin{itemize}
+\item High frequencies (large $j$): typically have \emph{small} coefficients $|d_{j,k}|$ (natural signal decay).
+\item Low frequencies (small $j$): have \emph{large} coefficients but fewer wavelets needed.
+\item The bit allocation vector $\mathbf{m}$ can assign \emph{fewer bits to high-frequency scales} where $|d_{j,k}| \ll 1$, saving hardware resources without audible/visible degradation.
+\end{itemize}
+
+\paragraph{Practical synthesis example:}
+\begin{itemize}
+\item 5-scale decomposition for audio (20 Hz – 20 kHz).
+\item Scale 0 ($j_0$): 20–40 Hz (bass), $m_n = 16$ bits (high precision for low distortion).
+\item Scale 1: 40–80 Hz, $m_n = 14$ bits.
+\item Scale 2: 80–160 Hz, $m_n = 12$ bits.
+\item Scale 3: 160–320 Hz, $m_n = 10$ bits.
+\item Scale 4: 320–640 Hz and above, $m_n = 8$ bits (high frequencies masked by louder low frequencies).
+\item \textbf{Total bits:} $16 + 14 + 12 + 10 + 8 = 60$ bits distributed across 5 scales.
+\item \textbf{Uniform quantization:} would use $12 \times 5 = 60$ bits but with \emph{worse} perceptual quality (over-quantizes bass, under-quantizes treble relative to perception).
+\end{itemize}
+
+\subsubsection{Comparison: Shannon Wavelets vs. Alternatives}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Method} & \textbf{Freq. Selectivity} & \textbf{Time Localization} & \textbf{Hardware Cost} & \textbf{Phase} \\ \hline
+Shannon Wavelet & Excellent & Poor & Low (dyadic ops) & Linear \\ \hline
+Haar Wavelet & Poor & Excellent & Very Low & Linear \\ \hline
+Daubechies Wavelet & Good & Good & Medium & Nonlinear \\ \hline
+FFT/STFT & Excellent & Poor & Medium & Complex \\ \hline
+FIR Filter & Good & Medium & High ($N$ taps) & Linear \\ \hline
+IIR Filter & Good & Good & Low & Nonlinear \\ \hline
+Polynomial (dyadic) & N/A & Excellent & Very Low & N/A \\ \hline
+\end{tabular}
+\caption{Comparison of signal synthesis methods for bandlimited signals.}
+\end{table}
+
+\paragraph{When to use Shannon wavelets:}
+\begin{itemize}
+\item \textbf{Frequency-domain processing} with minimal computational cost (filtering, EQ, pitch shift).
+\item \textbf{Multi-rate systems} where different frequency bands are processed at different rates (e.g., low frequencies at 1 kHz, high frequencies at 48 kHz).
+\item \textbf{Adaptive quantization} where bit budget must be allocated across frequency bands based on sensitivity.
+\item \textbf{Perfect reconstruction} is required (lossless analysis-synthesis).
+\end{itemize}
+
+\paragraph{When NOT to use Shannon wavelets:}
+\begin{itemize}
+\item \textbf{Transient-heavy signals} (percussion, clicks) — use Daubechies or Haar for better time localization.
+\item \textbf{Wideband noise} — time-domain polynomial or direct sampling is simpler.
+\item \textbf{Ultra-low latency} — Shannon wavelets have infinite time support (though truncated in practice).
+\end{itemize}
+
+\subsubsection{Synthesis Quality Metrics}
+
+For the quantized Shannon wavelet synthesis $\widetilde{f}^{(N,M,\mathbf{m},\mathbf{m}')}(t)$ from \eqref{eq:proj_approx}:
+
+\paragraph{Signal-to-Quantization-Noise Ratio (SQNR):}
+\[
+\text{SQNR} = 10 \log_{10} \frac{\|f\|_{L^2}^2}{\|f - \widetilde{f}^{(N,M,\mathbf{m},\mathbf{m}')}\|_{L^2}^2} \quad \text{(dB)}.
+\]
+
+For the greedy bit allocation (Appendix A.3) with total budget $B_{\text{total}} = 60$ bits across 5 scales:
+\begin{itemize}
+\item Typical SQNR: 70–90 dB (depending on signal).
+\item Comparable to 12-bit uniform quantization on the time-domain signal but with \emph{perceptually optimized} distribution.
+\end{itemize}
+
+\paragraph{Total Harmonic Distortion (THD):}
+For synthesis of harmonic signals (musical tones):
+\[
+\text{THD} = \frac{\sqrt{\sum_{k=2}^{\infty} P_k}}{P_1} \times 100\%,
+\]
+where $P_k$ is the power in the $k$-th harmonic.
+
+With $N=4$ polynomial terms per wavelet and $m_n \in [8, 16]$ bits:
+\begin{itemize}
+\item THD $< 0.01\%$ for fundamental + first 8 harmonics (professional audio quality).
+\item THD $< 0.1\%$ for 32 harmonics (CD quality).
+\end{itemize}
+
+\paragraph{Bandwidth efficiency:}
+\begin{itemize}
+\item Shannon wavelets are \emph{optimal} for bandlimited signals in the sense that the number of coefficients $\{c_{j_0,k}, d_{j,k}\}$ equals the number of degrees of freedom (Shannon's sampling theorem).
+\item For a signal bandlimited to $B$ Hz sampled at $f_s = 2B$, the Shannon wavelet decomposition requires $\sim f_s$ coefficients per second, which is \emph{information-theoretically optimal}.
+\end{itemize}
+
