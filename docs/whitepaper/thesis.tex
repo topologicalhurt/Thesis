@@ -5,13 +5,63 @@
 
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{amsthm}
 \usepackage{thmtools}
+\usepackage[framemethod=TikZ]{mdframed}
 
 \DeclareMathOperator{\sgn}{sgn}
-\newtheorem{lemma}{Lemma}[section]
-\newtheorem{theorem}{Theorem}
-\newtheorem{corollary}{Corollary}
+
+% Define styles for boxed theorem environments
+\mdfdefinestyle{theoremstyle}{
+	linecolor=black!30,
+	linewidth=0.5pt,
+	innertopmargin=8pt,
+	innerbottommargin=8pt,
+	innerrightmargin=10pt,
+	innerleftmargin=10pt,
+	roundcorner=2pt,
+	backgroundcolor=black!2,
+	skipabove=10pt,
+	skipbelow=10pt
+}
+
+\mdfdefinestyle{remarkstyle}{
+	linecolor=black!20,
+	linewidth=0.5pt,
+	innertopmargin=6pt,
+	innerbottommargin=6pt,
+	innerrightmargin=10pt,
+	innerleftmargin=10pt,
+	roundcorner=2pt,
+	backgroundcolor=black!1,
+	skipabove=8pt,
+	skipbelow=8pt
+}
+
+% Theorem-like environments (stronger boxes)
+\declaretheoremstyle[
+	mdframed={style=theoremstyle},
+	headfont=\bfseries,
+	bodyfont=\normalfont
+]{boxedtheorem}
+
+% Remark-like environments (lighter boxes)
+\declaretheoremstyle[
+	mdframed={style=remarkstyle},
+	headfont=\bfseries,
+	bodyfont=\normalfont
+]{boxedremark}
+
+% Define environments
+\declaretheorem[style=boxedtheorem, numberwithin=section, name=Lemma]{lemma}
+\declaretheorem[style=boxedtheorem, numbered=no, name=Theorem]{theorem}
+\declaretheorem[style=boxedtheorem, numbered=no, name=Corollary]{corollary}
+\declaretheorem[style=boxedremark, numberwithin=section, name=Remark]{remark}
+\declaretheorem[style=boxedremark, numberwithin=section, name=Note]{note}
+
+% Proof environment (no box, but with spacing)
+\renewcommand{\qedsymbol}{$\blacksquare$}
 
 %\makenomenclature
 
@@ -51,9 +101,9 @@
 	%-------------- Chapters
 	\cleardoublepage
 	\mainmatter
-	\include{chapters/chapter1}
-	\include{chapters/chapter2}
-	\include{chapters/chapter3}
+	% \include{chapters/chapter1}
+	% \include{chapters/chapter2}
+	% \include{chapters/chapter3}
 	\include{chapters/chapter4}
 	\include{chapters/chapter5}
 

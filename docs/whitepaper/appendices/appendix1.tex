@@ -1,6 +1,6 @@
 \chapter{Appendix}
 
-\section{Auxiliary Lemmas}
+\section{Auxiliary Lemmas}\label{app:lemmas}
 
 \begin{lemma}[Parity selector via contour integral]\label{lem:kronecker-even-delta}
 For $n\in\mathbb{N}_0$ and any $0<r<1$, define
@@ -39,6 +39,30 @@ so the residue (coefficient of $z^{-1}$) is $1$ iff $2m=n$, and $0$ otherwise. E
 \end{proof}
 \end{lemma}
 
+\begin{lemma}[Odd parity selector]\label{rem:odd-selector}
+By a similar construction, we can derive a kernel that extracts \emph{odd} coefficients. Define:
+\[
+J_n \;=\; \frac{1}{2\pi i}\oint_{|z|=r}\frac{z\,dz}{z^{\,n+1}(1-z^2)} = \frac{1}{2\pi i}\oint_{|z|=r}\frac{dz}{z^{n}(1-z^2)}.
+\]
+Let $g(z) = \dfrac{z}{1-z^2}$. For $|z|<1$,
+\[
+g(z) = z \sum_{m=0}^{\infty} z^{2m} = \sum_{m=0}^{\infty} z^{2m+1}.
+\]
+Writing $g(z)=\sum_{k=0}^{\infty} b_k z^k$, we have $b_k=1$ if $k$ is odd and $b_k=0$ if $k$ is even. Therefore:
+\[
+J_n = \frac{1}{2\pi i}\oint_{|z|=r}\frac{g(z)}{z^{n+1}}\,dz = b_n = \begin{cases}
+1,& \text{if $n$ is odd},\\[4pt]
+0,& \text{if $n$ is even}.
+\end{cases}
+\]
+
+Thus the \emph{odd selection kernel} is:
+\[
+K_N^{\text{odd}}(\zeta) = \sum_{n=0}^{N-1} \zeta^{2n+1} = \zeta \cdot \frac{1 - \zeta^{2N}}{1 - \zeta^2} = \frac{\zeta(1-\zeta^{2N})}{1-\zeta^2},
+\]
+which selects coefficients $\{a_1, a_3, a_5, \ldots, a_{2N-1}\}$ when used in the projector integral.
+\end{lemma}
+
 \begin{lemma}[$\mathcal{H}_S(z)$ does not allow any further elementary decomposition]
 
 \begin{proof}
@@ -72,9 +96,9 @@ x\,\mathcal{H}_S(z)
 \end{proof}
 \end{lemma}
 
-\section{Hypergeometric Form for Real Arguments}
+\begin{lemma}[Hypergeometric Form for Real Arguments]\label{app:hypergeometric}
 
-\textbf{Restriction to Real Domain.} The hypergeometric representation of the truncation remainder derived in Lemma~4.2.3.1:
+The hypergeometric representation of the truncation remainder derived in \ref{}.
 \[
 \mathbb{P}_N[\mathrm{sinc}](z) = \mathrm{sinc}(z) + \frac{(-1)^N z^{2(N+1)}}{\Gamma(2N+4)} \mathcal{H}_{2(N+1)}(z)
 \]
@@ -84,7 +108,7 @@ with
 \]
 is valid \emph{only for $z \in \mathbb{R}$}.
 
-\paragraph{Proof of restriction.} In the derivation, we used:
+\begin{proof}[Proof of restriction] In the derivation, we used:
 \[
 \Im\!\left(\theta^{S-1} \sum_{k=1}^{\infty} \frac{\theta^{k}}{(S)_k}\right) = -\,i\,\theta^{S-1}\sum_{k=1}^{\infty} \frac{\theta^{2k}}{(S)_{2k}}, \quad \theta = iz, \; S = 2(N+1).
 \]
@@ -98,8 +122,98 @@ However, for $z \in \mathbb{C} \setminus \mathbb{R}$, we have $\theta = iz \noti
 \[
 \mathbb{P}_N[\mathrm{sinc}](z) = \frac{\Im\!\big(e^{iz}\Gamma(2N+2,iz)\big)}{z\,(2N+1)!}, \quad z \in \mathbb{C}.
 \]
+\end{proof}
+\end{lemma}
 
-\section{Shannon Wavelet Derivations}
+\section{Design of the general support kernel $\hat{H}(\omega)$}\label{app:support-kernel}
+
+\subsection{Example of shaping kernel using standard design method: digital First-Order Low-Pass Filter}\label{app:first-order-lpf}
+
+Consider the analog first-order low-pass filter with impulse response $h_a(t)$. Its Laplace transform is:
+\[
+\mathcal{L}\{h_a(t)\}(s) = H_a(s) = \frac{\omega_c}{s + \omega_c}, \quad s \in \mathbb{C}.
+\]
+
+Applying the bilinear transformation $s \mapsto \frac{2}{T}\frac{1-z^{-1}}{1+z^{-1}}$ with sampling period $T$ yields the z-transform:
+\[
+H(z) = \frac{\omega_c T(1+z^{-1})}{(2 + \omega_c T) + (-2 + \omega_c T)z^{-1}}.
+\]
+
+Let $\Omega := \omega_c T$ denote the normalized cutoff frequency. Dividing numerator and denominator by $(2 + \Omega)$:
+\[
+H(z) = \frac{\frac{\Omega}{2 + \Omega}(1+z^{-1})}{1 + \frac{-2 + \Omega}{2 + \Omega}z^{-1}}.
+\]
+
+From $\beta := \frac{\Omega}{2 + \Omega}$, we obtain $\beta(2 + \Omega) = \Omega$, hence $\Omega = 2\beta + \beta\Omega$. Rearranging:
+\[
+\Omega(1 - \beta) = 2\beta \quad \Longrightarrow \quad \Omega = \frac{2\beta}{1-\beta} = 2\beta \sum_{k=0}^{\infty} \beta^k, \quad |\beta| < 1.
+\]
+
+Therefore:
+\[
+\frac{-2 + \Omega}{2 + \Omega} = -(1-\beta) + \beta = 2\beta - 1,
+\]
+yielding:
+\begin{equation}
+H(z) = \frac{\beta(1+z^{-1})}{1 - (1-2\beta)z^{-1}}
+= \frac{\beta(z + 1)}{2\beta + z - 1}, \quad \text{with pole } z_p = 1 - 2\beta
+\label{eq:digital_lpf}
+\end{equation}
+
+The convergence condition $|\beta| < 1$ from the geometric series ensures $|z_p| < 1$ (stability), demonstrating equivalence between algebraic convergence and z-domain stability.
+
+\subsection{Special decomposition cases for $\hat{H}_a(\omega)$}\label{app:special-decomp}
+
+We consider the expression:
+\[
+I = \oint_C \frac{1}{2} [(S_e - iz S_o)H_a(\omega) + (S_e + iz S_o)H_a(-\omega)] \, d\omega
+\]
+where $S_e$ is a purely even series, $S_o$ is a purely odd series, $\omega = iz/\zeta$ (change of variables), and $C$ is a contour in the complex $\omega$-plane.
+
+\subsubsection{Case 1: Rational Functions}\label{app:case-rational}
+
+Consider $H_a(\omega) = \frac{P(\omega)}{Q(\omega)} = \sum_{k=1}^{N} \frac{R_k}{\omega - p_k}$ where $p_k$ are the poles and $R_k$ are the residues from partial fraction decomposition. Then:
+\begin{align*}
+I &= \frac{1}{2}\oint_C \left[(S_e - izS_o)\sum_{k=1}^{N}\frac{R_k}{\omega - p_k} + (S_e + izS_o)\sum_{k=1}^{N}\frac{R_k}{-\omega - p_k}\right] d\omega \\
+&= \frac{1}{2}\sum_{k=1}^{N} R_k \oint_C \left[\frac{S_e - izS_o}{\omega - p_k} + \frac{S_e + izS_o}{-\omega - p_k}\right] d\omega
+\end{align*}
+
+For symmetric contours and poles in pairs $\pm p_k$ with equal residues:
+\[
+\boxed{I = \pi i \sum_{k: p_k \in C} R_k \left[2S_e + iz S_o \cdot \text{sgn}(p_k)\right]}
+\]
+
+Each pole contributes a mode $e^{p_k t}$ in time domain. The contour integral selects which modes contribute based on pole locations relative to $C$.
+
+\subsubsection{Case 2: Gaussian Form}\label{app:case-gaussian}
+
+Consider $H_a(\omega) = e^{-a\omega^2}$ where $a > 0$. Since $H_a(-\omega) = H_a(\omega)$ (even function):
+\begin{align*}
+I &= \frac{1}{2}\oint_C e^{-a\omega^2} \left[(S_e - izS_o) + (S_e + izS_o)\right] d\omega = S_e \oint_C e^{-a\omega^2} \, d\omega
+\end{align*}
+
+The $S_o$ term completely cancels. For a contour along the real axis: $I = S_e \sqrt{\frac{\pi}{a}}$. The Gaussian is the generating function for Hermite polynomials, with time-domain impulse response $h(t) = \frac{1}{\sqrt{4\pi at}} e^{-t^2/(4a)}$ (fundamental solution to the heat equation).
+
+\subsubsection{Case 3: Resonant Functions}\label{app:case-resonant}
+
+Consider $H_a(\omega) = \frac{1}{\omega^2 + \omega_0^2}$. Since this is even, the $S_o$ term vanishes: $I = S_e \oint_C \frac{d\omega}{\omega^2 + \omega_0^2}$. The function has simple poles at $\omega = \pm i\omega_0$ with residues $\pm \frac{1}{2i\omega_0}$. If $C$ encloses only the upper half-plane pole:
+\[
+I = \frac{\pi S_e}{\omega_0}
+\]
+
+This represents a simple harmonic oscillator with time-domain response $h(t) = \frac{\sin(\omega_0 t)}{\omega_0} \Theta(t)$.
+
+\subsubsection{Case 4: Self-Adjoint (Real on Imaginary Axis)}\label{app:case-self-adjoint}
+
+If $H_a(i\theta) \in \mathbb{R}$ for all real $\theta$, then $H_a(-\omega) = \overline{H_a(\omega)}$ (Hermitian symmetry). Writing $H_a(\omega) = H_R(\omega) + iH_I(\omega)$ with $H_R$ even and $H_I$ odd:
+\[
+I = \oint_C \left[S_e H_R(\omega) + z S_o H_I(\omega)\right] d\omega + i\oint_C \left[S_e H_I(\omega) - z S_o H_R(\omega)\right] d\omega
+\]
+
+If $H_a(i\theta)$ is purely real on the imaginary axis ($H_I(i\theta) = 0$) and the contour lies there, the odd component decouples completely: $I = \oint_C S_e H_R(\omega) \, d\omega$. This applies to all causal real-valued systems satisfying $H(s^*) = H^*(s)$, including typical low-pass, band-pass, and physically realizable linear systems.
+
+
+\section{Shannon Wavelet Derivations}\label{app:shannon-wavelets}
 
 \paragraph{Phase error for complex $z$.} For $z = x + iy$ with $y \neq 0$:
 \begin{align*}
@@ -185,45 +299,6 @@ N^* = \arg\min_{N} \left[\mathcal{E}_{\text{trunc}}(N) + \mathcal{E}_{\text{quan
 
 \paragraph{Complexity.} The outer loop runs $O(N_{\max})$ times. For each $N$, the inner greedy algorithm runs $O(B_{\text{total}} \cdot N)$ iterations. Each iteration requires $O(N)$ comparisons to find $\arg\max$. Total: $O(N_{\max} \cdot B_{\text{total}} \cdot N^2)$, which can be optimized to $O(N_{\max} \cdot B_{\text{total}} \cdot N \log N)$ using a priority queue.
 
-\subsection{Hardware Resource Estimates for Shannon Wavelet Implementation}
-
-\paragraph{FPGA resource model.} Consider a Xilinx Virtex-7 FPGA with the following primitives:
-\begin{itemize}
-\item DSP48E1 slices: $18 \times 25$-bit multipliers, 48-bit accumulators.
-\item Block RAM (BRAM): 36 Kb dual-port memory blocks.
-\item Look-up tables (LUTs): 6-input logic functions.
-\end{itemize}
-
-\paragraph{Scaling function computation.} For $\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t)$:
-\[
-\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t) = 2^{j_0/2} \sum_{n=0}^{N} \frac{a_n}{2^{m_n}} \left[\pi(2^{j_0}t - k)\right]^{2n}.
-\]
-
-\emph{Resources per basis function:}
-\begin{itemize}
-\item $(N+1)$ coefficient storage: $(N+1) \times \max_n(m_n + \lceil \log_2 |a_n| \rceil)$ bits in BRAM.
-\item Power computation $u^{2n}$ for $u = \pi(2^{j_0}t - k)$: $\lceil \log_2(N+1) \rceil$ DSP slices (using Horner's method or parallel squaring tree).
-\item Multiply-accumulate: $(N+1)$ DSP slices or time-multiplexed over $\lceil (N+1)/P \rceil$ cycles for $P$ parallel DSPs.
-\item Dyadic scaling $\frac{a_n}{2^{m_n}}$: implemented as barrel shifter using $O(m_n)$ LUTs (no DSP needed).
-\end{itemize}
-
-\emph{Example (N=4, $m_n \in [8, 16]$):}
-\begin{itemize}
-\item Coefficients: $5 \times 24$ bits $= 120$ bits $\approx 0.003$ BRAM.
-\item Power computation: 3 DSP slices (parallel).
-\item MAC: 5 DSP slices (fully parallel) or 1 DSP slice (5-cycle latency).
-\item Total per basis: 8 DSP, 120-bit BRAM, $\sim$50 LUTs.
-\end{itemize}
-
-For a 3-scale wavelet decomposition ($j_0, j_0+1, j_0+2$) with $K=32$ spatial positions per scale:
-\begin{itemize}
-\item Total DSP: $8 \times 32 \times 3 = 768$ DSPs (parallel) or $8 \times 3 = 24$ DSPs (time-multiplexed over 32 cycles).
-\item Total BRAM: $120 \times 32 \times 3 = 11520$ bits $\approx 0.32$ BRAM blocks.
-\item Throughput: 1 sample per cycle (parallel) or 1 sample per 32 cycles (multiplexed).
-\end{itemize}
-
-Virtex-7 XC7VX485T has 2800 DSP slices and 1030 BRAM blocks, so even the fully parallel implementation uses $\sim$27\% DSP and $<$1\% BRAM.
-
 \subsection{Residue-Based Decomposition for Hardware Kernels}
 
 Consider a rational kernel:
@@ -260,22 +335,10 @@ F(\omega_p) &= \sum_{n=0}^{N} \frac{a_n}{2^{m_n} (2n)!} \left[(i\omega_p \cdot 2
 Thus:
 \[
 I_j(t) = 2\pi i \sum_{\omega_p} \underbrace{\frac{P(\omega_p)}{Q'(\omega_p)}}_{\text{constant}} \cdot e^{i\omega_p t} \cdot \underbrace{\sum_{n=0}^{N} \frac{a_n (-1)^n}{2^{m_n} (2n)!} \left(\frac{\omega_p t}{2^j}\right)^{2n}}_{\text{dyadic polynomial in } t}.
-\]t
-
-\paragraph{Hardware implementation.}
-\begin{itemize}
-\item Precompute constants $C_p = 2\pi i \frac{P(\omega_p)}{Q'(\omega_p)}$ (stored in BRAM).
-\item Oscillator: Generate $e^{i\omega_p t}$ using CORDIC in rotation mode (1 DSP per pole).
-\item Polynomial: Evaluate the dyadic polynomial using Horner's method ($N$ DSPs or 1 DSP with $N$-cycle latency).
-\item Accumulate: Sum over all poles $p$ (1 DSP).
-\end{itemize}
-
-For $M$ poles and $N$ terms: $M(N+1) + 1$ DSP slices (parallel) or $N+2$ DSP slices (time-multiplexed over $M$ poles).
-
-This architecture naturally supports frequency-dependent bit allocation: high-sensitivity poles can use larger $m_n$ for their polynomial coefficients, while low-sensitivity poles use reduced precision, all determined by the sensitivity matrix $\mathbf{S}_{\text{wavelet}}$.
+\]
 
 \subsection{Signal Synthesis Capabilities of Shannon Wavelet Decomposition}
-t
+
 \subsubsection{What Can Be Synthesized}
 
 The Shannon wavelet framework with $n$ scales starting at resolution $j_0$ can exactly represent any bandlimited signal with Fourier support in $[-2^{j_0+n}\pi, 2^{j_0+n}\pi]$. This is the Shannon-Nyquist sampling theorem extended to wavelet bases~\cite{Daubechies1992}.
@@ -434,7 +497,25 @@ Polynomial (dyadic) & N/A & Excellent & Very Low & N/A \\ \hline
 \item \textbf{Ultra-low latency} — Shannon wavelets have infinite time support (though truncated in practice).
 \end{itemize}
 
-\subsubsection{Synthesis Quality Metrics}
+\section{Hardware design choices}\label{app:hardware}
+
+\subsection{Kernel design}
+
+\paragraph{Hardware implementation of projector}
+\begin{itemize}
+\item Precompute constants $C_p = 2\pi i \frac{P(\omega_p)}{Q'(\omega_p)}$ (stored in BRAM).
+\item Oscillator: Generate $e^{i\omega_p t}$ using CORDIC in rotation mode (1 DSP per pole).
+\item Polynomial: Evaluate the dyadic polynomial using Horner's method ($N$ DSPs or 1 DSP with $N$-cycle latency).
+\item Accumulate: Sum over all poles $p$ (1 DSP).
+\end{itemize}
+
+For $M$ poles and $N$ terms: $M(N+1) + 1$ DSP slices (parallel) or $N+2$ DSP slices (time-multiplexed over $M$ poles).
+
+This architecture naturally supports frequency-dependent bit allocation: high-sensitivity poles can use larger $m_n$ for their polynomial coefficients, while low-sensitivity poles use reduced precision, all determined by the sensitivity matrix $\mathbf{S}_{\text{wavelet}}$.
+
+\subsection{Fabric design}
+
+\subsection{Synthesis Quality Metrics}
 
 For the quantized Shannon wavelet synthesis $\widetilde{f}^{(N,M,\mathbf{m},\mathbf{m}')}(t)$ from \eqref{eq:proj_approx}:
 
@@ -468,3 +549,41 @@ With $N=4$ polynomial terms per wavelet and $m_n \in [8, 16]$ bits:
 \item For a signal bandlimited to $B$ Hz sampled at $f_s = 2B$, the Shannon wavelet decomposition requires $\sim f_s$ coefficients per second, which is \emph{information-theoretically optimal}.
 \end{itemize}
 
+\subsection{Hardware Resource Estimates for Shannon Wavelet Implementation}
+
+\paragraph{FPGA resource model.} Consider a Xilinx Virtex-7 FPGA with the following primitives:
+\begin{itemize}
+\item DSP48E1 slices: $18 \times 25$-bit multipliers, 48-bit accumulators.
+\item Block RAM (BRAM): 36 Kb dual-port memory blocks.
+\item Look-up tables (LUTs): 6-input logic functions.
+\end{itemize}
+
+\paragraph{Scaling function computation.} For $\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t)$:
+\[
+\widetilde{\phi}_{j_0,k}^{(N,\mathbf{m})}(t) = 2^{j_0/2} \sum_{n=0}^{N} \frac{a_n}{2^{m_n}} \left[\pi(2^{j_0}t - k)\right]^{2n}.
+\]
+
+\emph{Resources per basis function:}
+\begin{itemize}
+\item $(N+1)$ coefficient storage: $(N+1) \times \max_n(m_n + \lceil \log_2 |a_n| \rceil)$ bits in BRAM.
+\item Power computation $u^{2n}$ for $u = \pi(2^{j_0}t - k)$: $\lceil \log_2(N+1) \rceil$ DSP slices (using Horner's method or parallel squaring tree).
+\item Multiply-accumulate: $(N+1)$ DSP slices or time-multiplexed over $\lceil (N+1)/P \rceil$ cycles for $P$ parallel DSPs.
+\item Dyadic scaling $\frac{a_n}{2^{m_n}}$: implemented as barrel shifter using $O(m_n)$ LUTs (no DSP needed).
+\end{itemize}
+
+\emph{Example (N=4, $m_n \in [8, 16]$):}
+\begin{itemize}
+\item Coefficients: $5 \times 24$ bits $= 120$ bits $\approx 0.003$ BRAM.
+\item Power computation: 3 DSP slices (parallel).
+\item MAC: 5 DSP slices (fully parallel) or 1 DSP slice (5-cycle latency).
+\item Total per basis: 8 DSP, 120-bit BRAM, $\sim$50 LUTs.
+\end{itemize}
+
+For a 3-scale wavelet decomposition ($j_0, j_0+1, j_0+2$) with $K=32$ spatial positions per scale:
+\begin{itemize}
+\item Total DSP: $8 \times 32 \times 3 = 768$ DSPs (parallel) or $8 \times 3 = 24$ DSPs (time-multiplexed over 32 cycles).
+\item Total BRAM: $120 \times 32 \times 3 = 11520$ bits $\approx 0.32$ BRAM blocks.
+\item Throughput: 1 sample per cycle (parallel) or 1 sample per 32 cycles (multiplexed).
+\end{itemize}
+
+Virtex-7 XC7VX485T has 2800 DSP slices and 1030 BRAM blocks, so even the fully parallel implementation uses $\sim$27\% DSP and $<$1\% BRAM.
