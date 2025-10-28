@@ -1,9 +1,88 @@
 \chapter{Introduction}
 
+FPGAs are increasingly used in audio signal processing products and research because of their high computational density and low-latency capabilities\cite{IEEE8187326}. They appear in digital mixers, audio interfaces, synthesizers and custom audio processing units. Modern FPGA architectures include specialized DSP slices and block-RAMs to accelerate multiply-accumulate and filtering operations. In principle, this makes FPGAs very attractive for high-throughput audio applications (e.g. sampling rates in the MHz range, multi-channel processing, wavelett synthesis).
+\bigskip
+
+\noindent Despite these advantages, programming FPGAs remains challenging. Unlike CPU or GPU development, FPGA design requires intimate knowledge of hardware design (HDLs, pipelining, clock-domain crossing, design at a boolean / bitwise level Etc.). As one recent survey notes, "FPGAs are considered as 'hardware' and are low-level in nature, making them hard to program by non-specialized engineers"\cite{IEEE8187326} Audio-specific toolchains (such as compiling FAUST or C++ audio code into FPGA via HLS) help bridge the gaps, but they still produce static designs that must be manually tuned. In short, many working in the DSP field find FPGA development inaccessible, or end up using FPGAs in a fixed manner akin to a DSP chip, underutilizing the relative versatility and performancy of FPGA's.
+\bigskip
+
+\noindent Most FPGA workflows today perform \textit{one-shot mapping}: the designer specifies an audio processing chain (filters, modulators, etc.), a compiler schedules these operations across clock cycles and resources, and the FPGA is programmed with that static configuration. Prior research has optimized such flows in various ways\cite{SinhaSrikanthan2014}. For example, specialized scheduling algorithms account for FPGA primitives to minimize latency or area, and some works perform resource-aware scheduling of arithmetic graphs on DSP blocks. Others have explored partitioning of tasks in multi-context or partially reconfigurable FPGAs to swap in new hardware functions between audio processing tasks\cite{Bhandari2012}. Indeed, run-time reconfiguration (sometimes called Partial reconfiguration or DFX - Dynamic Function Exchange) can increase effective device density and support adaptivity. For instance, dynamic partial reconfiguration allows new hardware modules to be loaded without stopping the rest of the design. In audio-specific cases, researchers have demonstrated an FPGA-based system where an audio filter is replaced on-the-fly to save resources\cite{Silva2016}, and another where reconfigurable DSP blocks let a complex audio player time-multiplex hardware for an FFT and filters\cite{Das2017}.
+\bigskip
+
+\noindent Still, these adaptive systems \textit{are reactive, not predictive}. They typically change hardware only when commanded or scheduled by a user or fixed routine, not in response to analysis of the audio signal stream. In practice, an audio signal may have varying frequency content or complexity over time, and different modules may be active only in some parts of a performance. A truly dynamic FPGA design would detect or predict which DSP operations will dominate in the near future and pre-configure the fabric accordingly. No known FPGA tool currently integrates time-series analysis of audio signals into the mapping process.
+\bigskip
+
+\noindent A promising avenue is to treat DSP modules as dynamical systems and apply operator-theoretic\ref{eq:}, cyclostationary\ref{eq:} and analytic\ref{eq:} modeling to them. The Koopman operator, for example, represents a nonlinear dynamical system as a (generally infinite-dimensional) linear operator on observable functions of the state. Recent work in audio and control has used Koopman-based models for system identification and predictive modeling of nonlinear effects. These methods enable linear prediction of future behavior from past observations. Yet, this line of theory has not been applied to FPGA hardware optimization.
+\bigskip
+
+\noindent Finally, even when powerful techniques are known academically, accessible tools are lacking. Audio-focused FPGA toolchains like Syfala\cite{Syfala2024} (compiling FAUST DSP to FPGA) show that domain-specific languages can make FPGA synthesis approachable. However, these flows remain largely offline; they do not optimize the FPGA mapping beyond what generic HLS yields. The complexity of typical FPGA environments (Vivado, Quartus) means that most hobbyists fall back to microcontrollers or leave FPGAs underutilized.
+\bigskip
+
+\noindent In summary, audio DSP on FPGAs suffers from a lack of dynamic, signal-aware optimization, a lack of high-level modeling approaches for workload prediction, and a gap in user-friendly FPGA toolchains. This project addresses these unmet needs by combining operator-theoretic models with signal-correlation metrics and a rudimentary hardware design to inform a dynamic FPGA mapping strategy. We aim to enable high-throughput, scalable FPGA implementations of modular audio systems (even including nonlinear effects) in a way that is transparent and accessible to embedded engineers.
+
 \section{Motivation}
+
+Despite the promise of FPGAs for audio DSP, several critical gaps remain in the literature and tooling:
+\bigskip
+
+\noindent \textbf{Lack of dynamic/predictive optimization:} Existing FPGA design flows assume fixed workloads and static mapping. While partial and dynamic reconfiguration has been demonstrated (e.g. swapping audio filter modules at run-time) these approaches are reactive and not driven by analysis of the signal. No known solution continuously monitors signal behavior and predictively reassigns logic resources (LUTs vs DSP blocks, etc.) to maximize throughput or efficiency.
+\bigskip
+
+\noindent \textbf{Absence of operator-theoretic DSP mapping:} Modern control theory offers linear operator models (e.g. Koopman operators) for nonlinear dynamics. However, this perspective is essentially unused in FPGA design. DSP modules could be viewed as dynamical systems in state-space, enabling prediction of future workload, but current FPGA mapping literature focuses on static scheduling and technology mapping rather than on system-theoretic modeling of signal flow.
+\bigskip
+
+\noindent \textbf{Scarcity of accessible toolchains:} Hardware design is considered “low-level” and notoriously difficult for DSP software developers to break into. A few domain-specific tools (e.g. FAUST-to-FPGA via Syfala) aim to ease audio-on-FPGA programming, but these still require expert tuning and do not offer automated performance optimization. Hobbyists and embedded engineers lack a user-friendly platform that lets them upload modular DSP graphs and automatically optimizes the FPGA mapping.
+These gaps motivate a new solution: a predictive FPGA optimization framework that combines signal dynamics (via operator models) with hardware-aware scheduling. The project addresses the unmet need for adaptive FPGA systems in modular audio DSP.
 
 \section{Aims}
 
+The primary aim of this thesis is to \emph{enable adaptive FPGA-based audio signal processing} through a mathematically rigorous framework that couples operator-theoretic signal analysis with runtime hardware resource optimization. Specifically, we pursue three interconnected objectives:
+
+\begin{enumerate}
+\item \textbf{Develop an operator-theoretic model for audio DSP modules.}
+Formulate a Koopman operator-based representation of modular signal chains (filters, nonlinear processors, dynamic effects) that captures both linear and nonlinear dynamics, cyclostationary signal characteristics, and inter-module dependencies. This model must be analytically tractable and portable to FPGA hardware constraints.
+
+\item \textbf{Derive closed-form sensitivity metrics for resource-error trade-offs.}
+Establish a projection-based mathematical framework that quantifies how bit allocation, coefficient quantization, and truncation affect output fidelity across frequency bands. Extend this to wavelet decompositions for multi-rate processing, providing explicit formulae that guide runtime decisions on DSP slice, LUT, and BRAM usage.
+
+\item \textbf{Design and validate a prototype architecture for dynamic reconfiguration.}
+Synthesize the theoretical results into a hardware architecture that performs workload forecasting, signal interaction analysis, and predictive resource reallocation without manual intervention. Demonstrate feasibility through RTL implementation and comparative benchmarking against static compilation flows.
+\end{enumerate}
+
+These aims address the gaps identified in Section~\ref{sec:motivation}: the absence of predictive optimization frameworks, the lack of operator-theoretic DSP mappings to FPGAs, and the scarcity of accessible toolchains for researchers and audio engineers.
+
 \section{Contributions}
 
+This thesis makes the following novel contributions to the fields of FPGA signal processing, adaptive hardware architecture, and operator-theoretic systems analysis:
+
+\begin{enumerate}
+\item \textbf{A unified framework for describing DSP kernels.}
+We derive closed-form sensitivity matrices that relate coefficient quantization to output error for polynomial approximations of infinite-support kernels (Chapter~3). By combining complex analytic techniques with dyadic quantization for fixed-point hardware, we provide an analytical tool that directly connects signal processing requirements to FPGA resource specifications. The framework extends naturally to Shannon wavelet decompositions, enabling independent bit allocation across frequency bands based on signal characteristics.
+
+\item \textbf{An operator-theoretic model of modular audio signal chains.}
+Building on Koopman operator theory (Chapter~4), we formulate a state-space representation of audio DSP modules that captures both linear filtering and nonlinear transformations in a unified framework. The model incorporates cyclostationary analysis to handle time-varying signal statistics and provides explicit metrics for inter-module signal correlation. This enables runtime prediction of resource demands based on workload evolution.
+
+\item \textbf{Novel signal interaction metrics for resource tuning.}
+We introduce computable metrics that quantify how signal characteristics (spectral content, dynamic range, correlation structure) influence hardware resource efficiency. These metrics are derived from the operator-theoretic model and provide actionable guidance for adaptive bit allocation, primitive reallocation (DSP slices vs.~LUTs), and parallelization strategies (Chapter~5).
+
+\item \textbf{A prototype architecture for runtime FPGA optimization.}
+We present a complete hardware implementation that integrates the mathematical framework with dynamic reconfiguration capabilities. The architecture includes: (i)~workload forecasting based on cyclostationary signal analysis, (ii)~a CSP/DSP-based caching hierarchy for efficient LUT storage, (iii)~adaptive filter bank decomposition using the Shannon wavelet basis, and (iv)~runtime primitive reallocation without manual tuning. Verification results demonstrate improved throughput and resource efficiency compared to static compilation flows.
+\end{enumerate}
+
 \section{Thesis Structure}
+
+The remainder of this thesis is organized as follows:
+
+\begin{description}
+\item[Chapter 2: Literature Review] surveys the foundational work in signal processing, adaptive control, and operator-theoretic systems analysis. We review classical DSP techniques (Fourier analysis, filter design, wavelet theory), operator theory (Koopman operators, state-space methods), and FPGA implementation strategies (CORDIC algorithms, fixed-point arithmetic). Section~2.4 provides targeted mathematical background for the derivations in Chapter~4, covering projection methods, contour integration, dyadic quantization, and rate-distortion theory.
+
+\item[Chapter 3: Design Derivation] develops the mathematical/theoretical foundation for adaptive resource allocation. Section~4.1 establishes the projection-based framework for polynomial approximations of the sinc function in the time domain, deriving sensitivity matrices for bit allocation. Section~4.2 extends this to generic filter kernels via complex analytic methods. Section~4.3 introduces dyadic quantization for fixed-point hardware compatibility. Section~4.4 generalizes the framework to the Shannon wavelet basis, enabling multi-band decomposition with per-scale bit allocation. The chapter concludes by synthesizing these results into design guidelines for adaptive signal processing hardware.
+
+\item[Chapter 4: Control-Theoretic and Cyclostationary Model for Resource Balancing] formulates a dynamic systems perspective on FPGA resource balancing. We develop a cyclostationary signal analysis framework to characterize time-varying workloads and derive spectral correlation metrics for predicting resource demands. The Koopman operator formalism is employed to model both linear and nonlinear audio DSP modules within a unified state-space representation, enabling runtime optimization of hardware primitives based on signal evolution.
+
+\item[Chapter 5: Architectural Implementation] presents the hardware realization of the theoretical framework. We introduce a CSP/DSP-based approach to creating 'cache hierarchies' for variable LUT storage and methods for selectively targeting FPGA resources via. different evaluation techniques applied to power series. Finally, the chapter details the synthesis of the specialized wave-basis (Chapter~3) and operator-theoretic workload prediction (Chapter~4) into a unified FPGA architecture. RTL implementations, resource utilization analysis, and verification strategies are provided.
+
+\item[Appendices] provide supplementary mathematical proofs, detailed derivations omitted from the main text for brevity, and implementation-specific details (RTL code listings, synthesis results, experimental data). Appendix~A collects proofs for the projection theorems and sensitivity bounds in Chapter~4. Appendix~B documents the verification environment and testbench design.
+\end{description}
+
+\noindent Throughout the thesis, we maintain a clear distinction between the \emph{analytical framework} (mathematical models, optimization criteria) and the \emph{implementation constraints} (FPGA primitives, fixed-point arithmetic, reconfiguration latency). This separation allows the theoretical results to remain portable across hardware platforms while ensuring practical feasibility of the proposed architecture.

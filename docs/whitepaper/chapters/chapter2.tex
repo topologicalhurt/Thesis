@@ -1,57 +1,148 @@
-\chapter{Literature review}
+\chapter{Literature Review}
 
-\section{Dyadicization via Mahler (binomial) expansion on \(\mathbb Z_2\)}
+\section{Techniques for Workload Forecasting and Adaptive Control}
 
-\begin{theorem}[Mahler]
-For any continuous \(f:\mathbb Z_2\to\mathbb Q_2\), there exist unique coefficients
-\(\{a_n\}_{n\ge 0}\subset\mathbb Q_2\) with \(a_n\to 0\) in the \(2\)-adic norm such that
+Effective predictive reconfiguration relies on two key capabilities: first, the ability to analyze incoming audio signals and the state of processing modules to extract features that are predictive of future computational workload; and second, the algorithmic basis for using these predictions to adapt the system's behavior, in this case, the FPGA's hardware configuration.
+
+\subsection{Signal Analysis and Correlation for Workload Characterization}
+
+To forecast workload, the system must derive ``coherent metrics of signal interaction''~\cite{ref1}. This involves applying signal processing techniques to extract relevant information from the audio data stream.
+
+\subsubsection{Spectral and Cross-Spectral Analysis}
+Classical spectral estimation techniques, such as the periodogram or Welch's method, provide insights into the frequency content of audio signals. These can reveal the distribution of energy across different frequency bands, which may correlate with the activation or intensity of certain frequency-dependent DSP modules (e.g., equalizers, specific filter banks). Cross-spectral density analysis can further elucidate the relationship between two signals, for instance, the input and output of a module, to understand how the module is transforming the signal's spectrum, or to detect correlations between different audio channels that might imply a need for shared or interacting processing resources.
+
+For signals exhibiting periodic statistical properties, cyclostationary analysis offers a more powerful tool. The Spectral Correlation Density (SCD), also known as the cyclic spectral density, characterizes the correlation between frequency-shifted versions of a signal~\cite{ref1}. The SCD function is defined as:
 \[
-f(x)=\sum_{n=0}^{\infty} a_n \binom{x}{n},\qquad
-\binom{x}{n}=\frac{x(x-1)\cdots(x-n+1)}{n!},
+S_x^\alpha(f) = \lim_{T\to\infty} \lim_{\Delta t\to\infty} \frac{1}{\Delta t} \int_{-\Delta t/2}^{\Delta t/2} \frac{1}{T} X_T(t+\zeta, f+\alpha/2) X_T^*(t+\zeta, f-\alpha/2) \, d\zeta
 \]
-and the series converges uniformly on \(\mathbb Z_2\).
-Moreover \(a_n=\Delta^n f(0)\) where \(\Delta\) is the forward difference operator.
-\end{theorem}
+where $X_T(t,f)$ is the complex demodulate of the signal $x(t)$ at frequency $f$ over a window $T$, and $\alpha$ is the cycle frequency~\cite{ref1}. If the activation of certain audio effects (e.g., amplitude modulation, periodic filtering) introduces cyclostationarity or alters existing cyclic features, then SCD analysis could provide robust features for workload prediction. Efficient algorithms for computing the SCD, such as the FFT Accumulation Method (FAM) and the Strip Spectral Correlation Analyzer (SSCA), have been developed and optimized for hardware implementation, making aspects of this analysis potentially feasible in real-time~\cite{ref1}. The detailed analysis of fixed-point implementations and resource/SQNR trade-offs for FAM~\cite{ref12} underscores the effort to make such advanced spectral techniques practical.
 
-\begin{proof}[Proof (sketch)]
-See standard expositions in \(p\)-adic analysis. The polynomials \(\binom{x}{n}\) form an orthonormal basis of \(C(\mathbb Z_2,\mathbb Q_2)\) under the sup norm, and Newton–Gregory interpolation yields the coefficients \(a_n\). Uniform convergence follows from \(a_n\to 0\) in \(\mathbb Q_2\).
-\end{proof}
-
-\begin{corollary}[Dyadic evaluation and coefficient truncation]
-Fix \(m\ge 0\) and evaluate the Mahler truncation
+\subsubsection{Advanced Feature Extraction}
+Beyond classical spectral analysis, more advanced feature extraction techniques can provide richer, more stable representations of audio signals. The Wavelet Scattering Transform, for example, constructs time-frequency representations that are stable to time-warping and deformations, offering robustness against minor variations in timing or tempo~\cite{ref13}. It achieves this by cascading wavelet filter bank convolutions with complex modulus operations and low-pass averaging. The first-order scattering coefficients,
 \[
-S_M(x):=\sum_{n=0}^{M} a_n \binom{x}{n}
+S_1(x; \lambda_1, t) = |x * \psi_{\lambda_1}| * \phi(t),
 \]
-on the dyadic grid \(x=k/2^m\) (\(0\le k\le 2^m\)). Then each \(\binom{k/2^m}{n}\) is a rational with denominator a power of \(2\); hence if the \(a_n\) are chosen in \(\mathbb Q\) with denominators a power of \(2\), every value \(S_M(k/2^m)\) is a dyadic rational. Further, the truncation error satisfies
+capture local energy in frequency bands similar to a spectrogram, while second-order coefficients,
 \[
-\|f-S_M\|_{\infty,\mathbb Z_2}\le \sup_{n>M} |a_n|_2,
+S_2(x; \lambda_1, \lambda_2, t) = ||x * \psi_{\lambda_1}| * \psi_{\lambda_2}| * \phi(t),
 \]
-so dyadic accuracy is controlled directly by the \(2\)-adic decay of \(a_n\).
-\end{corollary}
+capture modulations of these spectral envelopes, providing information about temporal textures and rhythmic patterns~\cite{ref13}. Although typically used for audio classification or analysis, these stable, multi-scale features could be highly effective for workload prediction if specific signal textures or modulation patterns are found to correlate strongly with the resource demands of different audio modules or processing chains.
 
-\paragraph{Remarks for hardware.}
-(i) The basis \(\binom{x}{n}\) is \emph{integer‑valued} on \(x\in\mathbb Z\), which helps cancellation of odd primes in arithmetic paths.
-(ii) If \(f\) is originally real‑analytic on \([-1,1]\), one may transfer to \(\mathbb Z_2\) by encoding inputs on a dyadic grid and using the same truncated binomial basis; the resulting polynomial has dyadic coefficients after rounding \(a_n\) to a fixed \(2^{-b}\) grid, with an a priori sup‑norm bound inherited from the Mahler tail.
+\subsubsection{Signal Correlation Metrics}
+The term ``signal correlation metrics'' can also encompass time-domain or phase-based measures. For instance, if the workload of a module is related to the phase synchrony between different components of an audio signal (e.g., harmonics of a note, or multiple instrument lines), then metrics like the phase-locking value (PLV) could be relevant. Zhao et al.\ (2023) proposed an improved PLV based on a rotating reference frame for analyzing phase synchrony, which might offer enhanced robustness or sensitivity for workload feature extraction~\cite{ref14}.
 
-\section{Walsh series: dyadic orthobasis and FPGA friendliness}
+The selection of an appropriate signal analysis technique for workload forecasting involves a critical trade-off. More sophisticated techniques like full SCD computation or multi-layer wavelet scattering can yield highly discriminative features but may incur significant computational cost if implemented in real-time on the FPGA for continuous monitoring~\cite{ref1}. Simpler spectral estimates, time-domain correlations, or carefully selected subsets of scattering coefficients might offer a better balance between predictive power and the overhead of feature extraction. This recurring theme highlights the necessity of bridging advanced mathematical concepts with practical, efficient implementations, particularly within the resource and real-time constraints of an FPGA environment. The features extracted must be not only predictive but also computable with sufficiently low latency and resource usage so as not to negate the benefits of the subsequent dynamic reconfiguration.
 
-Let \(\{r_j\}_{j\ge 0}\) be the Rademacher functions on \([0,1)\), and define the Walsh functions (Paley ordering)
+\subsection{Adaptive Algorithms and Control Strategies}
+
+Once predictive features are extracted from the audio signals, an adaptive mechanism is needed to translate these predictions into decisions about FPGA resource allocation. Adaptive algorithms and control theory provide the principles for such mechanisms.
+
+\subsubsection{Adaptive Filtering}
+Adaptive filtering is a well-established field in signal processing where the parameters of a filter (e.g., its coefficients) are iteratively adjusted to minimize an error signal, typically the difference between the filter's output and a desired response. The Least Mean Squares (LMS) algorithm is a cornerstone in this area due to its simplicity and computational efficiency. A widely used variant, particularly relevant in audio applications like active noise control (ANC), is the Filtered-x LMS (FxLMS) algorithm~\cite{ref9}.
+
+The FxLMS algorithm is designed for systems where an adaptive filter $w(n)$ generates an output that passes through a secondary path (e.g., an acoustic path from a loudspeaker to an error microphone in ANC) before contributing to the error signal $e(n)$. To account for this secondary path, $S(z)$, the reference input signal $x(n)$ is pre-filtered by an estimate of this path, $\hat{S}(z)$, to produce $x'(n)$. The filter coefficients are then updated according to:
 \[
-W_k(x)=\prod_{j=0}^{\infty} r_j(x)^{k_j},
-\quad k=\sum_{j\ge 0} k_j 2^j,\ k_j\in\{0,1\}.
+w(n+1) = w(n) + \mu e(n) x'(n)
 \]
-Then \(\{W_k\}_{k\ge 0}\) is a complete orthonormal basis of \(L^2([0,1))\).
-For \(f\in L^2([0,1))\) its Walsh–Fourier series is
-\[
-f(x)\sim \sum_{k=0}^{\infty} \widehat f(k)\,W_k(x),
-\qquad
-\widehat f(k)=\int_0^1 f(t)\,W_k(t)\,dt.
-\]
-\paragraph{Dyadic rationality.} If \(f\) is sampled on a dyadic grid of step \(2^{-m}\) and the integrals are approximated by the exact rectangle rule on Walsh intervals, then each partial sum
-\[
-S_N(x)=\sum_{k=0}^{N-1}\widehat f(k)\,W_k(x)
-\]
-is a dyadic step function when the samples of \(f\) are dyadic rationals (the coefficients \(\widehat f(k)\) become dyadic by construction). Computation uses the fast Walsh–Hadamard transform (FWHT), i.e. a butterfly network of adds/subtracts only.
+where $\mu$ is the step-size parameter controlling the adaptation rate and stability, and $M$ is the length of the filter $w(n)$~\cite{ref9}. The performance of the FxLMS algorithm, including its convergence speed and stability, is influenced by the accuracy of the secondary path estimate $\hat{S}(z)$, the choice of step size $\mu$, and the characteristics of the signals involved~\cite{ref9}.
 
-\paragraph{Convergence and comparison to trigonometric series.}
-Walsh series enjoy completeness and \(L^2\) convergence analogous to Fourier series; uniform convergence holds under standard smoothness or bounded variation hypotheses adapted to dyadic intervals.
+While adaptive algorithms like FxLMS are typically employed for direct signal processing tasks (e.g., noise cancellation, equalization), the underlying principles of online system identification (estimating $\hat{S}(z)$) and error-driven parameter adjustment ($w(n)$) are directly analogous to the problem of an FPGA adaptively reconfiguring its hardware. In the context of this thesis, the ``system'' being adapted is the FPGA's resource configuration, the ``input'' is the predicted workload, and the ``error'' could be a measure of deviation from desired performance targets (e.g., latency, throughput) or resource utilization efficiency. The FxLMS algorithm's need to model a ``secondary path'' mirrors the requirement for the predictive reconfiguration system to understand how changes in FPGA resources (e.g., allocating more DSP slices) translate into changes in performance or power consumption for a given audio module.
+
+\section{Cyclostationary and Control Theoretic Approaches to Signal Analysis}
+
+The \emph{Koopman operator}, $\mathcal{U}$, provides a way to study a nonlinear dynamical system, evolving according to a state-transition function $x_{k+1} = F(x_k)$, by examining its action on a space of observable functions, $g$, of the system's state $x$~\cite{Koopman1931,Mezic2005}. The operator acts on an observable $g$ such that:
+\[
+(\mathcal{U}g)(x) = g(F(x))
+\]
+
+A key insight of Koopman theory is that while the underlying state dynamics may be nonlinear, the Koopman operator itself is linear, albeit generally acting on an infinite-dimensional space of observables~\cite{Budisic2012}. The practical utility of the Koopman operator often hinges on finding a finite-dimensional vector of observables, $\mathbf{g}(x) = [g_1(x), g_2(x), \ldots, g_m(x)]^T$, whose span is invariant under the action of $\mathcal{U}$. If such an invariant subspace exists, the Koopman operator can be represented by a finite-dimensional matrix $K$, often referred to as the Koopman matrix. This leads to a linear predictive model in the space of observables:
+\[
+\mathbf{g}(x_{k+1}) = K\mathbf{g}(x_k)
+\]
+
+This transformation allows for the prediction of the future evolution of the chosen observables using standard linear system theory, even if the original system $F$ is highly nonlinear. Various methods have been developed to approximate Koopman operators and their corresponding modes and eigenvalues from time-series data~\cite{Schmid2010,Williams2015}. Dynamic Mode Decomposition (DMD) is one such popular technique, which seeks to find a linear model $x_{k+1} \approx Ax_k$ that best describes the evolution of snapshots of the system state. Extended DMD (EDMD) generalizes this by applying DMD to a dictionary of observable functions, effectively seeking the matrix $K$~\cite{Williams2015}.
+
+Recent applications in audio signal processing highlight the potential of Koopman-based models. For instance, Huhtala et al.\ (2024) utilized Koopman operator theory to linearize the long-term dynamics of nonlinear audio effects such as vacuum tube amplifiers, enabling more efficient modelling~\cite{Huhtala2024}. Similarly, Díaz and Schlecht (2024) employed an extended Koopman embedding for modelling the dynamics of stiff strings, showcasing its utility for complex physical audio systems~\cite{DiazSchlecht2024}.
+
+\section{Mathematical Foundations for design derivation}
+
+This section reviews the mathematical and algorithmic foundations underlying the projection-based bit allocation framework developed in Chapter~3. The techniques synthesize results from multiple disciplines:
+
+\subsection{Fixed-Point Quantization and Bit Allocation}
+
+The dyadic quantization framework builds on classical filter design literature~\cite{Gustafsson2007,OppenheimDSP}, which establishes fundamental trade-offs between coefficient precision and filter performance. The sensitivity-driven bit allocation extends the greedy algorithm of~\cite{Gustafsson2007} by incorporating complex-valued error projectors that simultaneously capture magnitude and phase distortion. 
+
+The quantization noise model follows~\cite{Widrow1996}, with variance $\mathrm{Var}[\epsilon_n] = \frac{1}{12}(2^{-m_n})^2$ for uniform rounding. This model assumes that rounding errors behave as independent uniform random variables, which is valid when the signal varies rapidly relative to the quantization step size. The total quantization error power is then the sum of individual coefficient error contributions weighted by their sensitivity.
+
+Gustafsson's work~\cite{Gustafsson2007} established that for a fixed total bit budget $B_{\text{total}}$, the optimal allocation minimizes the worst-case error by distributing bits proportional to coefficient sensitivity. The greedy algorithm iteratively allocates one bit to the coefficient with the highest marginal error reduction until the budget is exhausted. This approach is provably optimal for convex error metrics and provides a near-optimal approximation for general sensitivity matrices.
+
+\subsection{Wavelet Theory and Multi-Resolution Analysis}
+
+The Shannon wavelet basis forms the orthonormal foundation for multi-band decomposition~\cite{Daubechies1992,Mallat1989}. The Shannon scaling function $\phi(t) = \operatorname{sinc}(t)$ has Fourier transform $\widehat{\phi}(\omega) = \mathbf{1}_{[-\pi,\pi]}(\omega)$, providing perfect bandlimiting. The mother wavelet $\psi(t) = \operatorname{sinc}(t/2)\cos(\pi t)$ extracts the frequency band $[\pi, 2\pi] \cup [-2\pi, -\pi]$.
+
+Multi-resolution analysis (MRA)~\cite{Mallat1989,Daubechies1992} establishes a nested sequence of approximation spaces:
+\[
+\cdots \subset V_{-1} \subset V_0 \subset V_1 \subset \cdots \subset L^2(\mathbb{R})
+\]
+where $V_j = \{\text{span}\{\phi_{j,k}(t)\}_{k \in \mathbb{Z}}\}$ and $\phi_{j,k}(t) = 2^{j/2}\phi(2^j t - k)$. The detail spaces $W_j = V_{j+1} \ominus V_j$ are spanned by $\{\psi_{j,k}\}$ and satisfy:
+\[
+L^2(\mathbb{R}) = V_{j_0} \oplus \bigoplus_{j=j_0}^\infty W_j
+\]
+
+This decomposition enables independent processing of frequency bands. Our per-scale bit allocation leverages the dyadic structure, as formalized in~\cite{VetterliKovacevic1995}. The Parseval identity~\cite{Walter1992} ensures energy preservation:
+\[
+\|f\|^2 = \sum_k |c_{j_0,k}|^2 + \sum_{j=j_0}^\infty \sum_k |d_{j,k}|^2
+\]
+which is critical for interpreting sensitivity metrics across scales.
+
+\section{Existing Hardware Techniques and Designs}
+
+\subsection{FPGA Synthesis and CORDIC Algorithms}
+
+Hardware-efficient evaluation of trigonometric and hyperbolic functions employs CORDIC (COordinate Rotation DIgital Computer) algorithms~\cite{Volder1959,Andraka1998}, which replace multiplications with bit-shifts and additions. The CORDIC algorithm computes rotations in the plane by iteratively performing micro-rotations:
+\[
+\begin{pmatrix} x_{i+1} \\ y_{i+1} \end{pmatrix} = \begin{pmatrix} 1 & -\sigma_i 2^{-i} \\ \sigma_i 2^{-i} & 1 \end{pmatrix} \begin{pmatrix} x_i \\ y_i \end{pmatrix}
+\]
+where $\sigma_i \in \{-1, +1\}$ is chosen to reduce a residual angle $z_i$. After $n$ iterations, the accumulated rotation approximates any target angle to precision $2^{-n}$.
+
+The modal synthesis approach (Chapter~4, Section~4.2) decomposes filtered projectors into sums over poles, each realized as a CORDIC oscillator. For a transfer function $H(z)$ with poles $\{p_k\}$, the partial fraction decomposition gives:
+\[
+H(z) = \sum_k \frac{r_k}{z - p_k}
+\]
+where each term $r_k/(z - p_k)$ corresponds to a damped oscillator with frequency $\arg(p_k)$ and decay rate $\log|p_k|$. In hardware, each pole is implemented as a complex CORDIC unit generating $e^{i\omega_k n}$ modulated by the residue $r_k$. This extends the dyadic filter design techniques of~\cite{ParkhiUnbehauen1974} to complex-valued kernels.
+
+The key advantage is that CORDIC units require only shifters and adders, avoiding expensive multipliers. For FPGA implementations where DSP slices are limited, this enables high-order filters with minimal resource consumption~\cite{Andraka1998}.
+
+\subsection{Rate-Distortion Theory and Water-Filling}
+
+While not explicitly invoked in Chapter~4, the optimal bit allocation framework parallels rate-distortion theory~\cite{CoverThomas2006}, which characterizes the minimum bit rate $R$ required to achieve a target distortion $D$. The rate-distortion function is defined as:
+\[
+R(D) = \min_{p(\hat{x}|x): \mathbb{E}[d(x,\hat{x})] \leq D} I(X; \hat{X})
+\]
+where $I(X; \hat{X})$ is mutual information and $d(x, \hat{x})$ is a distortion measure.
+
+For Gaussian sources with mean-squared error distortion, the water-filling solution allocates bits to frequency components inversely proportional to their noise variance:
+\[
+R_i = \max\left\{0, \frac{1}{2}\log_2\frac{\sigma_i^2}{\lambda}\right\}
+\]
+where $\lambda$ is chosen to satisfy the total rate constraint $\sum_i R_i = R_{\text{total}}$.
+
+Our greedy algorithm can be viewed as a discrete approximation to water-filling~\cite{Kailath2000}, allocating precision where marginal error reduction is greatest. The sensitivity matrix $S_n$ plays the role of $\sigma_i^2$: coefficients with high sensitivity (analogous to high signal variance) receive more bits to maintain a balanced error contribution across all terms.
+
+\subsection{Bilinear Transform and Analog Filter Discretization}
+
+The bilinear transform~\cite{OppenheimDSP,Kailath2000} maps continuous-time filters in the $s$-domain to discrete-time filters in the $z$-domain via:
+\[
+s = \frac{2}{T}\frac{1-z^{-1}}{1+z^{-1}}
+\]
+where $T$ is the sampling period. This mapping is conformal and maps the left half-plane ($\Re(s) < 0$) to the interior of the unit circle ($|z| < 1$), preserving stability.
+
+For a causal analog filter with transfer function $H_a(s)$, the region of convergence (ROC) of the Laplace transform is a right half-plane $\Re(s) > \sigma_0$. For stable filters, $\sigma_0 < 0$, ensuring all poles lie in the left half-plane. The bilinear transform maps these poles inside the unit circle, guaranteeing the digital filter's stability.
+
+This property is crucial for the contour integration in Chapter~4, Section~4.2, where we evaluate integrals involving $H_a(\omega)$ on the imaginary axis. The ROC ensures that the contour can be deformed without crossing poles, enabling application of Jordan's lemma and the residue theorem.
+
+The frequency warping introduced by the bilinear transform is given by:
+\[
+\Omega = \frac{2}{T}\tan\left(\frac{\omega T}{2}\right)
+\]
+where $\Omega$ is the analog frequency and $\omega$ is the digital frequency. Pre-warping techniques~\cite{OppenheimDSP} compensate for this nonlinear mapping by adjusting critical frequencies (e.g., cutoff, center frequencies) before applying the transform.

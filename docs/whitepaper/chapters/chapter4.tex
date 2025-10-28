@@ -603,7 +603,7 @@ For any analytic \(H\),
 =\frac{\Im\!\big(e^{iz}\Gamma(2N+2,iz)\big)}{z\,(2N+1)!}.
 \;}
 \]
-This result is worth noting for the simplicity \& expectedness of its decomposition. We showed, via. standard complex analytic methods, that the partial sum $\mathrm{sinc}_N(z)$ can be rigorously expressed in it's incomplete upper gamma function form\cite{}. Moreover, that the projector error itself $\mathbb{E}(\mathbb{P}_N^{\text{even}})$, depends precisely on the upper gamma function's bound $N_{\text{gamma}} \propto N_{\text{sinc}}, N_{\text{gamma}} = 2(N_{\text{sinc}}+1)$.
+This result is worth noting for the simplicity \& expectedness of its decomposition. We showed, via standard complex analytic methods~\cite{Ahlfors1979,Stein2003}, that the partial sum $\mathrm{sinc}_N(z)$ can be rigorously expressed in its incomplete upper gamma function form~\cite{NIST:DLMF,Temme1996}. Moreover, that the projector error itself $\mathbb{E}(\mathbb{P}_N^{\text{even}})$, depends precisely on the upper gamma function's bound $N_{\text{gamma}} \propto N_{\text{sinc}}, N_{\text{gamma}} = 2(N_{\text{sinc}}+1)$.
 \bigskip
 
 \begin{lemma}[For $z \in \mathbb{R}$, the truncation projector can be written in terms of a hypergeometric series]\label{lem:hypergeom_real}
@@ -720,7 +720,7 @@ R_N(z) := \mathrm{sinc}(z) - \mathbb{P}_N^{\text{even}}[\mathrm{sinc}](z) = \fra
 
 The projector derivation for $\mathrm{sinc}(z)$ in Section~4.1.7 exploited a specific property: the sinc function's Fourier transform is a rectangular pulse, which admits closed-form residue computation. However, audio signal chains require a much broader class of filter kernels—low-pass, high-pass, band-pass, parametric EQ, and nonlinear effects—each with distinct frequency responses $H(\omega)$.
 
-The key insight is that \emph{any analytic frequency response} $H(\omega)$ can be incorporated into the projection framework via contour integration, providing a unified computational method for evaluating sensitivity matrices across arbitrary filter types. This generalization is essential for the adaptive FPGA architecture: as the signal chain's module graph evolves (e.g., user adds a resonant filter or switches from low-pass to band-pass), the system must rapidly recompute sensitivities to update bit allocations without redesigning the entire hardware pipeline.
+The key insight (developed in Section~2.4) is that \emph{any analytic frequency response} $H(\omega)$ can be incorporated into the projection framework via contour integration, providing a unified computational method for evaluating sensitivity matrices across arbitrary filter types. This generalization is essential for the adaptive FPGA architecture: as the signal chain's module graph evolves (e.g., user adds a resonant filter or switches from low-pass to band-pass), the system must rapidly recompute sensitivities to update bit allocations without redesigning the entire hardware pipeline.
 
 This section establishes four design principles that motivate the generic kernel $H(\omega)$:
 
@@ -764,7 +764,7 @@ The full projector is their sum: $\mathbb{P}_N[\text{sinc} * h](z) = \mathbb{P}_
 \item Poles $\{\omega_k\}$ of $H_a(\omega)$ (filter-dependent)
 \end{itemize}
 
-\textbf{Contour selection and causality.} For a causal filter with impulse response $h_a(t) = 0$ for $t < 0$, the region of convergence (ROC) of the Laplace transform $H_a(s) = \int_0^\infty h_a(t) e^{-st} dt$ is a right half-plane $\Re(s) > \sigma_0$ for some $\sigma_0 \in \mathbb{R}$. This guarantees:
+\textbf{Contour selection and causality.} For a causal filter with impulse response $h_a(t) = 0$ for $t < 0$, the region of convergence (ROC) of the Laplace transform~\cite{OppenheimDSP} $H_a(s) = \int_0^\infty h_a(t) e^{-st} dt$ is a right half-plane $\Re(s) > \sigma_0$ for some $\sigma_0 \in \mathbb{R}$. This guarantees:
 \begin{itemize}
 \item All poles of $H_a(s)$ satisfy $\Re(s) \leq \sigma_0$ (lie in or to the left of the ROC boundary)
 \item For stable filters, $\sigma_0 < 0$, so all poles are in the left half-plane (LHP)
@@ -773,13 +773,13 @@ The full projector is their sum: $\mathbb{P}_N[\text{sinc} * h](z) = \mathbb{P}_
 
 Crucially, the original contour in the $\zeta$-plane was $|\zeta| = r < 1$, which after substitution $\omega = iz/\zeta$ becomes a contour in the $\omega$-plane. Since we're free to choose $r$ in the original formulation, we can select $r$ such that the transformed contour avoids all poles of $H_a(\omega)$.
 
-For the case where $H_a(\omega)$ has poles on the imaginary axis (e.g., marginally stable filters), we deform the contour to avoid these poles:
+For the case where $H_a(\omega)$ has poles on the imaginary axis (e.g., marginally stable filters), we deform the contour to avoid these poles~\cite{Ahlfors1979}:
 \begin{itemize}
 \item Use principal value integrals or semicircular indentations around poles on the contour
-\item For filters derived via bilinear transform from stable analog prototypes, poles are strictly in the LHP, so no deformation is needed
+\item For filters derived via bilinear transform~\cite{OppenheimDSP,Kailath2000} from stable analog prototypes, poles are strictly in the LHP, so no deformation is needed
 \end{itemize}
 
-\textbf{Vanishing at infinity (Jordan's lemma).} To apply the residue theorem, we must verify the integral over a large circular contour $|\omega| = R$ vanishes as $R \to \infty$. Consider the even component:
+\textbf{Vanishing at infinity (Jordan's lemma).} To apply the residue theorem, we must verify the integral over a large circular contour $|\omega| = R$ vanishes as $R \to \infty$~\cite{Ahlfors1979,Stein2003}. Consider the even component:
 \[
 \left|\oint_{|\omega|=R} \frac{S_{\text{even}}(\omega) \cdot H_{a,\text{even}}(\omega)}{\omega^2+z^2} d\omega\right| \leq 2\pi R \cdot \max_{|\omega|=R} \left|\frac{S_{\text{even}}(\omega) \cdot H_{a,\text{even}}(\omega)}{\omega^2+z^2}\right|
 \]
@@ -802,7 +802,7 @@ The contour integral vanishes as $R \to \infty$ provided:
 
 For typical low-order filters with $\deg(Q) - \deg(P) \geq 1$ and moderate $N$, this condition is satisfied.
 
-\textbf{Residue theorem.} With causality ensuring poles are in the LHP and Jordan's lemma verified, the integral equals $2\pi i$ times the sum of residues at all enclosed poles:
+\textbf{Residue theorem.} With causality ensuring poles are in the LHP and Jordan's lemma verified, the integral equals $2\pi i$ times the sum of residues at all enclosed poles~\cite{Ahlfors1979}:
 \[
 \mathbb{P}_N^{\text{even}}[\text{sinc} * h](z) = \sum_{\omega_k} \text{Res}\left[\frac{S_{\text{even}}(\omega) \cdot H_{a,\text{even}}(\omega)}{\omega^2+z^2}, \omega_k\right]
 \]
@@ -810,7 +810,7 @@ For typical low-order filters with $\deg(Q) - \deg(P) \geq 1$ and moderate $N$, 
 \mathbb{P}_N^{\text{odd}}[\text{sinc} * h](z) = z \sum_{\omega_k} \text{Res}\left[\frac{S_{\text{odd}}(\omega) \cdot H_{a,\text{odd}}(\omega)}{\omega^2+z^2}, \omega_k\right]
 \]
 
-The residues depend on the specific form of $H_a(\omega)$ and can be computed using standard techniques.
+The residues depend on the specific form of $H_a(\omega)$ and can be computed using standard techniques~\cite{Stein2003}.
 \end{proof}
 \end{theorem}
 
@@ -878,7 +878,7 @@ Section~4.2 established that filtered projectors decompose into even and odd com
 \]
 where the coefficients $c_k^{\text{even}}$ and $c_k^{\text{odd}}$ depend on the residues of $H_a(\omega)$ at the poles $\omega = \pm iz$ (and any filter-specific poles). For the pure sinc case ($H_a(\omega) = 1$), we have $c_k^{\text{even}} = \frac{(-1)^k}{(2k+1)!}$.
 
-To implement these projectors in hardware, each coefficient must be quantized to a dyadic rational~\cite{Gustafsson2007}:
+To implement these projectors in hardware (see Section~2.4 for theoretical background), each coefficient must be quantized to a dyadic rational~\cite{Gustafsson2007}:
 \[
 \widetilde{c}_k = \frac{a_k}{2^{m_k}}, \quad a_k \in \mathbb{Z}, \quad m_k \in \mathbb{N}_0,
 \]
@@ -990,7 +990,7 @@ Sections~4.1--4.3 established a projection framework for approximating individua
 \item \textbf{High frequencies (2--20 kHz)}: Lower energy, often masked by louder sounds; can tolerate more quantization noise.
 \end{itemize}
 
-The adaptive FPGA signal chain envisioned in this thesis must allocate resources \emph{per frequency band}, not uniformly across all frequencies. This requires decomposing the signal into localized frequency components—a task naturally suited to \emph{wavelet bases}.
+The adaptive FPGA signal chain envisioned in this thesis must allocate resources \emph{per frequency band}, not uniformly across all frequencies. This requires decomposing the signal into localized frequency components—a task naturally suited to \emph{wavelet bases} (see Section~2.4 for theoretical foundations).
 
 The Shannon wavelet basis provides an orthonormal decomposition of $L^2(\mathbb{R})$ where each wavelet $\psi_{j,k}(t)$ is localized to a specific octave band $[2^j\pi, 2^{j+1}\pi]$ in frequency. Critically, each band's bit allocation problem \emph{decouples}—we can independently optimize the bit vector $\mathbf{m}^{(j)}$ for scale $j$ based on the signal's energy in that band, enabling fine-grained resource control.
 
@@ -1229,35 +1229,3 @@ The sensitivity matrix $\mathbf{S}_{\text{wavelet}}^{(j)}$ from Section~4.4 guid
 \end{itemize}
 
 The remaining sections translate these theoretical results into a concrete hardware architecture. Section~4.5 describes the composite kernel architecture for wavelet-based filtering. Section~4.6 presents the complete dual bit-allocator/band-limiter system that adapts to signal characteristics in real time, fulfilling the adaptive signal chain vision outlined in the thesis abstract.
-
-\section{Composite Kernel Architecture for Wavelet-Based Filtering}
-
-[This section should describe the hardware architecture that implements the quantized Shannon wavelet projector, including:
-\begin{itemize}
-\item CORDIC oscillator banks for generating complex exponentials $e^{i\omega_p t}$
-\item Dyadic coefficient storage in BRAM with bit allocation vector $\mathbf{m}^{(j)}$ per scale
-\item Multi-rate processing: different sampling rates for different wavelet scales
-\item Pipeline architecture for tree-structured wavelet decomposition/reconstruction
-\item Resource budgeting: total DSP/BRAM/LUT allocation across all scales
-\end{itemize}]
-
-\section{Adaptive Bit Allocation and Band-Limiting for Real-Time Signal Processing}
-
-\begin{itemize}
-\item Signal energy estimation per wavelet scale to detect frequency content changes
-\item Triggering conditions for bit reallocation (e.g., SQNR drops below threshold, energy shifts between bands)
-\item Fast reallocation algorithm: incremental updates to $\mathbf{m}$ without full recomputation
-\item Band-limiting via dynamic truncation: disabling high-frequency scales when signal is low-pass
-\item Integration with modular effect chain: mapping DSP modules (reverb, distortion, EQ) to wavelet operations
-\item Case study: adaptive parametric EQ that adjusts bit allocation based on measured frequency response
-\end{itemize}
-
-The result is a complete FPGA architecture where:
-\begin{enumerate}
-\item Signal decomposition into Shannon wavelets provides natural frequency-band separation,
-\item Per-band sensitivity matrices guide optimal bit allocation under total resource budget,
-\item Runtime monitoring detects signal changes and triggers adaptive reallocation,
-\item Hardware primitives (CORDIC, dyadic MAC) enable efficient implementation with predictable latency.
-\end{enumerate}
-
-This realizes the thesis goal: an FPGA platform that \emph{predictively reconfigures} in response to evolving audio workloads, supporting complex modular effect chains with runtime optimization.]

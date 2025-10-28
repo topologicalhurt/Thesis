@@ -1,1 +1,140 @@
 \chapter{Control theoretic model for dynamic FPGA resource balancing}
+
+\section{Cyclostationary analysis}
+
+A signal with the property $x(t) = x(t + T)\ \forall\, t,\ T>0$ is called \textit{strictly periodic} (or \textit{periodic pointwise}).
+A composition of periodic signals $h(t) = \sum_{i=0}^N x_i(t)$ is also periodic $\iff \tfrac{T_i}{T_j} \in \mathbb{Q}\ \forall\, i,j$ (i.e., the periods are commensurable).
+The period of $h(t)$ can therefore be described as
+\[
+T = \mathrm{lcm}(T_0, T_1, \dots, T_N).
+\]
+
+A \textit{wide-sense cyclostationary} (WSC) signal is defined by
+\[
+\mathbb{E}[x(t)] = \mathbb{E}[x(t+T)], \quad R_x(t,\tau) = R_x(t+T,\tau),
+\]
+where $R_x(t,\tau) = \mathbb{E}[x(t)x^*(t+\tau)]$.
+That is, both the mean $\bar{x}(t)$ and the autocorrelation function $R_x(t,\tau)$ are periodic in $t$.
+More generally, a signal is cyclostationary \textit{iff} there exists some $n$th-order nonlinear transformation of $x(t)$ that produces a finite additive sinusoidal component~\cite{}.
+
+The definition of the \textit{spectral parameter}~\cite{} is
+\[
+\hat{x}(\alpha) \;=\; \lim_{T \to \infty} \frac{1}{T}
+\int_{-T/2}^{T/2} x(t)\,e^{-j2\pi \alpha t}\,dt.
+\]
+
+For $x(t) = a\cos(2\pi \beta t + \theta)$:
+\[
+x(t) = \tfrac{a}{2}\big(e^{j(2\pi \beta t + \theta)} + e^{-j(2\pi \beta t + \theta)}\big).
+\]
+
+Substituting into the definition:
+\[
+\hat{x}(\alpha) = \lim_{T \to \infty} \frac{a}{2T}
+\left[
+e^{j\theta}\int_{-T/2}^{T/2} e^{j2\pi(\beta-\alpha)t}\,dt \;+\;
+e^{-j\theta}\int_{-T/2}^{T/2} e^{-j2\pi(\beta+\alpha)t}\,dt
+\right].
+\]
+
+Recalling that
+\[
+\int_{-T/2}^{T/2} e^{j2\pi f t}\,dt = \frac{\sin(\pi f T)}{\pi f},
+\]
+we obtain
+\[
+\hat{x}(\alpha) = \frac{a}{2} \lim_{T \to \infty} \frac{1}{T}\Bigg[
+e^{j\theta}\frac{\sin(\pi(\beta-\alpha)T)}{\pi(\beta-\alpha)}
++ e^{-j\theta}\frac{\sin(\pi(\beta+\alpha)T)}{\pi(\beta+\alpha)}
+\Bigg].
+\]
+
+Equivalently,
+\[
+\hat{x}(\alpha) = \frac{a}{2}\lim_{T \to \infty}\left[e^{j\theta}\,\mathrm{sinc}((\beta-\alpha)T)
++ e^{-j\theta}\,\mathrm{sinc}((\beta+\alpha)T)\right],
+\]
+where $\mathrm{sinc}(x) = \frac{\sin(\pi x)}{\pi x}$.
+
+If $\alpha = \beta$:
+\[
+\hat{x}(\alpha) = \tfrac{a}{2}e^{j\theta}.
+\]
+
+If $\alpha = -\beta$:
+\[
+\hat{x}(\alpha) = \tfrac{a}{2}e^{-j\theta}.
+\]
+
+Otherwise:
+\[
+\hat{x}(\alpha) = 0.
+\]
+
+Thus:
+\[
+\hat{x}(\alpha) =
+\begin{cases}
+	\dfrac{a}{2}e^{j\theta}, & \alpha = \beta,\\[6pt]
+	\dfrac{a}{2}e^{-j\theta}, & \alpha = -\beta,\\[6pt]
+	0, & \text{otherwise}.
+\end{cases}
+\]
+
+This demonstrates that the time-averaged inner product survives only when the test frequency $\alpha$ matches a sinusoidal component $\beta$ of the signal.
+
+\subsection{Relation between Strict Periodicity and Cyclostationarity}
+
+Every strictly periodic signal is trivially wide-sense cyclostationary.
+Indeed, if $x(t) = x(t+T)$, then
+\[
+\mathbb{E}[x(t)] = \mathbb{E}[x(t+T)], \quad
+R_x(t,\tau) = \mathbb{E}[x(t)x^*(t+\tau)] = \mathbb{E}[x(t+T)x^*(t+T+\tau)] = R_x(t+T,\tau).
+\]
+Thus:
+\[
+x(t)\ \text{periodic} \;\implies\; x(t)\ \text{WSC (cyclostationary)}.
+\]
+
+The converse does not hold: cyclostationary signals need not be strictly periodic pointwise.
+For example, an amplitude-modulated process $x(t) = m(t)\cos(2\pi f_c t)$ with random data $m(t)$ can be cyclostationary with period $1/f_c$, while not being pointwise periodic.
+
+\subsection{Group-Theoretic Interpretation}
+The set of transformations $T$ can be understood as the action of a \emph{symmetry group} $G$ on the domain $A$. In the sine example, the relevant group is the \emph{dihedral group} $D_4$, which consists of rotations and reflections of a square \cite{armstrong1988groups, gallian2021contemporary}.
+Each $\tau \in T$ corresponds to an element of $D_4$ acting on the domain of $\sin(x)$, with reflections accounting for sign changes and rotations corresponding to translations by $\pi/2$.
+
+Thus, the concept of foldability is equivalent to requiring that the function $f$ is invariant under the action of a group $G$, up to sign or phase factors. The \emph{fundamental domain} $A_0$ is then a representative region of $A$ under this group action, and folding reduces storage by exploiting orbit representatives of $G$.
+
+In group-theoretic language, the prior example is invariant under the group action up to a sign factor, i.e.,
+\[
+\sin(x) = \epsilon(\tau) \, \sin(\tau(x)), \quad \epsilon(\tau) \in \{+1, -1\}, \ \tau \in G.
+\]
+The fundamental domain $A_0$ corresponds to a set of orbit representatives of $G$ acting on $A$, and the recovery method reconstructs the full signal from this reduced domain.
+
+\subsection{Relationship between 'Foldable Functions' and Cyclostationarity}
+
+Foldable functions are naturally related to cyclostationarity. A cyclostationary signal $x(t)$ has statistics that are periodic with period $T$.\\
+
+For a foldable function like $\sin(x)$, the fundamental domain $A_0$ can be interpreted as a segment over which the first- and second-order statistics repeat under the action of $G$. In other words, folding exploits the same periodic structure that cyclostationary analysis detects: the mean and autocorrelation within $A_0$ are sufficient to reconstruct the signal statistics over the entire domain.
+
+Thus, foldability can be seen as a deterministic, structural analogue of cyclostationarity: instead of averaging over time to detect periodic statistics, we use group-theoretic transformations to reconstruct the full signal from a reduced representative domain.
+
+Let \( f: A \to B \) be a foldable function with fundamental domain \( A_0 \subseteq A \) and recovery transformations \( T = \{ \tau_i : A \to A \}_{i \in I} \) such that
+\[
+\forall x \in A, \exists \tau \in T \text{ with } \tau(x) \in A_0 \quad \text{and} \quad f(x) = f \circ \tau(x).
+\]
+This implies that the function \( f \) is invariant under the group action of \( G \) generated by \( T \), and the entire domain \( A \) can be reconstructed from \( A_0 \) using the transformations in \( T \).
+
+Now, consider the autocorrelation function of \( f \):
+\[
+R_f(x, \Delta) = \mathbb{E}[f(x) f^*(x + \Delta)].
+\]
+Since \( f(x) = f(\tau(x)) \) for some \( \tau \in T \), we have
+\[
+R_f(x, \Delta) = \mathbb{E}[f(\tau(x)) f^*(\tau(x + \Delta))].
+\]
+Because \( \tau(x), \tau(x + \Delta) \in A_0 \) (up to another element of the group), all evaluations of \( R_f(x, \Delta) \) are determined entirely by the behavior on \( A_0 \). Therefore,
+\[
+R_f(x, \Delta) = R_f(\tau(x), \Delta), \quad \forall x \in A, \ \tau \in T, \ \tau(x) \in A_0.
+\]
+Thus, the fundamental domain \( A_0 \) captures all statistical information of the function \( f \), analogous to how the fundamental domain in cyclostationary signal processing captures the periodic statistical properties of a signal.
