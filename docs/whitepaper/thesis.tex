@@ -9,6 +9,8 @@
 \usepackage{amsthm}
 \usepackage{thmtools}
 \usepackage[framemethod=TikZ]{mdframed}
+\usepackage{nomencl}
+\usepackage[utf8]{inputenc}
 
 \DeclareMathOperator{\sgn}{sgn}
 
@@ -63,7 +65,75 @@
 % Proof environment (no box, but with spacing)
 \renewcommand{\qedsymbol}{$\blacksquare$}
 
-%\makenomenclature
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{12}
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{12}
+\usepackage{color}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+\usepackage{listings}
+
+% Python style for highlighting
+\newcommand\pythonstyle{\lstset{
+language=Python,
+basicstyle=\ttm,
+morekeywords={self},
+keywordstyle=\ttb\color{deepblue},
+emphstyle=\ttb\color{deepred},
+stringstyle=\color{deepgreen},
+frame=tb,
+showstringspaces=false
+}}
+
+\newcommand\cstyle{\lstset{
+language=C,
+basicstyle=\ttm,
+morekeywords={self},
+keywordstyle=\ttb\color{deepblue},
+emphstyle=\ttb\color{deepred},
+stringstyle=\color{deepgreen},
+frame=tb,
+showstringspaces=false
+}}
+
+\newcommand\verilogstyle{\lstset{
+language=Verilog,
+basicstyle=\ttm,
+morekeywords={self},
+keywordstyle=\ttb\color{deepblue},
+emphstyle=\ttb\color{deepred},
+stringstyle=\color{deepgreen},
+frame=tb,
+showstringspaces=false
+}}
+
+
+% Python environment
+\lstnewenvironment{python}[1][]
+{
+\pythonstyle
+\lstset{#1}
+}
+{}
+
+\lstnewenvironment{clang}[1][]
+{
+\cstyle
+\lstset{#1}
+}
+{}
+
+\lstnewenvironment{verilog}[1][]
+{
+\verilogstyle
+\lstset{#1}
+}
+{}
+
+
+
+\makenomenclature
 
 \addbibresource{bibliography.bib}
 

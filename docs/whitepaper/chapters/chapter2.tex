@@ -70,7 +70,7 @@ This section reviews the mathematical and algorithmic foundations underlying the
 
 \subsection{Fixed-Point Quantization and Bit Allocation}
 
-The dyadic quantization framework builds on classical filter design literature~\cite{Gustafsson2007,OppenheimDSP}, which establishes fundamental trade-offs between coefficient precision and filter performance. The sensitivity-driven bit allocation extends the greedy algorithm of~\cite{Gustafsson2007} by incorporating complex-valued error projectors that simultaneously capture magnitude and phase distortion. 
+The dyadic quantization framework builds on classical filter design literature~\cite{Gustafsson2007,OppenheimDSP}, which establishes fundamental trade-offs between coefficient precision and filter performance. Dyadic rationals (numbers of the form $\frac{p}{2^k}$ with integer $p$ and nonnegative integer $k$) are particularly important for FPGA implementations because they have exact binary representation and enable bit-shift arithmetic~\cite{Abdi2024}. The sensitivity-driven bit allocation extends the greedy algorithm of~\cite{Gustafsson2007} by incorporating complex-valued error projectors that simultaneously capture magnitude and phase distortion.
 
 The quantization noise model follows~\cite{Widrow1996}, with variance $\mathrm{Var}[\epsilon_n] = \frac{1}{12}(2^{-m_n})^2$ for uniform rounding. This model assumes that rounding errors behave as independent uniform random variables, which is valid when the signal varies rapidly relative to the quantization step size. The total quantization error power is then the sum of individual coefficient error contributions weighted by their sensitivity.
 

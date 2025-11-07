@@ -1,3 +1,27 @@
+"""
+Dyadic Polynomial Approximation via Bounded Minimax Truncation (BMT).
+
+This module implements polynomial approximation with dyadic rational coefficients
+(numbers of the form p/2^k where p is an integer and k is a nonnegative integer).
+Dyadic rationals have exact binary representation, making them ideal for FPGA
+fixed-point arithmetic.
+
+The core algorithm combines:
+1. Remez exchange for continuous minimax polynomial seeding
+2. Integer polytope formulation of dyadic coefficient constraints
+3. Binary search over error tolerance with lattice point enumeration
+
+Theoretical foundation:
+- Dyadic linear programming framework: Abdi et al. (2024), "Dyadic linear
+  programming and extensions", https://www.andrew.cmu.edu/user/gc0v/webpub/main.pdf
+- Remez exchange algorithm: Parks & McClellan (1972)
+- Discrete coefficient filter design: Lim & Parker (1983), Kodek (1980)
+
+References:
+    Abdi, A., Cornuéjols, G., Guenin, B., & Tunçel, L. (2024). Dyadic linear
+    programming and extensions. Mathematical Programming.
+"""
+
 from __future__ import annotations
 
 import math

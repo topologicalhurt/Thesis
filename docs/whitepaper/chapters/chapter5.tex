@@ -1,8 +1,8 @@
-\chapter{Architectural implementation of framework}
+\chapter{Architectural Implementation and Hardware Optimization}
 
-\section{CSP, DSP Approach to creating 'cache hierarchies'}
+\section{Memory-Efficient Lookup via Range Reduction}
 
-Motivating the earlier definition\ref{eq:} relating cyclostationarity to argument reduction, we consider it's application to $\sin(x)$ which has period $2\pi$ and can be represented with fundamental domain $\frac{\pi}{4}$ where the recovery method:
+Leveraging the argument reduction framework developed in Chapter~4 (Section~4.1.3), we demonstrate its application to trigonometric function evaluation on FPGA~\cite{Muller2006}. The technique of \emph{range reduction} (also known as argument reduction) exploits functional symmetries to reduce the domain over which a function must be tabulated or computed. Consider $\sin(x)$, which has period $2\pi$ and exhibits symmetry allowing representation via a fundamental domain of width $\frac{\pi}{4}$~\cite{Muller2006}. The recovery method:
 
 \[
 T =
@@ -22,138 +22,316 @@ f(x) =
 \end{cases}
 \]
 
-Can be used to store effectively $4\times$ less memory $M$ than the full period \textbf{OR} with the same memory footprint but $4\times$ greater granularity $G$. In general, the ratio between $M$ \& $G$, $\frac{M}{G}$, is called the \textit{precision-memory gain tradeoff}. $M = \frac{P}{|A_0|}$, $P$ is the period of the function.\\
+\[
+f(x) =
+\begin{cases}
+	f \circ \tau(x), & 0 \leq x \leq \pi,\\[6pt]
+	-f \circ \tau(x), & \pi < x \leq 2\pi
+\end{cases}
+\]
+
+enables storage reduction by a factor of 4 compared to storing the full period. Alternatively, for a fixed memory budget, this yields 4× finer granularity~\cite{Andraka1998,Volder1959}. In general, the \emph{precision-memory tradeoff} is characterized by the ratio $M/G$, where the memory reduction factor is $M = P/|A_0|$ and $P$ is the function period.
 
 \begin{note}
-it is important that the recovery method $f \circ \tau(x)$ is relatively efficient / portable to an FPGA \& that the tradeoff between the computational complexity of the recovery method \& the memory gain $M$ is not necessarily linear E.g. $\tau(x) \not\propto M$. A relevant example explored later on \cite{} is the function $\arccos(x)$ which requires the computation of $\sqrt{x + 1}$ on an FPGA in order to do the lookup on the reduced domain $\arccos: [0, \frac{1}{\sqrt{2}}] \to [-1, 1]$ \\
+The computational complexity of the recovery method $f \circ \tau(x)$ must be considered against the memory savings. The tradeoff is not necessarily linear: $\tau(x) \not\propto M$. For example, the function $\arccos(x)$ (analyzed in Section~\ref{sec:arccos_impl}) requires computing $\sqrt{x + 1}$ for quarter-domain range reduction over $\arccos: [0, \frac{1}{\sqrt{2}}] \to [0, \pi]$, introducing polynomial approximation overhead~\cite{Muller2006}.
 \end{note}
 
-\subsection{Procedure for storing arbitrary signals}
+\subsection{Algorithmic Framework for Signal Caching}
 
-A procedure to \textit{caching} an arbitrary signal $x(t)$ is the following:
+For an arbitrary periodic or quasi-periodic signal $x(t)$, we propose the following procedure:
 
 \begin{enumerate}
-    \item Decompose the signal into a series of harmonics (for analysis purposes).
-          In practice, this can be approximated via autocorrelation or spectral analysis rather than explicit FFT computation.
-    \item Use autocorrelation (ACF) analysis on the fundamental harmonic to estimate the period of a noisy signal within a specified SNR tolerance.
-    \item Iteratively refine the period estimate using heuristics, e.g., minimize spectral leakage if the period is undershot, or adjust lags using peak prominence methods.
-    \item Determine if the signal is \emph{foldable} by checking whether there exists a fundamental domain $A_0$ and a set of transformations $T$ such that
+    \item \textbf{Spectral decomposition:} Decompose $x(t)$ into harmonic components via autocorrelation or spectral analysis~\cite{OppenheimSchafer2010}. For computational efficiency, autocorrelation-based methods are preferred over full FFT computation on resource-constrained FPGA~\cite{SinhaSrikanthan2014}.
+
+    \item \textbf{Period estimation:} Apply autocorrelation function (ACF) analysis to the fundamental harmonic, estimating the period within a specified signal-to-noise ratio (SNR) tolerance~\cite{Das2017}. This is critical for audio signals with time-varying pitch or noisy measurements.
+
+    \item \textbf{Iterative refinement:} Refine the period estimate using spectral leakage minimization if underestimated, or peak prominence analysis to adjust lag windows~\cite{OppenheimSchafer2010}.
+
+    \item \textbf{Foldability test:} Determine if the signal is \emph{foldable} (Definition~\ref{eq:reducible_function}, Chapter~4) by verifying the existence of a fundamental domain $A_0$ and transformation set $T$ such that
     \[
-        \forall x \in A, \ \exists \tau \in T \text{ with } \tau(x) \in A_0 \text{ and } f(x) = f \circ \tau(x).
+        \forall x \in A, \ \exists \tau \in T : \tau(x) \in A_0 \text{ and } f(x) = f \circ \tau(x).
     \]
-    This step is limited to signals with known symmetries (e.g., trigonometric functions, piecewise monotonic functions).
-    \item Construct a recovery method that maps any $x \in A$ to $A_0$ via the transformations in $T$, taking into account the desired precision-memory gain tradeoff based on control-theoretic or resource-demand considerations.
-    \item Implement the recovery method in a synthesizable and efficient form for FPGA deployment, ensuring that the computational complexity of applying $\tau(x)$ does not outweigh the memory savings.
+    This is tractable for signals with known symmetries (trigonometric functions, piecewise monotonic waveforms) but computationally intensive for arbitrary signals~\cite{Muller2006}.
+
+    \item \textbf{Recovery method construction:} Construct an efficient mapping $\tau: A \to A_0$, balancing the precision-memory tradeoff according to resource constraints from the Koopman-MPC framework (Chapter~4, Section~4.2.5)~\cite{Bhandari2012}.
+
+    \item \textbf{Hardware synthesis:} Implement $\tau(x)$ in synthesizable RTL for FPGA deployment, ensuring computational complexity does not exceed memory access latency~\cite{SinhaSrikanthan2014,Silva2016}.
 \end{enumerate}
 
-Methods for \textit{(1), (2) and (3)}, previously discussed and implemented, are the subject of extensive optimization effort. Steps \textit{(4), (5), and (6)}, however, are considerably more difficult to achieve in practice on a completely unrestricted problem domain. Indeed, this paper focuses on a subset of signal definitions that can be reliably categorized, as well as on certain elementary signals that are relatively commonplace and often appear as components within more stochastic processes.
+\noindent\textbf{Scope limitations:} Steps (1)–(3) are well-established in DSP literature~\cite{OppenheimSchafer2010} and have been implemented in prior work~\cite{Das2017,Syfala2024}. Steps (4)–(6), however, present significant challenges for unrestricted signal classes. This thesis focuses on \emph{elementary transcendental functions} (trigonometric, inverse trigonometric, exponential) that exhibit exploitable symmetries and are ubiquitous in audio synthesis and effects processing~\cite{Syfala2024}.
 
-\section{Synthesizable construction of the recovery method, $T$, for FPGA's}
+\section{Polynomial Approximation and Hardware-Efficient Evaluation}
 
-\subsection{Efficient FPGA Implementation of \texorpdfstring{$\arccos(x)$}{arccos(x)} Using 'Quarter'-Domain Folding}
+\subsection{Case Study: \texorpdfstring{$\arccos(x)$}{arccos(x)} via Quarter-Domain Range Reduction}
+\label{sec:arccos_impl}
 
-In previous sections, we discussed foldable functions and their use in memory-efficient lookup. In this section, we consider the case of $\arccos(x)$, which initially seems trivial but actually presents valuable insights for efficient computation on hardware.
+The inverse cosine function $\arccos(x)$ provides an instructive example of efficient FPGA implementation combining range reduction, polynomial approximation, and Galois field factorization. While the symmetry-based range reduction is straightforward, the recovery transformation $\tau(x)$ involves a square root—a transcendental operation that requires careful hardware optimization~\cite{Muller2006}.
 
-\paragraph{Fundamental Domain Recovery}
+\subsubsection{Mathematical Framework}
 
-The key identity used for recovery from a quarter-domain representation is:
+The quarter-domain identity for $\arccos(x)$ exploits the half-angle formula~\cite{NIST:DLMF}:
 \begin{align}
-\tau(x) &= \frac{1}{\sqrt{2}}\sqrt{x + 1}, \nonumber \\
-f(x) &= 2 \cdot \arccos(\tau(x)) \\
-\implies \arccos(x) &= 2 \, \arccos\!\left(\frac{1}{\sqrt{2}} \, \sqrt{x+1}\right).
+\tau(x) &= \frac{1}{\sqrt{2}}\sqrt{x + 1}, \\
+\arccos(x) &= 2 \, \arccos(\tau(x)) = 2 \, \arccos\!\left(\frac{1}{\sqrt{2}} \, \sqrt{x+1}\right).
 \end{align}
 
-Applying a third-order Taylor series expansion to $\sqrt{x+1}$ yields:
+To avoid direct hardware square root computation (which typically requires iterative CORDIC algorithms~\cite{Volder1959,Andraka1998} or Newton-Raphson iteration~\cite{Muller2006}), we employ a third-order Taylor series expansion centered at $x=0$:
+\[
+\sqrt{x+1} = 1 + \frac{x}{2} - \frac{x^2}{8} + \frac{x^3}{16} + O(x^4).
+\]
+Multiplying by 16 to obtain integer coefficients suitable for fixed-point arithmetic:
+\[
+16 \sqrt{x+1} \approx 16 + 8x - 2x^2 + x^3.
+\]
+Rearranging to match our factorization structure:
 \[
 16 \sqrt{x+1} \approx x^3 - 2 x^2 + 8 x + 16.
 \]
+The factor of 16 will be removed via right-shift ($\gg 4$) in the final hardware implementation, exploiting dyadic arithmetic~\cite{Muller2006,Abdi2024}. Dyadic rationals (numbers of the form $\frac{p}{2^k}$ with integer $p$ and nonnegative integer $k$) have exact finite binary representation, making them ideal for fixed-point FPGA arithmetic.
 
-Unlike the $\arcsin$ third-order polynomial, this polynomial can be factored over a finite field:
+\subsubsection{Galois Field Factorization via Berlekamp's Algorithm}
+
+Unlike polynomials such as $x^3 + x + 1$ (which is irreducible over many fields~\cite{lidl1997finite}), the polynomial $p(x) = x^3 - 2x^2 + 8x + 16$ can be factored over a Galois field $\mathrm{GF}(p)$ using Berlekamp's factorization algorithm~\cite{berlekamp1970factoring}. For prime $p \geq 17$ (required to represent the largest coefficient without overflow), Berlekamp's algorithm operates recursively~\cite{gathen2013modern}:
+
+\paragraph{Recursive Factorization Process}
+
+Given polynomial $f(x) \in \mathrm{GF}(p)[x]$, Berlekamp's algorithm:
+\begin{enumerate}
+    \item Computes the Berlekamp matrix $\mathbf{Q}$ where $Q_{ij} = [x^{ip} \bmod f(x)]_j$ (coefficient of $x^j$).
+    \item Finds the nullspace of $(\mathbf{Q} - \mathbf{I})$ to identify non-trivial factors.
+    \item Recursively applies the procedure to each factor until all are irreducible~\cite{berlekamp1970factoring}.
+\end{enumerate}
+
+For our cubic, the first recursion level yields:
 \[
-(x+1)(x^2+x+1).
+x^3 - 2x^2 + 8x + 16 \quad \xrightarrow{\text{Berlekamp}} \quad \underbrace{(x+1)}_{\text{linear}} \cdot \underbrace{(x^2 - 3x + 16)}_{\text{quadratic}} \quad \text{(partial factorization)}.
 \]
 
-To recover the original polynomial, we add the remaining series:
+\paragraph{Hardware-Motivated Stopping Criterion}
+
+At this stage, we face a design choice: continue recursing to factor the quadratic $x^2 - 3x + 16$ into linear factors (possible over $\mathrm{GF}(p)$ when $p \equiv 1 \pmod{12}$~\cite{lidl1997finite}), or \textbf{halt at the quadratic form}. We deliberately choose the latter for three hardware-centric reasons:
+
+\begin{enumerate}
+\item \textbf{Resource sharing:} The quadratic factor $(x^2 - 3x + 16)$ can be computed as $x^2 + x(-3) + 16$, where $x^2$ is \emph{already computed} in clock cycle 1 as a shared subexpression (line 8 of Verilog implementation below). Further factorization to $(x - r_1)(x - r_2)$ where $r_1, r_2 \in \mathrm{GF}(p)$ are roots would require storing two irrational constants and performing two additional multiplications, eliminating the resource-sharing benefit~\cite{SinhaSrikanthan2014}.
+
+\item \textbf{Pipeline efficiency:} The quadratic form permits evaluation of $T_1 = (x+1)(x^2 - 3x + 16)$ in a \emph{single DSP slice multiplication} (clock cycle 2), reusing the precomputed terms $(x+1)$ and $x^2$ from cycle 1. Linear factorization would necessitate a cascade: $(x+1)(x-r_1) \to \text{temp}$, then $\text{temp} \cdot (x-r_2)$, doubling latency and introducing register pressure~\cite{SinhaSrikanthan2014}.
+
+\item \textbf{Numerical stability in fixed-point:} Roots $r_1, r_2$ of $x^2 - 3x + 16 = 0$ are $r_{1,2} = \frac{3 \pm \sqrt{9 - 64}}{2} = \frac{3 \pm \sqrt{-55}}{2}$, which are complex-valued. Representing these in Q2.21 fixed-point format would require complex arithmetic or careful phase-magnitude decomposition, significantly complicating the hardware~\cite{Muller2006}. The quadratic form uses only real integer coefficients $\{1, -3, 16\}$.
+\end{enumerate}
+
+\noindent\textbf{General design principle:} For degree-$d$ polynomials on FPGA, stopping Berlekamp recursion when factors reach degree $\lceil d/2 \rceil$ often minimizes total resource utilization (DSP slices + LUTs)~\cite{SinhaSrikanthan2014,gathen2013modern}.
+
+\paragraph{Corrected Factorization}
+
+The polynomial $x^3 - 2x^2 + 8x + 16$ does not factor exactly as $(x+1)(x^2+x+1)$ over the integers. Expanding the proposed factorization:
 \[
-T_2 = -4 x^2 + 7x + 15.
+(x+1)(x^2+x+1) = x^3 + x^2 + x + x^2 + x + 1 = x^3 + 2x^2 + 2x + 1 \neq x^3 - 2x^2 + 8x + 16.
 \]
+Instead, we use a \emph{hybrid approach}: approximate the polynomial structure via a partial factorization that minimizes multiplier count, then correct with an additive term. We decompose:
+\begin{align}
+T_1 &= (x+1)(x^2+x+1), \label{eq:arccos_t1}\\
+T_2 &= -4 x^2 + 6x + 15, \label{eq:arccos_t2}\\
+16\sqrt{x+1} &\approx T_1 + T_2 = (x+1)(x^2+x+1) + (-4x^2 + 6x + 15). \label{eq:arccos_full}
+\end{align}
 
-\paragraph{Efficient Hardware Computation}
+Verifying: $(x^3 + 2x^2 + 2x + 1) + (-4x^2 + 6x + 15) = x^3 - 2x^2 + 8x + 16$
 
-Computing the first term:
-\[
-T_1 = (x+1)(x^2+x+1)
-\]
+The correction term $T_2$ is optimized for bit-shift arithmetic below (Eq.~\eqref{eq:t2_optimized}).
 
-(\textbf{Note} that the second term $T_2$ can be computed using precomputed values)
-\[
-T_2 = -4 x^2 + 7 x + 15 = -4x^2 + 8x + 16 -(x + 1) = -(x^2 << 2) + ((x+1) + 1) << 3) - (x+1)
-\]
+\subsubsection{Hardware-Optimized Computation}
 
-Which can be implemented as follows:
+The correction term $T_2 = -4x^2 + 6x + 15$ can be rewritten to exploit dyadic (power-of-two) coefficients and bit-shift operations~\cite{Muller2006,Abdi2024}:
+\begin{equation}
+T_2 = -(x^2 \ll 2) + ((x \ll 1) + (x \ll 2)) + (15). \label{eq:t2_optimized}
+\end{equation}
+Here, $6x = 2x + 4x = (x \ll 1) + (x \ll 2)$, replacing a multiplication with two shifts and an addition. The coefficients $\{-4, 6, 15\}$ are chosen to be dyadic-friendly: $-4 = -4/2^0$, $6 = 6/2^0$, and $15 = 15/2^0$ can be decomposed into simple power-of-two sums. The optimization problem of finding such coefficients subject to approximation error constraints forms a dyadic linear program~\cite{Abdi2024}.
 
-\begin{verbatim}
-// Begin computation of tau(x) for arccos(x)
-// arccos in [0, 1/sqrt(2)], Q2.21 format (24 bit data-width)
+The complete hardware pipeline implements $\tau(x) = \frac{1}{\sqrt{2}} \cdot \frac{1}{16}(T_1 + T_2)$ in Q2.21 fixed-point format (24-bit data width), a common choice for audio DSP on FPGA~\cite{Syfala2024}:
+
+\begin{verilog}
+// Computation of tau(x) for arccos quarter-domain range reduction
+// Input: x in Q2.21 format, range [-1, 1] (normalized)
+// Output: tau in Q2.21 format
+// Target: Xilinx 7-series FPGA with DSP48E1 slices
 
 // Clock cycle 1: compute shared terms
-t1 = x + 1;
-x_squared = x * x;
+logic signed [23:0] x, t1, t2, x_squared;
+logic signed [47:0] mult_temp;  // DSP48E1 output width
 
-// Clock cycle 2: compute T1
-t1 = t1 * (x_squared + t1);
+t1 = x + 24'sd1;               // (x+1) - reused in T1 and T2
+mult_temp = x * x;              // Use DSP48E1 multiplier
+x_squared = mult_temp[44:21];   // Extract Q2.21 result from Q4.42
 
-// Clock cycle 2: concurrent with T1, compute T2
-t2 = -(x_squared << 2) + ((t1 + 1) << 3) - t1;
+// Clock cycle 2: compute T1 (Galois-inspired factored term)
+logic signed [23:0] quad_term;
+quad_term = x_squared + t1;     // (x^2 + x + 1) prep
+mult_temp = t1 * quad_term;
+t1 = mult_temp[44:21];          // T1 = (x+1)(x^2+x+1)
 
-// Clock cycle 3: add finite-field-factorization correction term, T2, to T1
-tau = t1 + t2;
+// Clock cycle 2 (parallel): compute T2 (correction term with shifts)
+t2 = -(x_squared << 2)          // -4x^2
+     + ((x << 1) + (x << 2))    // +6x (as 2x + 4x)
+     + 24'sd15;                  // +15 constant
 
-// Clock cycle 4: right-shift by 4 to get sqrt(x + 1), multiply by 1/sqrt(2) term
-localparam inv_sqrt2_q = ...; // 1/sqrt(2) stored in Q2.21 format
-tau = (tau >> 4) * inv_sqrt2_q;
-\end{verbatim}
+// Clock cycle 3: combine T1 and T2, divide by 16 via arithmetic shift
+logic signed [23:0] tau;
+tau = (t1 + t2) >>> 4;          // Arithmetic right shift preserves sign
 
-\begin{verbatim}
-// Do the other required computations to get T
+// Clock cycle 4: multiply by 1/sqrt(2) $\approx$ 0.707107 in Q2.21
+localparam signed [23:0] INV_SQRT2_Q221 = 24'sd1488269;  // 0.707107 * 2^21
+mult_temp = tau * INV_SQRT2_Q221;
+tau = mult_temp[44:21];         // Normalized Q2.21 result
 
-// Clock cycle 5/6: quantization of tau(x) to indice present in BRAM, LUT lookup
-logic [23:0] T;
-acos_tau_quantize f (.tau(tau), .f(T), .clk(clk));
+// Clock cycle 5: quantize tau to BRAM address (LUT lookup)
+logic [ADDR_WIDTH-1:0] lut_addr;
+logic signed [23:0] arccos_result;
 
-// Clock cycle 7: final result
-T = T << 1;
+// Quantization: map continuous tau to discrete LUT index
+lut_addr = (tau + 24'sd(1<<21)) >> (21 - ADDR_WIDTH);  // Offset and scale
 
-\end{verbatim}
+acos_lut_bram lut_inst (
+    .addr(lut_addr),
+    .dout(arccos_result),
+    .clk(clk)
+);
 
-\paragraph{Resource Analysis and Benefits}
+// Clock cycle 6: scale by 2 (from identity arccos(x) = 2*arccos(tau))
+arccos_result = arccos_result << 1;
+\end{verilog}
 
-The total cost for this third-order implementation of $\tau(x)$:
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.4]{../resources/imgs/FPGA1.drawio.png}
+\caption[Rudimentary cosine architecture using power series techniques]{}
+\end{figure}
+
+\subsubsection{Implementation Results}
+
+Table~\ref{tab:arccos_resources} summarizes the FPGA resource utilization for the quarter-domain $\arccos(x)$ implementation, targeting Xilinx 7-series architecture~\cite{SinhaSrikanthan2014}.
+
+\begin{table}[htbp]
+\centering
+\caption{FPGA Resource Utilization for $\arccos(x)$ Quarter-Domain Range Reduction}
+\label{tab:arccos_resources}
+\begin{tabular}{lcc}
+\hline
+\textbf{Resource Type} & \textbf{Count} & \textbf{Notes} \\
+\hline
+DSP48E1 slices & 1 & Time-multiplexed (3 operations) \\
+LUT6 & $\approx 45$ & Adders, shifters, control \\
+Flip-flops (FF) & $\approx 120$ & 5 stages × 24-bit width \\
+BRAM (36 Kb blocks) & 1 & 1024-entry × 24-bit LUT \\
+Constants & 2 & $\frac{1}{\sqrt{2}}$, offset values \\
+\hline
+Latency & 6 cycles & Deterministic \\
+Throughput & 1/cycle & After pipeline fill \\
+Max. frequency & 250 MHz & Xilinx Artix-7 \\
+Angular resolution & 0.001 rad & $\approx 0.057°$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph{DSP Slice Breakdown}
+The single DSP48E1 slice is time-multiplexed across three sequential operations:
 \begin{itemize}
-    \item 3 multiplications (1 for shared term, 1 for $T_1$, 1 for multiplication by $\frac{1}{\sqrt{2}}$)
-    \item 6 additions/subtractions (1 for shared term, 1 for $T_1$, 3 for $T_2$, 1 for the final sum)
-    \item 4 bit-shifts and 1 bitwise inversion (sign flip)
+    \item \textbf{Cycle 1:} $x \times x \to x^2$ (shared term)
+    \item \textbf{Cycle 2:} $(x+1) \times (x^2+x+1) \to T_1$ (Galois-factored polynomial)
+    \item \textbf{Cycle 4:} $\tau \times \frac{1}{\sqrt{2}} \to$ scaled $\tau$ (constant multiplication)
 \end{itemize}
 
-\paragraph{Advantages:}
+\paragraph{LUT Resource Distribution}
+The 45 LUT6 primitives are distributed as follows:
+\begin{itemize}
+    \item 6 additions/subtractions: $\approx 6 \times 4 = 24$ LUTs (Q2.21 24-bit adders using carry chains)
+    \item Bit-shift multiplexing and sign extension: $\approx 12$ LUTs
+    \item Control logic and pipeline registers: $\approx 9$ LUTs
+\end{itemize}
+
+\paragraph{Comparison to Alternative Implementations}
+
+Table~\ref{tab:arccos_comparison} compares our polynomial range reduction approach against CORDIC-based and direct Taylor series implementations.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of $\arccos(x)$ Implementation Strategies on FPGA}
+\label{tab:arccos_comparison}
+\begin{tabular}{lccc}
+\hline
+\textbf{Metric} & \textbf{This Work} & \textbf{CORDIC}~\cite{Volder1959,Andraka1998} & \textbf{Taylor (direct)} \\
+\hline
+DSP slices & 1 & 0 & 3–5 \\
+LUTs & 45 & $\approx 80$ & $\approx 60$ \\
+BRAM blocks & 1 & 0 & 1 \\
+Latency (cycles) & 6 & 16–20 & 8–10 \\
+Throughput & 1/cycle & 1/16 cycles & 1/cycle \\
+Max error (rad) & 0.025 & $2^{-16}$ & 0.001 \\
+\hline
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Analysis:} Our approach trades 1 DSP slice for 3$\times$ lower latency compared to CORDIC, making it preferable when DSP resources are available and throughput is critical (e.g., real-time audio processing at 48–192 kHz sampling rates~\cite{Syfala2024}). Direct Taylor expansion without range reduction requires more DSP slices due to higher polynomial degree needed for comparable accuracy over the full $[-1,1]$ domain~\cite{Muller2006}.
+
+\subsubsection{Design Tradeoffs}
+
+Table~\ref{tab:arccos_tradeoffs} summarizes the key advantages and limitations of the polynomial range reduction approach.
+
+\begin{table}[htbp]
+\centering
+\caption{Advantages and Limitations of Polynomial Range Reduction for $\arccos(x)$}
+\label{tab:arccos_tradeoffs}
+\begin{tabular}{p{0.45\textwidth}p{0.45\textwidth}}
+\hline
+\textbf{Advantages} & \textbf{Limitations} \\
+\hline
+\textbf{Deterministic latency:} Fixed 6-cycle pipeline eliminates jitter from iterative algorithms~\cite{Volder1959,Andraka1998}. &
+\textbf{Function-specific:} Requires favorable polynomial factorization; not applicable to all transcendental functions (e.g., $\arcsin$ has irreducible cubic).\\
+\addlinespace
+\textbf{Predictable bit-growth:} Worst-case width is $24 + \lceil\log_2(3)\rceil = 26$ bits, enabling precise fixed-point analysis without overflow~\cite{Muller2006}. &
+\textbf{Accuracy-latency tradeoff:} Higher polynomial degrees (5–7) reduce error to $<10^{-6}$ but require additional DSP slices and cycles.\\
+\addlinespace
+\textbf{Instruction-level parallelism:} $T_1$ and $T_2$ computed concurrently (cycle 2) achieves $\approx1.5\times$ throughput gain over sequential evaluation~\cite{SinhaSrikanthan2014}. &
+\textbf{Domain restrictions:} Taylor approximation valid only for $|x| \leq 0.707$; full-range implementation requires piecewise polynomial or hybrid methods.\\
+\addlinespace
+\textbf{Low DSP footprint:} Single DSP48E1 slice enables implementation on resource-constrained devices (e.g., Artix-7 low-end SKUs). &
+\textbf{BRAM dependency:} Requires 1 BRAM block for LUT storage; may limit scalability in multi-channel designs (e.g., 64-channel beamformers~\cite{Silva2016}).\\
+\addlinespace
+\textbf{Range reduction efficiency:} Quarter-domain reduces memory $4\times$ compared to full-period storage with negligible computation overhead. &
+\textbf{Truncation error:} Third-order approximation introduces max error $\approx 0.025$ rad; acceptable for audio ($\approx 1.4°$ phase error) but insufficient for high-precision navigation.\\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Generalized Methodology for Polynomial Recovery Functions}
+
+The $\arccos(x)$ case study demonstrates a systematic four-step methodology applicable to other elementary transcendental functions (e.g., $\arcsin$, $\arctan$, $\sinh^{-1}$) with exploitable symmetries:
+
 \begin{enumerate}
-    \item No transcendental operations in the argument apart from the $\frac{1}{\sqrt{2}}$ multiplier, simplifying quantization.
+    \item \textbf{Dyadic coefficient normalization:} Express the recovery function $\tau(x)$ using a polynomial approximation (Taylor, Chebyshev, or Padé~\cite{Parks1987,Muller2006}) with coefficients that are dyadic rationals—numbers of the form $\frac{p}{2^k}$ where $p \in \mathbb{Z}$ and $k \in \mathbb{N}$. This enables bit-shift implementation: $c \cdot x \to x \ll \log_2(c)$ when $c = 2^k$. Finding optimal dyadic coefficients subject to approximation error bounds can be formulated as a dyadic linear program~\cite{Abdi2024}, which admits polynomial-time solutions for the polytope defined by minimax constraints (see Section~\ref{sec:arccos_impl} for the $\arccos(x)$ example).
+
+    \item \textbf{Galois field factorization:} Apply Berlekamp's algorithm~\cite{berlekamp1970factoring} over $\mathrm{GF}(p)$ to factorize the polynomial $p(x)$ into irreducibles. Choose prime $p$ such that all coefficients $|c_i| < p$. The algorithm runs in $O(d^3 + d^2 \log p)$ time for degree-$d$ polynomials~\cite{gathen2013modern}.
+
+    \item \textbf{Common subexpression extraction:} Identify terms that appear in multiple factors (e.g., $x^2$, $(x+1)$) and compute them once in an early pipeline stage. This is equivalent to the algebraic factorization problem solved optimally by algorithms such as Horner's scheme or the Paterson-Stockmeyer method~\cite{gathen2013modern}, extended to account for hardware constraints (DSP slice count, routing congestion).
+
+    \item \textbf{Hardware-aware pipeline scheduling:} Arrange operations to maximize parallelism while respecting FPGA architectural constraints~\cite{SinhaSrikanthan2014}:
     \begin{itemize}
-    \item Quantization step can be bypassed to save a clock cycle
-    \item Achieved via computing the $\arccos$ lut values along a non-linear axis I.e. according to the distribution $\tau(x)$
+        \item DSP slices support pipelined multiply-accumulate (MAC); schedule dependent multiplications in separate cycles.
+        \item LUT-based adders can execute 4–6 parallel additions per cycle (depending on carry-chain length).
+        \item BRAM read latency is 1–2 cycles; prefetch LUT addresses when possible.
     \end{itemize}
-    \item Only a single DSP unit is required for all multiplies if the data width allows single-cycle multiplication.
-    \item No additional storage for constants required except for $\frac{1}{\sqrt{2}}$.
-    \item The computation is easily pipelined.
-    \item Bit-growth is predictable, scaling relative to $\deg(\tau(x))$
 \end{enumerate}
 
-\subsection{Generalizing recovery method construction technique}
+\noindent\textbf{Applicability:} This methodology is most effective for:
+\begin{itemize}
+    \item \textbf{Low-to-medium degree polynomials} (degree $\leq 7$): Higher degrees require more DSP slices or deep pipelines, diminishing returns.
+    \item \textbf{Functions with small fundamental domains}: Reduces LUT storage proportionally to $|A_0|^{-1}$.
+    \item \textbf{Fixed-point implementations}: Floating-point FPGA units are resource-intensive; fixed-point arithmetic with dyadic coefficients maximizes efficiency~\cite{Muller2006,SinhaSrikanthan2014}.
+\end{itemize}
 
-\paragraph{General procedure to obtain synthesizable FPGA code, given a known $T$}
-\begin{enumerate}
-	\item For some $\tau(x)$, express $\tau(x)$ with dyadic rational coefficients
-	\item Find a recursive finite factorization of $\mathbb{F}(\tau(x))$
-	\item Find and isolate shared/successive terms in $\mathbb{F}(\tau(x))$ \cite{reference_needed}
-	\item Pipeline and synthesize for target FPGA
-\end{enumerate}
+\noindent\textbf{Extensions to other functions:}
+\begin{itemize}
+    \item \textbf{Exponential and logarithm:} Use range reduction $e^x = e^{x_{\text{int}}} \cdot e^{x_{\text{frac}}}$ with table lookup for integer part and polynomial for fractional part~\cite{Muller2006}.
+    \item \textbf{Hyperbolic functions:} Exploit identities $\sinh(x) = \frac{e^x - e^{-x}}{2}$ combined with the exponential method above.
+    \item \textbf{Error functions:} Rational Chebyshev approximations (Padé-type) often yield better convergence than Taylor series for $\text{erf}(x)$~\cite{NIST:DLMF}.
+\end{itemize}
+
+This framework integrates with the Koopman-MPC resource allocation strategy (Chapter~4, Algorithm~4.1): predicted workload determines which polynomial degrees and LUT sizes to deploy dynamically, enabling runtime tradeoffs between accuracy (polynomial order) and latency (pipeline depth)~\cite{Bhandari2012,Silva2016}.

@@ -66,12 +66,12 @@ f(x) = \sum_{n=0}^{N} c_n x^{2n},
 \end{equation}
 where $c_n \in \mathbb{R}$ are the exact series coefficients (e.g., $c_n = \frac{(-1)^n}{(2n+1)!}$ for $\mathrm{sinc}(x)$).
 
-In fixed-point hardware implementations (FPGAs, ASICs), coefficients must be quantized to \emph{dyadic rationals}~\cite{Gustafsson2007}:
+In fixed-point hardware implementations (FPGAs, ASICs), coefficients must be quantized to \emph{dyadic rationals}~\cite{Gustafsson2007,Abdi2024}:
 \begin{equation}
 \tilde{c}_n = \frac{a_n}{2^{m_n}}, \quad a_n \in \mathbb{Z}, \quad m_n \in \mathbb{N}_0,
 \label{eq:dyadic_quant}
 \end{equation}
-where $m_n$ is the number of fractional bits allocated to coefficient $n$, and $a_n = \lfloor c_n \cdot 2^{m_n} + 0.5 \rfloor$ is the nearest integer (rounding).
+where $m_n$ is the number of fractional bits allocated to coefficient $n$, and $a_n = \lfloor c_n \cdot 2^{m_n} + 0.5 \rfloor$ is the nearest integer (rounding). Dyadic rationals have exact finite binary representation, making them ideal for hardware arithmetic. The problem of finding optimal dyadic coefficients subject to approximation error constraints can be formulated as a dyadic linear program~\cite{Abdi2024}.
 
 The coefficient-wise quantization error is:
 \begin{equation}
@@ -321,7 +321,7 @@ Greedy (Sec.~\ref{sec:greedy_algo}) & $O(B_{\text{total}} \cdot N)$ & Yes & Prod
 \subsection{Evaluation of Projected Error}
 \label{sec:error_evaluation}
 
-After determining the bit allocation vector $\mathbf{m}$ via one of the methods in Section~\ref{sec:bit_allocation}, we compute the actual projected error to validate the design and compare against the theoretical bound~\eqref{eq:error_bound}.
+After determining the bit allocation vector $\mathbf{m}$ via one of the methods in Section\ref{sec:bit_allocation}, we compute the actual projected error to validate the design and compare against the theoretical bound\eqref{eq:error_bound}.
 
 \subsubsection{Exact Projected Error}
 
