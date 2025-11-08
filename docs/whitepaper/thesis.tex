@@ -1,7 +1,6 @@
 %------------------------ Preamble and bibliography resources
 \documentclass[12pt,oneside]{book}
 \input{frontmatter/preamble}
-\usepackage{style/title}[PhD]
 
 \usepackage{amsmath}
 \usepackage{graphicx}
@@ -11,6 +10,8 @@
 \usepackage[framemethod=TikZ]{mdframed}
 \usepackage{nomencl}
 \usepackage[utf8]{inputenc}
+\usepackage[PhD,nologo]{style/title}
+
 
 \DeclareMathOperator{\sgn}{sgn}
 
@@ -141,7 +142,7 @@ showstringspaces=false
 \begin{document}
 
 	%-------------- Information For The Title Page
-	\title{Hardware Scheduling approach on FPGA's for optimising DSP based workflows}
+	\title{Efficient Hardware Scheduling approach on FPGA's for optimising DSP based workflows}
 	\author{Connor Sinclair}
 	\date{2025}
 	\degree{Bachelor of Software Engineering (Hons.)}
@@ -176,6 +177,7 @@ showstringspaces=false
 	\include{chapters/chapter3}
 	\include{chapters/chapter4}
 	\include{chapters/chapter5}
+	\include{chapters/chapter6}
 
 	%-------------- Appendices
 	\cleardoublepage

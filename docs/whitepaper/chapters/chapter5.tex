@@ -1,8 +1,10 @@
 \chapter{Architectural Implementation and Hardware Optimization}
 
+This chapter synthesizes the theoretical frameworks developed in Chapters~3--4 into concrete FPGA architectures for efficient elementary function evaluation. We demonstrate how the sensitivity-driven bit allocation (Chapter~3) and Koopman-based workload prediction (Chapter~4) guide hardware design decisions through the $\arccos(x)$ case study, which exemplifies the complete optimization pipeline: range reduction, polynomial approximation via Berlekamp factorization, dyadic coefficient optimization, common subexpression elimination, and automatic parallelization.
+
 \section{Memory-Efficient Lookup via Range Reduction}
 
-Leveraging the argument reduction framework developed in Chapter~4 (Section~4.1.3), we demonstrate its application to trigonometric function evaluation on FPGA~\cite{Muller2006}. The technique of \emph{range reduction} (also known as argument reduction) exploits functional symmetries to reduce the domain over which a function must be tabulated or computed. Consider $\sin(x)$, which has period $2\pi$ and exhibits symmetry allowing representation via a fundamental domain of width $\frac{\pi}{4}$~\cite{Muller2006}. The recovery method:
+The technique of \emph{range reduction} (also known as argument reduction) exploits functional symmetries to reduce the domain over which a function must be tabulated or computed, directly addressing the memory constraints identified in Chapter~1. Consider $\sin(x)$, which has period $2\pi$ and exhibits symmetry allowing representation via a fundamental domain of width $\frac{\pi}{4}$~\cite{Muller2006}. The recovery method:
 
 \[
 T =
@@ -22,21 +24,13 @@ f(x) =
 \end{cases}
 \]
 
-\[
-f(x) =
-\begin{cases}
-	f \circ \tau(x), & 0 \leq x \leq \pi,\\[6pt]
-	-f \circ \tau(x), & \pi < x \leq 2\pi
-\end{cases}
-\]
-
 enables storage reduction by a factor of 4 compared to storing the full period. Alternatively, for a fixed memory budget, this yields 4× finer granularity~\cite{Andraka1998,Volder1959}. In general, the \emph{precision-memory tradeoff} is characterized by the ratio $M/G$, where the memory reduction factor is $M = P/|A_0|$ and $P$ is the function period.
 
 \begin{note}
 The computational complexity of the recovery method $f \circ \tau(x)$ must be considered against the memory savings. The tradeoff is not necessarily linear: $\tau(x) \not\propto M$. For example, the function $\arccos(x)$ (analyzed in Section~\ref{sec:arccos_impl}) requires computing $\sqrt{x + 1}$ for quarter-domain range reduction over $\arccos: [0, \frac{1}{\sqrt{2}}] \to [0, \pi]$, introducing polynomial approximation overhead~\cite{Muller2006}.
 \end{note}
 
-\subsection{Algorithmic Framework for Signal Caching}
+\subsection{Algorithmic Framework for Reducing Memory pressure}
 
 For an arbitrary periodic or quasi-periodic signal $x(t)$, we propose the following procedure:
 
@@ -47,27 +41,25 @@ For an arbitrary periodic or quasi-periodic signal $x(t)$, we propose the follow
 
     \item \textbf{Iterative refinement:} Refine the period estimate using spectral leakage minimization if underestimated, or peak prominence analysis to adjust lag windows~\cite{OppenheimSchafer2010}.
 
-    \item \textbf{Foldability test:} Determine if the signal is \emph{foldable} (Definition~\ref{eq:reducible_function}, Chapter~4) by verifying the existence of a fundamental domain $A_0$ and transformation set $T$ such that
+    \item \textbf{Argument reduction test:} Determine if the signal is \emph{argument reducible}~\cite{Muller2006} by verifying the existence of a fundamental domain $A_0$ and transformation set $T$ such that
     \[
         \forall x \in A, \ \exists \tau \in T : \tau(x) \in A_0 \text{ and } f(x) = f \circ \tau(x).
     \]
     This is tractable for signals with known symmetries (trigonometric functions, piecewise monotonic waveforms) but computationally intensive for arbitrary signals~\cite{Muller2006}.
 
-    \item \textbf{Recovery method construction:} Construct an efficient mapping $\tau: A \to A_0$, balancing the precision-memory tradeoff according to resource constraints from the Koopman-MPC framework (Chapter~4, Section~4.2.5)~\cite{Bhandari2012}.
+    \item \textbf{Recovery method construction:} Construct an efficient mapping $\tau: A \to A_0$, balancing the precision-memory tradeoff according to resource constraints from the Koopman-MPC framework~\cite{Bhandari2012}.
 
     \item \textbf{Hardware synthesis:} Implement $\tau(x)$ in synthesizable RTL for FPGA deployment, ensuring computational complexity does not exceed memory access latency~\cite{SinhaSrikanthan2014,Silva2016}.
 \end{enumerate}
 
-\noindent\textbf{Scope limitations:} Steps (1)–(3) are well-established in DSP literature~\cite{OppenheimSchafer2010} and have been implemented in prior work~\cite{Das2017,Syfala2024}. Steps (4)–(6), however, present significant challenges for unrestricted signal classes. This thesis focuses on \emph{elementary transcendental functions} (trigonometric, inverse trigonometric, exponential) that exhibit exploitable symmetries and are ubiquitous in audio synthesis and effects processing~\cite{Syfala2024}.
+\noindent\textbf{Scope limitations:} Steps (1)–(3) are well-established in DSP literature~\cite{OppenheimSchafer2010} and have been implemented in prior work~\cite{Das2017,Syfala2024}. Steps (4)–(6), however, present significant challenges for unrestricted signal classes. This chapter focuses on \emph{elementary transcendental functions} (trigonometric, inverse trigonometric, exponential) that exhibit exploitable symmetries and are ubiquitous in audio synthesis and effects processing~\cite{Syfala2024}. The $\arccos(x)$ function serves as our primary case study, demonstrating how range reduction interacts with the polynomial optimization techniques from Chapter~3.
 
-\section{Polynomial Approximation and Hardware-Efficient Evaluation}
-
-\subsection{Case Study: \texorpdfstring{$\arccos(x)$}{arccos(x)} via Quarter-Domain Range Reduction}
+\section{Case Study: \texorpdfstring{$\arccos(x)$}{arccos(x)} via Quarter-Domain Range Reduction}
 \label{sec:arccos_impl}
 
-The inverse cosine function $\arccos(x)$ provides an instructive example of efficient FPGA implementation combining range reduction, polynomial approximation, and Galois field factorization. While the symmetry-based range reduction is straightforward, the recovery transformation $\tau(x)$ involves a square root—a transcendental operation that requires careful hardware optimization~\cite{Muller2006}.
+The inverse cosine function $\arccos(x)$ provides an instructive example unifying all components of our framework: range reduction (Section~5.1), sensitivity-based polynomial approximation (Chapter~3), Galois field factorization, and hardware-aware scheduling. This example is dually motivated: first, the Taylor series naturally admits a dyadic rational structure (Chapter~3.3), simplifying computation significantly; second, while the symmetry-based range reduction is straightforward, the recovery transformation $\tau(x)$ involves a square root—a transcendental operation requiring the polynomial approximation techniques developed in Chapter~3~\cite{Muller2006}.
 
-\subsubsection{Mathematical Framework}
+\subsection{Quarter-Domain Identity and Polynomial Approximation}
 
 The quarter-domain identity for $\arccos(x)$ exploits the half-angle formula~\cite{NIST:DLMF}:
 \begin{align}
@@ -87,9 +79,9 @@ Rearranging to match our factorization structure:
 \[
 16 \sqrt{x+1} \approx x^3 - 2 x^2 + 8 x + 16.
 \]
-The factor of 16 will be removed via right-shift ($\gg 4$) in the final hardware implementation, exploiting dyadic arithmetic~\cite{Muller2006,Abdi2024}. Dyadic rationals (numbers of the form $\frac{p}{2^k}$ with integer $p$ and nonnegative integer $k$) have exact finite binary representation, making them ideal for fixed-point FPGA arithmetic.
+The factor of 16 will be removed via right-shift ($\gg 4$) in the final hardware implementation, exploiting the dyadic arithmetic principles from Chapter~3.3~\cite{Muller2006,Abdi2024}. Dyadic rationals (numbers of the form $\frac{p}{2^k}$ with integer $p$ and nonnegative integer $k$) have exact finite binary representation, making them ideal for fixed-point FPGA arithmetic.
 
-\subsubsection{Galois Field Factorization via Berlekamp's Algorithm}
+\subsection{Galois Field Factorization via Berlekamp's Algorithm}
 
 Unlike polynomials such as $x^3 + x + 1$ (which is irreducible over many fields~\cite{lidl1997finite}), the polynomial $p(x) = x^3 - 2x^2 + 8x + 16$ can be factored over a Galois field $\mathrm{GF}(p)$ using Berlekamp's factorization algorithm~\cite{berlekamp1970factoring}. For prime $p \geq 17$ (required to represent the largest coefficient without overflow), Berlekamp's algorithm operates recursively~\cite{gathen2013modern}:
 
@@ -127,26 +119,254 @@ The polynomial $x^3 - 2x^2 + 8x + 16$ does not factor exactly as $(x+1)(x^2+x+1)
 \[
 (x+1)(x^2+x+1) = x^3 + x^2 + x + x^2 + x + 1 = x^3 + 2x^2 + 2x + 1 \neq x^3 - 2x^2 + 8x + 16.
 \]
-Instead, we use a \emph{hybrid approach}: approximate the polynomial structure via a partial factorization that minimizes multiplier count, then correct with an additive term. We decompose:
+Instead, we employ a \emph{hybrid factorization-correction approach} that balances polynomial structure exploitation with additive error compensation. This technique, which generalizes naturally to higher-degree approximations, decomposes the polynomial as:
 \begin{align}
 T_1 &= (x+1)(x^2+x+1), \label{eq:arccos_t1}\\
 T_2 &= -4 x^2 + 6x + 15, \label{eq:arccos_t2}\\
 16\sqrt{x+1} &\approx T_1 + T_2 = (x+1)(x^2+x+1) + (-4x^2 + 6x + 15). \label{eq:arccos_full}
 \end{align}
 
-Verifying: $(x^3 + 2x^2 + 2x + 1) + (-4x^2 + 6x + 15) = x^3 - 2x^2 + 8x + 16$
+Verifying: $(x^3 + 2x^2 + 2x + 1) + (-4x^2 + 6x + 15) = x^3 - 2x^2 + 8x + 16$. \\
 
-The correction term $T_2$ is optimized for bit-shift arithmetic below (Eq.~\eqref{eq:t2_optimized}).
+\noindent The correction term $T_2$ is then optimized for bit-shift arithmetic using the dyadic coefficient techniques from Chapter~3.3, as demonstrated in Section~\ref{sec:hardware_opt} below.
 
-\subsubsection{Hardware-Optimized Computation}
+\subsection{Iterative Dyadic Optimization Framework}
+
+Having established the basic factorization structure, we now integrate the sensitivity-driven bit allocation from Chapter~3 with the Berlekamp factorization to create a systematic optimization pipeline. This integration demonstrates how the theoretical framework translates to practical hardware design decisions.
+
+A key insight is that the dyadic linear programming framework~\cite{Abdi2024} can be applied \emph{at each stage} of the factorization-correction process, enabling systematic optimization of remainder terms. Given a target polynomial $p(x)$ and a partial factorization $F(x)$ (e.g., $F(x) = (x+1)(x^2+x+1)$ for our example), the remainder term $R(x) = p(x) - F(x)$ can be re-optimized subject to dyadic coefficient constraints. This process iterates:
+
+\begin{enumerate}
+    \item \textbf{Stage 0 (Initial):} Start with polynomial $p_0(x) = x^3 - 2x^2 + 8x + 16$ (Taylor approximation of $16\sqrt{x+1}$).
+    
+    \item \textbf{Stage 1 (Berlekamp factorization):} Factor $p_0(x)$ over $\mathrm{GF}(17)$ to obtain partial factorization $F_1(x) = (x+1)(x^2+x+1)$ and compute exact remainder:
+    \[
+    R_1(x) = p_0(x) - F_1(x) = (x^3 - 2x^2 + 8x + 16) - (x^3 + 2x^2 + 2x + 1) = -4x^2 + 6x + 15.
+    \]
+    
+    \item \textbf{Stage 2 (Dyadic optimization of $R_1$):} Formulate a dyadic linear program to find optimal dyadic coefficients $\tilde{R}_1(x) = \sum_{k} \frac{a_k}{2^{m_k}} x^k$ that minimizes $\|R_1(x) - \tilde{R}_1(x)\|_\infty$ subject to hardware constraints (total bit budget $B_{\text{total}}$, per-coefficient precision limits). The polytope formulation~\cite{Abdi2024} ensures:
+    \begin{align}
+    \mathcal{P}_K &= \left\{ \mathbf{a} \in \mathbb{Z}^3 \mid \left|R_1(x_i) - \sum_{k=0}^2 \frac{a_k}{2^{m_k}} x_i^k\right| \leq K, \; \forall x_i \in \mathcal{X}_{\text{grid}} \right\}, \label{eq:dyadic_polytope}\\
+    \tilde{R}_1(x) &= \arg\min_{\mathbf{a} \in \mathcal{P}_K} K, \quad \text{solved via binary search + integer lattice enumeration}. \nonumber
+    \end{align}
+    In our example, the solver yields $\mathbf{a} = [-4, 6, 15]$ with $\mathbf{m} = [0, 0, 0]$ (all integer coefficients), achieving $K_{\text{opt}} \approx 0.002$ over $x \in [0, 1]$.
+    
+    \item \textbf{Stage 3 (Common subexpression elimination):} Given the factorized expression $p(x) = F_1(x) + \tilde{R}_1(x)$, apply polynomial CSE~\cite{Mehdizadeh2004,Gustafsson2007} to identify shared subexpressions across $F_1$ and $\tilde{R}_1$. For our arccos example:
+    \begin{itemize}
+        \item $F_1(x) = (x+1)(x^2+x+1)$ requires computing $x^2$, $(x+1)$, and $(x^2+x+1)$.
+        \item $\tilde{R}_1(x) = -4x^2 + 6x + 15$ \emph{reuses} the already-computed $x^2$ term.
+        \item CSE identifies $x^2$ as a \textbf{common subexpression} with fan-out 2 (used in both $F_1$ and $\tilde{R}_1$).
+    \end{itemize}
+    The CSE algorithm~\cite{Mehdizadeh2004} constructs a directed acyclic graph (DAG) where nodes represent operations ($+, \times, \ll$) and edges denote data dependencies. The critical path length determines minimum latency, while fan-out counts guide register allocation~\cite{Gustafsson2007}.
+    
+    \item \textbf{Stage 4 (Automatic pipeline scheduling):} From the CSE-optimized DAG, extract a \emph{schedule} that maps operations to clock cycles while respecting:
+    \begin{itemize}
+        \item \textbf{Data dependencies:} Operation $op_j$ cannot execute until all inputs from $\{op_i \mid (i,j) \in E_{\text{DAG}}\}$ are available.
+        \item \textbf{Resource constraints:} DSP48E1 slices have limited multiplier ports (1 per slice); operations requiring the same resource must be serialized or replicated.
+        \item \textbf{Register pressure:} Intermediate results must be stored in flip-flops; excessive fan-out requires register duplication.
+    \end{itemize}
+    The resulting schedule minimizes $(w_L \cdot L + w_D \cdot D + w_R \cdot R)$ where $L$ is latency (cycles), $D$ is DSP count, $R$ is register count, and $\{w_L, w_D, w_R\}$ are designer-specified weights from the Koopman-MPC framework (Eq.~\eqref{eq:dyadic_feedback_loop}).
+\end{enumerate}
+
+\paragraph{Generalization to Higher-Degree Polynomials}
+
+This iterative procedure extends naturally to higher-degree polynomials encountered in more demanding applications. For degree-$d$ approximations (e.g., $d=7$ for $<10^{-6}$ error in $\arccos$, required for precision audio or control applications), Berlekamp may produce multiple factorization stages. At each stage $j$:
+\[
+p_j(x) = F_j(x) + R_j(x), \quad \text{where } F_j(x) = \prod_{i=1}^{k_j} f_i(x) \text{ (irreducible factors)},
+\]
+we solve a dyadic LP for $R_j(x)$, then either:
+\begin{itemize}
+    \item \textbf{Accept $R_j$} if $\|R_j\|_\infty < \epsilon_{\text{target}}$ (termination criterion), or
+    \item \textbf{Recurse} by treating $R_j(x)$ as a new polynomial and repeating Berlekamp $\to$ dyadic LP $\to$ CSE.
+\end{itemize}
+
+The recursion depth is bounded by the maximum number of Berlekamp iterations (typically $\leq \lceil d/2 \rceil$ for degree-$d$ polynomials~\cite{gathen2013modern}). Each iteration refines the factorization, with dyadic LP ensuring all remainder terms use bit-shift-friendly coefficients.
+
+\subsection{Integration with Koopman-Based Resource Prediction}
+
+The iterative optimization framework described above operates within the broader adaptive system architecture developed in Chapter~4. The connection between signal-level prediction and coefficient-level optimization occurs through the Koopman observables:
+
+The Koopman observables ${\psi_{\text{sens}}^{(j)}}_{k+h|k}$ and ${\psi_{\text{entropy}}^{(j)}}_{k+h|k}$ guide the dyadic LP bit allocation $\mathbf{m} = [m_0, m_1, \ldots, m_d]$:
+\begin{itemize}
+    \item \textbf{High sensitivity bands} ($\psi_{\text{sens}}^{(j)} > \tau_{\text{high}}$): Allocate more fractional bits (larger $m_k$) to critical coefficients, enabling fine-grained dyadic approximation at the cost of additional LUT resources for bit-shift networks.
+    \item \textbf{Low entropy bands} ($\psi_{\text{entropy}}^{(j)} < 1.0$): Focus dyadic LP effort on the 2--3 dominant coefficients identified by sensitivity analysis, freezing others at coarse quantization (e.g., $m_k = 2$ or $3$).
+\end{itemize}
+
+The CSE phase then exploits the shared subexpressions predicted by Koopman dynamics: bands with correlated frequency content (identified by Koopman mode overlap) naturally share polynomial terms (e.g., $x^2, x^4$ appear in both $\sin(x)$ and $\cos(x)$ approximations for coupled oscillators), enabling \emph{cross-band resource sharing}~\cite{Gustafsson2007}. Appendix~\ref{app:cos-comparison} provides concrete C implementations demonstrating the efficiency gains of dyadic polynomial approximations versus standard Taylor series for cosine evaluation.
+
+\section{Generalized Methodology and Automatic Parallelization}
+
+The $\arccos(x)$ case study demonstrates a systematic methodology applicable to a broad class of elementary transcendental functions. This section formalizes the general approach and introduces automatic parallelization techniques that eliminate manual pipeline design.
+
+\subsection{Generalized Framework for Polynomial Recovery Functions}
+
+The $\arccos(x)$ case study demonstrates a systematic four-step methodology applicable to other elementary transcendental functions (e.g., $\arcsin$, $\arctan$, $\sinh^{-1}$) with exploitable symmetries:
+
+\begin{enumerate}
+    \item \textbf{Dyadic coefficient normalization:} Express the recovery function $\tau(x)$ using a polynomial approximation (Taylor, Chebyshev, or Padé~\cite{Parks1987,Muller2006}) with coefficients that are dyadic rationals—numbers of the form $\frac{p}{2^k}$ where $p \in \mathbb{Z}$ and $k \in \mathbb{N}$. This enables bit-shift implementation: $c \cdot x \to x \ll \log_2(c)$ when $c = 2^k$. Finding optimal dyadic coefficients subject to approximation error bounds can be formulated as a dyadic linear program~\cite{Abdi2024}, which admits polynomial-time solutions for the polytope defined by minimax constraints.
+
+    \item \textbf{Iterative Galois factorization with dyadic remainder optimization:} Apply Berlekamp's algorithm~\cite{berlekamp1970factoring} over $\mathrm{GF}(p)$ to factorize the polynomial $p(x)$ into partial products $F_j(x)$ and remainder terms $R_j(x)$. At each factorization stage, solve a dyadic linear program (Eq.~\eqref{eq:dyadic_polytope}) to optimize $R_j(x)$ coefficients for bit-shift arithmetic. This iterative process runs in $O(d^3 + d^2 \log p)$ time per Berlekamp iteration~\cite{gathen2013modern}, with at most $\lceil d/2 \rceil$ iterations for degree-$d$ polynomials. The polytope enumeration for dyadic LP adds $O(2^B)$ complexity where $B$ is the total bit budget, but practical pruning techniques reduce this to tractable levels~\cite{Abdi2024}.
+
+    \item \textbf{Common subexpression extraction and automatic pipelining:} Apply polynomial CSE~\cite{Mehdizadeh2004,Gustafsson2007} to construct a DAG of operations, identifying shared terms across factored components (e.g., $x^2$ shared by $F_j(x)$ and $R_j(x)$ in the arccos example). The CSE algorithm maximizes subexpression reuse, reducing both multiplier count and register pressure. From the optimized DAG, extract a schedule that maps operations to clock cycles, minimizing weighted cost $(w_L \cdot L + w_D \cdot D + w_R \cdot R)$ where $L$ is latency, $D$ is DSP count, and $R$ is register usage. This scheduling problem is NP-complete in general~\cite{Mehdizadeh2004} but admits efficient heuristics (list scheduling, force-directed scheduling) that achieve near-optimal solutions for polynomial degrees $d \leq 10$~\cite{Gustafsson2007}.
+
+    \item \textbf{Hardware-aware resource allocation:} Integrate with the Koopman-MPC framework to dynamically adjust bit allocations $\mathbf{m}$ based on predicted sensitivity observables ${\psi_{\text{sens}}^{(j)}}_{k+h|k}$ and ${\psi_{\text{entropy}}^{(j)}}_{k+h|k}$. High-sensitivity bands receive finer dyadic quantization (larger $m_k$), trading LUT resources for DSP reduction. The CSE phase exploits cross-band sharing when Koopman modes overlap, enabling shared polynomial evaluation for coupled oscillators~\cite{Gustafsson2007}. Final FPGA constraints:
+    \begin{itemize}
+        \item DSP slices support pipelined multiply-accumulate (MAC); schedule dependent multiplications in separate cycles.
+        \item LUT-based adders can execute 4–6 parallel additions per cycle (depending on carry-chain length).
+        \item BRAM read latency is 1–2 cycles; prefetch LUT addresses when possible.
+    \end{itemize}
+\end{enumerate}
+
+\noindent\textbf{Applicability:} This methodology is most effective for:
+\begin{itemize}
+    \item \textbf{Low-to-medium degree polynomials} (degree $\leq 7$): Higher degrees require more DSP slices or deep pipelines, diminishing returns.
+    \item \textbf{Functions with small fundamental domains}: Reduces LUT storage proportionally to $|A_0|^{-1}$.
+    \item \textbf{Fixed-point implementations}: Floating-point FPGA units are resource-intensive; fixed-point arithmetic with dyadic coefficients maximizes efficiency~\cite{Muller2006,SinhaSrikanthan2014}.
+\end{itemize}
+
+\noindent\textbf{Extensions to other functions:}
+\begin{itemize}
+    \item \textbf{Exponential and logarithm:} Use range reduction $e^x = e^{x_{\text{int}}} \cdot e^{x_{\text{frac}}}$ with table lookup for integer part and polynomial for fractional part~\cite{Muller2006}.
+    \item \textbf{Hyperbolic functions:} Exploit identities $\sinh(x) = \frac{e^x - e^{-x}}{2}$ combined with the exponential method above.
+    \item \textbf{Error functions:} Rational Chebyshev approximations (Padé-type) often yield better convergence than Taylor series for $\text{erf}(x)$~\cite{NIST:DLMF}.
+\end{itemize}
+
+This framework integrates with the Koopman-MPC resource allocation strategy from Chapter~4: predicted workload determines which polynomial degrees and LUT sizes to deploy dynamically, enabling runtime tradeoffs between accuracy (polynomial order) and latency (pipeline depth)~\cite{Bhandari2012,Silva2016}.
+
+\subsection{Automatic Parallelization via DAG Topology Analysis}
+\label{sec:dag_parallelization}
+
+A key advantage of the CSE-based approach (Stage~3) is that parallelization opportunities emerge automatically from the dependency structure, eliminating the manual heuristics typically required in FPGA pipeline design~\cite{Mehdizadeh2004,Gustafsson2007}. Building on the CSE-optimized DAG, we treat the computation as a \emph{directed network} where:
+\begin{itemize}
+    \item \textbf{Nodes} represent computational operations: multiplications (×), additions (+), bit-shifts ($<<$), and constant loads.
+    \item \textbf{Edges} $(u \to v)$ denote data dependencies: operation $v$ requires the output of $u$ as input.
+    \item \textbf{Topological generations}~\cite{Kahn1962} partition nodes into \emph{stages} where all nodes in stage~$k$ depend only on stages~$j < k$.
+\end{itemize}
+
+This topological staging directly maps to pipeline parallelism: operations within the same stage can execute concurrently (subject to hardware resource limits), while stages must execute sequentially to respect dependencies.
+
+\paragraph{Connection to the $\arccos$ Example}
+
+Recall from the $\arccos(x)$ implementation that after CSE, we identified $x^2$ as a shared subexpression. The dependency structure is:
+\begin{align*}
+    \text{Stage~0:} \quad & x^2 = x \times x, \quad (x+1) = x + 1 \quad \text{(parallel: no dependencies)} \\
+    \text{Stage~1:} \quad & (x^2 + x + 1) = x^2 + x + 1, \quad \text{(depends on Stage~0)} \\
+    \text{Stage~2:} \quad & T_1 = (x+1) \times (x^2+x+1), \quad T_2 = -4x^2 + 6x + 15 \quad \text{(parallel)} \\
+    \text{Stage~3:} \quad & \tau = (T_1 + T_2) \gg 4 \quad \text{(depends on Stage~2)}
+\end{align*}
+
+The \textbf{critical path} (longest dependency chain) is $x \to x^2 \to (x^2+x+1) \to T_1 \to \tau$, giving minimum latency~$L_{\min} = 4$ cycles (one multiply, three additions/shifts). The \textbf{parallelism width} at Stage~2 is~2 (both $T_1$ and $T_2$ execute concurrently), saturating 2 DSP slices if both use multipliers.
+
+This structure is automatically discovered via topological sort and generation partitioning, eliminating the need for manual pipeline design. The following Python implementation demonstrates this process, showing how the CSE DAG from Stage~3 is transformed into staged parallel code:
+
+\begin{python}
+import networkx as nx
+import re
+
+def _parallelize(body_lines: list[str]) -> list[str]:
+    """Reorder assignments into parallel stages using a dependency DAG.
+
+    - Nodes: assignment LHS variables (e.g., x_squared, t1, tau).
+    - Edge dep -> lhs if lhs depends on dep on its RHS.
+    - Output: non-assignment lines first (unchanged), then staged assignments.
+    
+    This implements the topological staging from Kahn (1962) and is used
+    in the polynomial CSE framework (Mehdizadeh et al. 2004) to extract
+    parallel schedules from DAGs of polynomial operations.
+    """
+
+    assign_pat = re.compile(r'^\s*([A-Za-z_]\w*)\s*=\s*(.+)$')
+    id_pat = re.compile(r'\b([A-Za-z_]\w*)\b')
+
+    assignments: list[tuple[str, str]] = []
+    non_assign: list[str] = []
+    for ln in body_lines:
+        m = assign_pat.match(ln)
+        if m:
+            lhs = m.group(1)
+            assignments.append((lhs, ln))
+        else:
+            non_assign.append(ln)
+
+    if len(assignments) < 2:
+        return body_lines
+
+    lhs_vars = [lhs for lhs, _ in assignments]
+    lhs_set = set(lhs_vars)
+
+    # Build dependency graph
+    G = nx.DiGraph()
+    G.add_nodes_from(lhs_vars)
+
+    for lhs, ln in assignments:
+        m = assign_pat.match(ln)
+        rhs = m.group(2) if m else ''
+        rhs_ids = set(id_pat.findall(rhs))
+        for dep in rhs_ids:
+            if dep in lhs_set and dep != lhs:
+                G.add_edge(dep, lhs)  # dep must compute before lhs
+
+    try:
+        topo = list(nx.topological_sort(G))
+    except nx.NetworkXUnfeasible:
+        # Cycle detected: fall back to original order
+        return body_lines
+
+    try:
+        # Partition nodes into generations (stages with no inter-stage deps)
+        generations = list(nx.algorithms.dag.topological_generations(G))
+    except Exception:
+        generations = [topo]
+
+    line_by_lhs = {lhs: ln for lhs, ln in assignments}
+
+    new_lines: list[str] = []
+    new_lines.extend(non_assign)
+
+    stage_num = 0
+    for gen in generations:
+        stage = list(gen)
+        stage.sort(key=lambda v: lhs_vars.index(v))  # Preserve original order
+        if stage:
+            new_lines.append(f"// ---- stage {stage_num} ----")
+            for v in stage:
+                if v in line_by_lhs:
+                    new_lines.append(line_by_lhs[v])
+            stage_num += 1
+
+    return new_lines if new_lines else body_lines
+\end{python}
+
+\paragraph{Automatic Pipeline Extraction for $\arccos$}
+
+\noindent This staging directly corresponds to the Verilog pipeline:
+\begin{itemize}
+    \item \textbf{Stage~0 $\to$ Cycle~1:} Compute shared terms $x^2$ and $(x+1)$ in parallel using 1 DSP (for $x \times x$) and LUT adders.
+    \item \textbf{Stage~1 $\to$ Cycle~2:} Prepare $(x^2 + x + 1)$ using LUT adders (no DSP).
+    \item \textbf{Stage~2 $\to$ Cycle~2 (concurrent):} Both $T_1$ (DSP multiply) and $T_2$ (LUT shifts/adds) execute in parallel, exploiting independent datapaths.
+    \item \textbf{Stage~3 $\to$ Cycle~3:} Final combination and bit-shift using LUT resources.
+\end{itemize}
+
+The \textbf{critical insight} is that the DAG topology \emph{automatically reveals} which operations can be parallelized: nodes in the same topological generation have no mutual dependencies and can execute simultaneously, limited only by hardware resources (DSP count, LUT capacity). This eliminates the need for manual heuristics~\cite{Mehdizadeh2004,Gustafsson2007} in simple cases and provides an upper bound on parallelism for force-directed scheduling in complex cases.
+
+In Appendix~\ref{app:simd-vectorization}, we extend this approach to \emph{SIMD vectorization} of polynomial evaluations across multiple data lanes, analagous to the pipeline parallelism described here.
+
+\section{Hardware Implementation and Results}
+\label{sec:hardware_opt}
+
+This section presents the concrete hardware realization of the $\arccos(x)$ optimization pipeline, demonstrating how the theoretical framework translates to synthesizable RTL with quantified resource utilization and performance metrics.
+
+\subsection{Optimized Computation of Correction Term $T_2$}
 
 The correction term $T_2 = -4x^2 + 6x + 15$ can be rewritten to exploit dyadic (power-of-two) coefficients and bit-shift operations~\cite{Muller2006,Abdi2024}:
 \begin{equation}
 T_2 = -(x^2 \ll 2) + ((x \ll 1) + (x \ll 2)) + (15). \label{eq:t2_optimized}
 \end{equation}
-Here, $6x = 2x + 4x = (x \ll 1) + (x \ll 2)$, replacing a multiplication with two shifts and an addition. The coefficients $\{-4, 6, 15\}$ are chosen to be dyadic-friendly: $-4 = -4/2^0$, $6 = 6/2^0$, and $15 = 15/2^0$ can be decomposed into simple power-of-two sums. The optimization problem of finding such coefficients subject to approximation error constraints forms a dyadic linear program~\cite{Abdi2024}.
+Here, $6x = 2x + 4x = (x \ll 1) + (x \ll 2)$, replacing a multiplication with two shifts and an addition. The coefficients $\{-4, 6, 15\}$ are chosen to be dyadic-friendly: $-4 = -4/2^0$, $6 = 6/2^0$, and $15 = 15/2^0$ can be decomposed into simple power-of-two sums. The optimization problem of finding such coefficients subject to approximation error constraints forms a dyadic linear program, as formalized in Chapter~3.3~\cite{Abdi2024}.
 
-The complete hardware pipeline implements $\tau(x) = \frac{1}{\sqrt{2}} \cdot \frac{1}{16}(T_1 + T_2)$ in Q2.21 fixed-point format (24-bit data width), a common choice for audio DSP on FPGA~\cite{Syfala2024}:
+\subsection{Complete Hardware Pipeline}
+
+The following Verilog implementation realizes the complete $\arccos(x)$ computation pipeline, integrating all optimization stages: Galois factorization (Section~5.2), dyadic correction (above), and automatic scheduling (Section~5.3.2). The implementation targets Q2.21 fixed-point format (24-bit data width), a common choice for audio DSP on FPGA~\cite{Syfala2024}:
 
 \begin{verilog}
 // Computation of tau(x) for arccos quarter-domain range reduction
@@ -202,12 +422,18 @@ arccos_result = arccos_result << 1;
 \begin{figure}[H]
 \centering
 \includegraphics[scale=0.4]{../resources/imgs/FPGA1.drawio.png}
-\caption[Rudimentary cosine architecture using power series techniques]{}
+\caption[Rudimentary architecture for configurable BRAM slices]{}
 \end{figure}
 
-\subsubsection{Implementation Results}
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.3]{../resources/imgs/FPGA2.drawio.png}
+\caption[Rudimentary architecture for semi-pipelined configurable DSP slices]{The $x^2$ term, which can be shared successively (fanned out to all other pipelined channels), is evaluated per 'accumulator slice' which is capable of either using a shift network (cross barrel shifter) to evaluate dyadic coefficients in successive stages of Berkelamp's algorithm, or in a way that is analagous to the hardware kernel design approach described in Appendix~\ref{app:hardware}.}
+\end{figure}
 
-Table~\ref{tab:arccos_resources} summarizes the FPGA resource utilization for the quarter-domain $\arccos(x)$ implementation, targeting Xilinx 7-series architecture~\cite{SinhaSrikanthan2014}.
+\subsection{Resource Utilization Analysis}
+
+Table~\ref{tab:arccos_resources} summarizes the FPGA resource utilization for the complete $\arccos(x)$ implementation, demonstrating the efficiency gains from our optimization methodology.
 
 \begin{table}[htbp]
 \centering
@@ -247,7 +473,9 @@ The 45 LUT6 primitives are distributed as follows:
     \item Control logic and pipeline registers: $\approx 9$ LUTs
 \end{itemize}
 
-\paragraph{Comparison to Alternative Implementations}
+\subsection{Comparative Evaluation}
+
+To validate the effectiveness of our optimization methodology, we compare against two established implementation strategies: CORDIC-based iterative computation and direct Taylor series expansion.
 
 Table~\ref{tab:arccos_comparison} compares our polynomial range reduction approach against CORDIC-based and direct Taylor series implementations.
 
@@ -269,9 +497,11 @@ Max error (rad) & 0.025 & $2^{-16}$ & 0.001 \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Analysis:} Our approach trades 1 DSP slice for 3$\times$ lower latency compared to CORDIC, making it preferable when DSP resources are available and throughput is critical (e.g., real-time audio processing at 48–192 kHz sampling rates~\cite{Syfala2024}). Direct Taylor expansion without range reduction requires more DSP slices due to higher polynomial degree needed for comparable accuracy over the full $[-1,1]$ domain~\cite{Muller2006}.
+\noindent\textbf{Analysis:} Our approach trades 1 DSP slice for 3$\times$ lower latency compared to CORDIC, making it preferable when DSP resources are available and throughput is critical (e.g., real-time audio processing at 48–192 kHz sampling rates~\cite{Syfala2024}). Direct Taylor expansion without range reduction requires more DSP slices due to higher polynomial degree needed for comparable accuracy over the full $[-1,1]$ domain~\cite{Muller2006}. The key advantage of our methodology is the systematic optimization pipeline: each stage (Berlekamp factorization, dyadic LP, CSE, automatic scheduling) contributes measurable improvements that compound into significant resource savings.
 
-\subsubsection{Design Tradeoffs}
+\subsection{Design Tradeoffs}
+
+Table~\ref{tab:arccos_tradeoffs} summarizes the key advantages and limitations, providing guidance for when the polynomial range reduction approach is most appropriate.
 
 Table~\ref{tab:arccos_tradeoffs} summarizes the key advantages and limitations of the polynomial range reduction approach.
 
@@ -300,38 +530,3 @@ Table~\ref{tab:arccos_tradeoffs} summarizes the key advantages and limitations o
 \hline
 \end{tabular}
 \end{table}
-
-\subsubsection{Generalized Methodology for Polynomial Recovery Functions}
-
-The $\arccos(x)$ case study demonstrates a systematic four-step methodology applicable to other elementary transcendental functions (e.g., $\arcsin$, $\arctan$, $\sinh^{-1}$) with exploitable symmetries:
-
-\begin{enumerate}
-    \item \textbf{Dyadic coefficient normalization:} Express the recovery function $\tau(x)$ using a polynomial approximation (Taylor, Chebyshev, or Padé~\cite{Parks1987,Muller2006}) with coefficients that are dyadic rationals—numbers of the form $\frac{p}{2^k}$ where $p \in \mathbb{Z}$ and $k \in \mathbb{N}$. This enables bit-shift implementation: $c \cdot x \to x \ll \log_2(c)$ when $c = 2^k$. Finding optimal dyadic coefficients subject to approximation error bounds can be formulated as a dyadic linear program~\cite{Abdi2024}, which admits polynomial-time solutions for the polytope defined by minimax constraints (see Section~\ref{sec:arccos_impl} for the $\arccos(x)$ example).
-
-    \item \textbf{Galois field factorization:} Apply Berlekamp's algorithm~\cite{berlekamp1970factoring} over $\mathrm{GF}(p)$ to factorize the polynomial $p(x)$ into irreducibles. Choose prime $p$ such that all coefficients $|c_i| < p$. The algorithm runs in $O(d^3 + d^2 \log p)$ time for degree-$d$ polynomials~\cite{gathen2013modern}.
-
-    \item \textbf{Common subexpression extraction:} Identify terms that appear in multiple factors (e.g., $x^2$, $(x+1)$) and compute them once in an early pipeline stage. This is equivalent to the algebraic factorization problem solved optimally by algorithms such as Horner's scheme or the Paterson-Stockmeyer method~\cite{gathen2013modern}, extended to account for hardware constraints (DSP slice count, routing congestion).
-
-    \item \textbf{Hardware-aware pipeline scheduling:} Arrange operations to maximize parallelism while respecting FPGA architectural constraints~\cite{SinhaSrikanthan2014}:
-    \begin{itemize}
-        \item DSP slices support pipelined multiply-accumulate (MAC); schedule dependent multiplications in separate cycles.
-        \item LUT-based adders can execute 4–6 parallel additions per cycle (depending on carry-chain length).
-        \item BRAM read latency is 1–2 cycles; prefetch LUT addresses when possible.
-    \end{itemize}
-\end{enumerate}
-
-\noindent\textbf{Applicability:} This methodology is most effective for:
-\begin{itemize}
-    \item \textbf{Low-to-medium degree polynomials} (degree $\leq 7$): Higher degrees require more DSP slices or deep pipelines, diminishing returns.
-    \item \textbf{Functions with small fundamental domains}: Reduces LUT storage proportionally to $|A_0|^{-1}$.
-    \item \textbf{Fixed-point implementations}: Floating-point FPGA units are resource-intensive; fixed-point arithmetic with dyadic coefficients maximizes efficiency~\cite{Muller2006,SinhaSrikanthan2014}.
-\end{itemize}
-
-\noindent\textbf{Extensions to other functions:}
-\begin{itemize}
-    \item \textbf{Exponential and logarithm:} Use range reduction $e^x = e^{x_{\text{int}}} \cdot e^{x_{\text{frac}}}$ with table lookup for integer part and polynomial for fractional part~\cite{Muller2006}.
-    \item \textbf{Hyperbolic functions:} Exploit identities $\sinh(x) = \frac{e^x - e^{-x}}{2}$ combined with the exponential method above.
-    \item \textbf{Error functions:} Rational Chebyshev approximations (Padé-type) often yield better convergence than Taylor series for $\text{erf}(x)$~\cite{NIST:DLMF}.
-\end{itemize}
-
-This framework integrates with the Koopman-MPC resource allocation strategy (Chapter~4, Algorithm~4.1): predicted workload determines which polynomial degrees and LUT sizes to deploy dynamically, enabling runtime tradeoffs between accuracy (polynomial order) and latency (pipeline depth)~\cite{Bhandari2012,Silva2016}.

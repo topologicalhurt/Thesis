@@ -146,3 +146,11 @@ The frequency warping introduced by the bilinear transform is given by:
 \Omega = \frac{2}{T}\tan\left(\frac{\omega T}{2}\right)
 \]
 where $\Omega$ is the analog frequency and $\omega$ is the digital frequency. Pre-warping techniques~\cite{OppenheimDSP} compensate for this nonlinear mapping by adjusting critical frequencies (e.g., cutoff, center frequencies) before applying the transform.
+
+\subsection{Dynamic Partial Reconfiguration for Adaptive Systems}
+
+While static FPGA designs allocate resources at synthesis time, Dynamic Partial Reconfiguration (DPR) enables runtime modification of hardware modules without interrupting the operation of unaffected regions. This capability is particularly valuable for multimedia signal processing applications where computational demands vary dynamically based on input characteristics or user requirements.
+
+Bhandari et al.~\cite{Bhandari2012} demonstrated a high-speed DPR system specifically optimized for real-time multimedia processing on FPGAs. Their work addressed a critical bottleneck: the reconfiguration latency inherent in swapping hardware modules. By developing a custom DPR controller optimized for the target FPGA architecture, they achieved a 55$\times$ improvement in reconfiguration throughput compared to vendor-provided solutions. This dramatic speedup makes it feasible to reconfigure processing modules within tight real-time constraints, such as those imposed by audio frame boundaries (typically 1--10~ms for low-latency applications).
+
+The architectural approach of Bhandari et al.\ is relevant to the predictive resource allocation framework developed in this thesis. Where Chapter~4 formulates reconfiguration as a model-predictive control problem with penalties for frequent reconfigurations (the $\lambda \|\Delta \mathbf{u}_k\|^2$ term in Eq.~4.7), the work of Bhandari et al.\ reduces the cost of those reconfigurations, effectively lowering $\lambda$ and permitting more aggressive adaptation. Their custom controller demonstrates that with sufficient architectural optimization, the overhead of DPR can be reduced to the point where fine-grained, demand-driven resource allocation becomes practical for streaming multimedia workloads.

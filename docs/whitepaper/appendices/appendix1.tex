@@ -615,7 +615,7 @@ def _canonical_sinc_lobe_lookup(lobe_index: np.ndarray) -> np.ndarray[np.floatin
     return result
 \end{python}
 
-\subsection{comparison of cos power series in c}
+\subsection{comparison of cos power series in c}\label{app:cos-comparison}
 
 \begin{clang}
 static inline double cse_Polynomial_Cos_Deg6(float x) {
@@ -654,7 +654,7 @@ static inline double cse_Dyadic_Polynomial_Cos_Deg12(float x) {
 }
 \end{clang}
 
-\subsection{introducing concurrency into power series}
+\subsection{introducing concurrency into power series}\label{app:simd-vectorization}
 
 \begin{python}
   def _convert_lines_to_simd(self, lines: list[str], target: SIMD = SIMD.AVX512) -> list[str]:
@@ -744,122 +744,4 @@ static inline double cse_Dyadic_Polynomial_Cos_Deg12(float x) {
                 continue
             out.append(ln)
         return out
-
-    def _parallelize(self, body_lines: list[str]) -> list[str]:
-        """Reorder assignments into parallel stages using a dependency DAG.
-
-        - Nodes: assignment LHS variables (dN, y, etc.).
-        - Edge dep->lhs if lhs depends on dep on its RHS.
-        - Output: non-assignment lines first (unchanged), then staged assignments.
-        """
-
-        assign_pat = re.compile(r'^\s*([A-Za-z_]\w*)\s*=\s*(.+)$')
-        id_pat = re.compile(r'\b([A-Za-z_]\w*)\b')
-
-        assignments: list[tuple[str, str]] = []
-        non_assign: list[str] = []
-        for ln in body_lines:
-            m = assign_pat.match(ln)
-            if m:
-                lhs = m.group(1)
-                assignments.append((lhs, ln))
-            else:
-                non_assign.append(ln)
-
-        if len(assignments) < 2:
-            return body_lines
-
-        lhs_vars = [lhs for lhs, _ in assignments]
-        lhs_set = set(lhs_vars)
-
-        G = nx.DiGraph()
-        G.add_nodes_from(lhs_vars)
-
-        for lhs, ln in assignments:
-            m = assign_pat.match(ln)
-            rhs = m.group(2) if m else ''
-            rhs_ids = set(id_pat.findall(rhs))
-            for dep in rhs_ids:
-                if dep in lhs_set and dep != lhs:
-                    G.add_edge(dep, lhs)
-
-        try:
-            topo = list(nx.topological_sort(G))
-        except nx.NetworkXUnfeasible:
-            return body_lines
-
-        try:
-            generations = list(nx.algorithms.dag.topological_generations(G))
-        except Exception:
-            generations = [topo]
-
-        line_by_lhs = {lhs: ln for lhs, ln in assignments}
-
-        new_lines: list[str] = []
-        new_lines.extend(non_assign)
-
-        stage_num = 0
-        for gen in generations:
-            stage = list(gen)
-            stage.sort(key=lambda v: lhs_vars.index(v))
-            if stage:
-                new_lines.append(f"// ---- stage {stage_num} ----")
-                stage_lines = [line_by_lhs[v] for v in stage if v in line_by_lhs]
-                stage_lines = self._convert_lines_to_simd(stage_lines, target=SIMD.AVX512)
-                new_lines.extend(stage_lines)
-                stage_num += 1
-
-        return new_lines if new_lines else body_lines
-
-    def _inject_fma(self, body_lines: list[str]) -> list[str]:
-        """Rewrite patterns of the form a*b +/- c into fma(a,b,c) for C backends.
-
-        Supported shapes (whitespace-agnostic, one assignment per line):
-          lhs = a*b + c
-          lhs = a*b - c
-          lhs = c + a*b
-          lhs = c - a*b
-        Lines already containing 'fma(' are left unchanged.
-        """
-        # Regexes are deliberately simple and local (no semicolons in body_lines).
-        pat_ab_c = re.compile(r'^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>[^+\-]+?)\s*(?P<op>[+-])\s*(?P<c>.+?)\s*$')
-        pat_c_ab = re.compile(r'^\s*(?P<lhs>[A-Za-z_]\w*)\s*=\s*(?P<c>.+?)\s*(?P<op>[+-])\s*(?P<a>[^*]+?)\s*\*\s*(?P<b>.+?)\s*$')
-
-        out: list[str] = []
-        for ln in body_lines:
-            s = ln.strip()
-
-            # Skip non-assignments or lines already using fma
-            if 'fma(' in s or '=' not in s:
-                out.append(ln)
-                continue
-
-            m = pat_ab_c.match(s)
-            if m:
-                lhs = m.group('lhs')
-                a = m.group('a').strip()
-                b = m.group('b').strip()
-                op = m.group('op')
-                c = m.group('c').strip()
-                if op == '+':
-                    out.append(f"{lhs} = fma({a}, {b}, {c})")
-                else:  # a*b - c
-                    out.append(f"{lhs} = fma({a}, {b}, -({c}))")
-                continue
-
-            m = pat_c_ab.match(s)
-            if m:
-                lhs = m.group('lhs')
-                c = m.group('c').strip()
-                op = m.group('op')
-                a = m.group('a').strip()
-                b = m.group('b').strip()
-                if op == '+':
-                    out.append(f"{lhs} = fma({a}, {b}, {c})")
-                else:  # c - a*b
-                    out.append(f"{lhs} = fma(-({a}), {b}, {c})")
-                continue
-
-            out.append(ln)
-        return out
-\end{python}
+\end{python}\label{eq:simd_power_series}

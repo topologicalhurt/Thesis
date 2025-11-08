@@ -143,11 +143,11 @@ A function $f: A \to B$ is \emph{reducible} if and only if there exist a subset 
 Where $A_0$ is called the \textit{fundamental domain} \& $T$, the set of transformations mapping from $A_0$ to $A$, the \textit{recovery method}.
 \medskip
 
-\noindent Foldable functions are naturally related to cyclostationarity. A cyclostationary signal $x(t)$ has statistics that are periodic with period $T$.
-For a foldable function like $\sin(x)$, the fundamental domain $A_0$ can be interpreted as a segment over which the first- and second-order statistics repeat under the action of $G$. In other words, folding exploits the same periodic structure that cyclostationary analysis detects: the mean and autocorrelation within $A_0$ are sufficient to reconstruct the signal statistics over the entire domain.
+\noindent Argument-reducible functions are naturally related to cyclostationarity. A cyclostationary signal $x(t)$ has statistics that are periodic with period $T$.
+For an argument-reducible function like $\sin(x)$, the fundamental domain $A_0$ can be interpreted as a segment over which the first- and second-order statistics repeat under the action of $G$. In other words, argument reduction exploits the same periodic structure that cyclostationary analysis detects: the mean and autocorrelation within $A_0$ are sufficient to reconstruct the signal statistics over the entire domain.
 \medskip
 
-\noindent Thus, foldability can be seen as a deterministic, structural analogue of cyclostationarity: instead of averaging over time to detect periodic statistics, we use group-theoretic transformations to reconstruct the full signal from a reduced representative domain.
+\noindent Thus, argument reducibility can be seen as a deterministic, structural analogue of cyclostationarity: instead of averaging over time to detect periodic statistics, we use group-theoretic transformations to reconstruct the full signal from a reduced representative domain.
 \bigskip
 
 \noindent Let \( f: A \to B \) be a reducible function with fundamental domain \( A_0 \subseteq A \) and recovery transformations \( T = \{ \tau_i : A \to A \}_{i \in I} \) such that
@@ -170,6 +170,117 @@ Because \( \tau(x), \tau(x + \Delta) \in A_0 \) (up to another element of the gr
 R_f(x, \Delta) = R_f(\tau(x), \Delta), \quad \forall x \in A, \ \tau \in T, \ \tau(x) \in A_0.
 \]
 Thus, the fundamental domain \( A_0 \) captures all statistical information of the function \( f \), analogous to how the fundamental domain in cyclostationary signal processing captures the periodic statistical properties of a signal.
+
+\subsubsection{Projector-Based Detection of Group Structure in Wavelet Synthesis}
+
+When synthesizing waveforms using an orthonormal basis such as the Shannon wavelet mother function $\psi(t) = \text{sinc}(t)$ (Chapter~3, Section~3.4), the \emph{filtered projector} framework from Chapter~3, Section~3.2 provides a direct mechanism to detect both the group action $G$ and the recovery transformations $T$.
+
+\paragraph{Synthesis via Orthonormal Expansion}
+
+Suppose we synthesize a target waveform $f(t)$ using the Shannon wavelet basis:
+\[
+f(t) = \sum_{j \in \mathbb{Z}} \sum_{k \in \mathbb{Z}} c_{j,k} \psi_{j,k}(t), \quad \psi_{j,k}(t) = 2^{j/2} \psi(2^j t - k),
+\]
+where coefficients $c_{j,k} = \langle f, \psi_{j,k} \rangle$ are computed via the filtered projector:
+\[
+c_{j,k} = \int_{-\infty}^\infty f(t) \overline{\psi_{j,k}(t)} \, dt = \mathbb{P}_{\psi_{j,k}}[f],
+\]
+with $\mathbb{P}_{\psi_{j,k}}$ denoting projection onto the subspace spanned by $\psi_{j,k}$. For functions with argument reduction symmetry, these coefficients exhibit \emph{algebraic structure} that reveals the underlying group $G$.
+
+\paragraph{Group Action Detection via Coefficient Symmetries}
+
+\noindent\textbf{Key observation:} If $f(t)$ is invariant under transformations $\tau \in T$ (up to phase factors), then the wavelet coefficients satisfy:
+\[
+c_{j,k} = \epsilon(\tau) \cdot c_{j, \tau_k(k)}, \quad \epsilon(\tau) \in \{\pm 1, e^{i\theta}\},
+\]
+where $\tau_k(k)$ denotes the action of $\tau$ on the discrete index $k$ at scale $j$. This coefficient symmetry is \emph{detectable} by analyzing the filtered projector integrals.
+
+\noindent\textbf{Example: Sine function.} For $f(t) = \sin(2\pi t)$ with period $T=1$, the symmetry group is $D_4$ (dihedral group). The recovery transformations are:
+\begin{align}
+\tau_1(t) &= t, \quad &&\text{(identity)}, \\
+\tau_2(t) &= -t, \quad &&\text{(reflection, introduces sign flip)}, \\
+\tau_3(t) &= \frac{1}{2} - t, \quad &&\text{(quarter-period shift + reflection)}, \\
+\tau_4(t) &= t + \frac{1}{2}. \quad &&\text{(half-period translation)}.
+\end{align}
+
+For Shannon wavelets at scale $j$ (covering frequency band $[2^{j-1}\pi, 2^j\pi]$), the projector integrals become:
+\[
+c_{j,k} = \int_{-\infty}^\infty \sin(2\pi t) \cdot 2^{j/2} \text{sinc}(2^j t - k) \, dt.
+\]
+Using the contour integration method from Chapter~3, Section~3.2, we evaluate this via residue calculus. The key insight is that $\sin(2\pi t)$ has Fourier transform $S(\omega) = \frac{i}{2}[\delta(\omega - 2\pi) - \delta(\omega + 2\pi)]$, so:
+\[
+c_{j,k} = 2^{j/2} \int_{-\infty}^\infty S(\omega) \widehat{\psi}(2^{-j}\omega) e^{i\omega k / 2^j} \, \frac{d\omega}{2\pi},
+\]
+where $\widehat{\psi}(\omega) = \mathbb{1}_{[-\pi,\pi]}(\omega)$ (brick-wall filter). The integral is nonzero only when $2\pi \in [2^{j-1}\pi, 2^j\pi]$, i.e., when $j=1$. For $j=1$:
+\[
+c_{1,k} = \sqrt{2} \int_{-2\pi}^{2\pi} \frac{i}{2}[\delta(\omega - 2\pi) - \delta(\omega + 2\pi)] e^{i\omega k / 2} \, \frac{d\omega}{2\pi} = \frac{i\sqrt{2}}{4\pi}[e^{i\pi k} - e^{-i\pi k}] = \frac{\sqrt{2}}{2\pi}\sin(\pi k).
+\]
+
+\noindent\textbf{Detected symmetry:} The coefficients satisfy $c_{1,k} = -c_{1,-k}$ (antisymmetry under reflection $k \to -k$) and $c_{1,k+2} = -c_{1,k}$ (half-period shift), directly encoding the $D_4$ group action. The \emph{fundamental domain} is $k \in \{0, 1\}$ (one quarter-period), from which all coefficients can be reconstructed via $\epsilon(\tau) \in \{+1, -1\}$.
+
+\paragraph{Algorithmic Recovery Method Identification}
+
+Given synthesized coefficients $\{c_{j,k}\}$ from the filtered projector, we algorithmically detect the group $G$ and recovery method $T$:
+
+\begin{enumerate}
+\item \textbf{Correlation matrix construction:} For each scale $j$, compute the \emph{coefficient autocorrelation}:
+\[
+\rho_j(\Delta k) = \frac{\sum_k c_{j,k} c_{j,k+\Delta k}^*}{\sum_k |c_{j,k}|^2}.
+\]
+This is the discrete analogue of $R_f(x, \Delta)$ from Section~4.1.3. Peaks in $|\rho_j(\Delta k)|$ reveal candidate periodicities.
+
+\item \textbf{Galois field factorization for period detection:} The dominant periodicity $\Delta k_0$ (where $|\rho_j(\Delta k_0)| \approx 1$) corresponds to the fundamental period $T$ in index space. Using the finite field LCM method from Section~4.1 (Berlekamp factorization), decompose $\Delta k_0$ into irreducible factors over $\mathrm{GF}(p)$. Each factor corresponds to a generator of the cyclic subgroup of $G$.
+
+\item \textbf{Phase factor extraction:} Compute the coefficient ratio:
+\[
+\epsilon_j(\Delta k) = \frac{c_{j,k+\Delta k}}{c_{j,k}}, \quad \text{(for } c_{j,k} \neq 0\text{)}.
+\]
+If $|\epsilon_j(\Delta k)| \approx 1$ for all $k$, the transformation $\tau: k \to k + \Delta k$ is in $T$ with phase factor $\epsilon(\tau) = \arg(\epsilon_j(\Delta k))$. For real-valued functions, $\epsilon(\tau) \in \{+1, -1\}$ (parity symmetry).
+
+\item \textbf{Fundamental domain extraction:} The fundamental domain $A_0$ in index space is the minimal set $\{k_0, k_1, \ldots, k_{N-1}\}$ such that all other coefficients $c_{j,k}$ can be expressed as:
+\[
+c_{j,k} = \epsilon(\tau_{k \to k'}) \cdot c_{j,k'}, \quad k' \in A_0, \quad \tau_{k \to k'} \in T.
+\]
+This is solved via \emph{orbit decomposition} under the detected group $G$ (computed using the Schreier-Sims algorithm~\cite{seress2003permutation} for permutation groups).
+\end{enumerate}
+
+\paragraph{Connection to Filtered Projector Residue Structure}
+
+The filtered projector from Chapter~3, Section~3.2, evaluates coefficients via contour integrals:
+\[
+c_{j,k} = \frac{1}{2\pi i} \oint_{\mathcal{C}} \frac{S(\omega) \widehat{\psi}(2^{-j}\omega) e^{i\omega k / 2^j}}{\omega^2 - \omega_0^2} \, d\omega,
+\]
+where $S(\omega) = \mathcal{F}[f(t)]$ and $\mathcal{C}$ is a contour enclosing the singularities of $S(\omega)$. For argument-reducible functions, the singularities of $S(\omega)$ exhibit \emph{symmetry} under the dual group $\widehat{G}$ (Pontryagin duality). Specifically:
+\begin{itemize}
+\item \textbf{Reflection symmetry} ($\tau(t) = -t$) $\implies$ $S(-\omega) = S(\omega)$ (even spectrum) or $S(-\omega) = -S(\omega)$ (odd spectrum).
+\item \textbf{Translation symmetry} ($\tau(t) = t + T$) $\implies$ $S(\omega)$ has support only at integer multiples of $2\pi/T$ (comb spectrum).
+\end{itemize}
+
+The residue calculus then yields coefficient relations. For the sine example, $S(\omega) = \frac{i}{2}[\delta(\omega - 2\pi) - \delta(\omega + 2\pi)]$ has \emph{antisymmetric poles}, forcing $c_{j,k} = -c_{j,-k}$ (detected in step 3 above). More generally, the \emph{residue signature}:
+\[
+\text{Res}_{\omega = \omega_n} \left[ \frac{S(\omega) e^{i\omega k}}{\omega^2 - \omega_0^2} \right] \propto e^{i\omega_n k},
+\]
+encodes the group generators via the phase factors $e^{i\omega_n T} = \epsilon(\tau)$ where $\tau$ is a translation by period $T$.
+
+\paragraph{Practical Implementation for Wavelet-Based Synthesis}
+
+In Algorithm~4.1 (Section~4.2.5), the offline training phase computes Shannon wavelet coefficients $c_{j,k}$ for representative signals. We now augment this with \emph{group action detection}:
+
+\begin{enumerate}
+\item[\textbf{1a.}] Compute coefficient autocorrelations $\rho_j(\Delta k)$ per scale (O($N \log N$) via FFT).
+\item[\textbf{1b.}] Apply Berlekamp factorization (Section~4.1) to detected periods $\Delta k_0$ over $\mathrm{GF}(p)$.
+\item[\textbf{1c.}] Extract phase factors $\epsilon(\tau)$ and construct group table for $G$.
+\item[\textbf{1d.}] Identify fundamental domain $A_0$ via orbit decomposition.
+\item[\textbf{1e.}] Store only coefficients $\{c_{j,k} \mid k \in A_0\}$ and recovery table $\{(\tau, \epsilon(\tau)) \mid \tau \in T\}$.
+\end{enumerate}
+
+At synthesis time (runtime execution), reconstruct full coefficient set via:
+\[
+c_{j,k} = \epsilon(\tau_{k'}) \cdot c_{j,k'}, \quad k' = \arg\min_{k'' \in A_0} |k - \tau_{k''}^{-1}(k'')|,
+\]
+reducing memory by factor $|G|$ (e.g., $4\times$ for $D_4$ symmetry in sine/cosine). This directly implements the argument reduction framework from Chapter~5, Section~5.1, within the Koopman-MPC resource optimization pipeline.
+
+\noindent\textbf{Hardware advantage:} On FPGA, the group table $\{(\tau, \epsilon(\tau))\}$ is implemented as a small BRAM lookup (typically $< 1$ Kb for common symmetries), while coefficient storage in main BRAM is reduced by factor $|G|$. The Berlekamp factorization (Section~4.1) runs in hardware using Galois field arithmetic, enabling real-time period detection for adaptive synthesis.
 
 \section{Koopman Operator Framework for DSP Resource Prediction}
 
@@ -322,7 +433,7 @@ where $S_n^{(j)}$ is the sensitivity of coefficient $n$ in Shannon wavelet scale
 
 \paragraph{Implementation Strategy Selection via Koopman Prediction}
 
-The MPC controller uses predicted values $\psi_{\text{sens}}^{(j)}_{k+h|k}$, $\psi_{\text{entropy}}^{(j)}_{k+h|k}$ (evolved via $\mathbf{K}^h$) to select per-band implementation strategies:
+The MPC controller uses predicted values ${\psi_{\text{sens}}^{(j)}}_{k+h|k}$, ${\psi_{\text{entropy}}^{(j)}}_{k+h|k}$ (evolved via $\mathbf{K}^h$) to select per-band implementation strategies:
 
 \begin{table}[h]
 \centering
@@ -351,7 +462,7 @@ Dense/uniform & $< \tau_{\text{low}}$ & High ($> 2.5$) & \textbf{Parallel LUT ev
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Example:} Suppose Koopman prediction indicates that at time $k+3$, frequency band $j=5$ will have $\psi_{\text{sens}}^{(5)}_{k+3|k} = 42.7 > \tau_{\text{high}}$ (high peak sensitivity) and $\psi_{\text{entropy}}^{(5)}_{k+3|k} = 0.8$ (low entropy, dominated by coefficients $c_2, c_3$). The MPC controller preemptively:
+\noindent\textbf{Example:} Suppose Koopman prediction indicates that at time $k+3$, frequency band $j=5$ will have ${\psi_{\text{sens}}^{(5)}}_{k+3|k} = 42.7 > \tau_{\text{high}}$ (high peak sensitivity) and ${\psi_{\text{entropy}}^{(5)}}_{k+3|k} = 0.8$ (low entropy, dominated by coefficients $c_2, c_3$). The MPC controller preemptively:
 \begin{enumerate}
     \item Selects \emph{dyadic quantization mode} for band $j=5$ (Table~\ref{tab:sensitivity_impl_modes}, row 1).
     \item Invokes the BMT algorithm (Chapter~5, Section~5.2.4) or uses precomputed dyadic polynomial coefficients to decompose $c_2 \approx \frac{a_2}{2^{m_2}}$, $c_3 \approx \frac{a_3}{2^{m_3}}$ with $m_2, m_3 \geq 10$ fractional bits.

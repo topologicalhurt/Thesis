@@ -1,0 +1,31 @@
+\chapter{Conclusion}
+
+This thesis addresses a critical gap in FPGA-based audio signal processing: the lack of adaptive, signal-aware resource optimization frameworks. By unifying operator-theoretic modeling, sensitivity-based wavelet decomposition, and hardware-aware scheduling, we have developed a mathematically rigorous foundation for predictive FPGA reconfiguration.
+
+\section{Summary of Contributions}
+
+\textbf{Operator-Theoretic Framework (Chapter~4):} We introduced a Koopman operator-based representation that enables linear prediction of nonlinear audio dynamics. Finite field computation via Berlekamp's algorithm provides hardware-efficient period detection, reducing arbitrary-precision arithmetic to fixed-width operations. Integration with Model Predictive Control (MPC) closes the loop between signal prediction and resource allocation, with precomputed lookup tables enabling $O(1)$ runtime queries suitable for audio-rate (48--192 kHz) systems.
+
+\textbf{Sensitivity-Driven Wavelet Decomposition (Chapter~3):} The projection-based framework quantifies resource-error trade-offs through the error projector $R(z)$, extended to Shannon wavelets for multi-resolution decomposition. The greedy bit allocation algorithm distributes 60--80 bits across 5--8 frequency scales, achieving 70--90 dB SQNR with $<$0.01\% THD. Dyadic coefficient representation eliminates hardware multipliers, reducing DSP usage by 40--60\%.
+
+\textbf{Hardware Architecture (Chapter~5):} The $\arccos(x)$ case study demonstrates the complete flow: range reduction, iterative Galois factorization with dyadic optimization, common subexpression elimination, and automatic parallelization via DAG topology. The implementation achieves 6-cycle latency with 1 DSP slice—3$\times$ faster than CORDIC with comparable resources.
+
+\section{Integration and Impact}
+
+The adaptive workflow integrates: Shannon wavelet transform $\to$ Koopman prediction $\to$ MPC allocation $\to$ conditional reconfiguration $\to$ synthesis, with $<$100 $\mu$s total latency per frame on Virtex-7. This enables runtime per-band bit width adjustment based on predicted workload, matching resources to signal characteristics dynamically.
+
+Beyond audio, the framework extends to software-defined radio (predictive demodulator reconfiguration), biomedical signal processing (adaptive quantization in implantable devices), 5G/6G beamforming (dyadic coefficient optimization), and spectral PDE solvers (multi-resolution spatial discretization).
+
+\section{Limitations and Future Directions}
+
+Current assumptions—bandlimited signals, linear Koopman embeddings, slow-varying statistics, calibrated reconfiguration overhead—represent opportunities for extension. Future work includes: (1) RTL implementation and on-chip benchmarking against FAUST/Syfala~\cite{Syfala2024} flows, (2) hybrid time-frequency bases combining Shannon with Daubechies wavelets for transients, (3) nonlinear Koopman extensions via kernel EDMD or neural ODEs, (4) stochastic MPC with probabilistic forecasts, and (5) toolchain development (HLS integration, domain-specific language, cloud synthesis service).
+
+\section{Concluding Remarks}
+
+This work demonstrates that adaptive FPGA signal processing is mathematically tractable through operator theory, sensitivity analysis, and predictive control. By providing \emph{closed-form relationships} between signal characteristics, hardware resources, and output fidelity, we enable transparent, accessible design decisions grounded in analytical error bounds—departing from black-box optimization tools.
+
+The Shannon wavelet framework addresses the fundamental challenge of infinite-support kernels in finite hardware through optimal resource allocation from first principles. The Koopman formulation transforms intractable nonlinear runtime optimization into linear prediction with $O(1)$ MPC lookup, realizing the vision of truly adaptive systems proposed in Chapter~1.
+
+As FPGA fabrics evolve—faster partial reconfiguration (Versal ACAP), tighter CPU-FPGA integration (Zynq UltraScale+), domain-specific overlays (Vitis)—the adaptive synthesis paradigm provides a foundation for next-generation reconfigurable systems. By treating hardware allocation as a continuous, signal-driven optimization problem rather than one-shot compilation, we unlock FPGA versatility for real-time, high-throughput processing.
+
+The journey from operator theory to FPGA architectures reveals deep connections: contour integration and polynomial factorization, cyclostationary analysis and MPC, wavelet sensitivity and DSP utilization. This work offers both a practical methodology and a conceptual contribution: hardware is not a static constraint but a dynamic resource orchestrated with signal evolution. Just as an orchestra conductor anticipates musical phrases, an adaptive FPGA anticipates workload demands and reconfigures accordingly. The mathematics presented here provides the score; future work performs the symphony.
